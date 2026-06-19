@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
 import { Route as SensibilisationRouteImport } from './routes/sensibilisation'
 import { Route as RecompensesRouteImport } from './routes/recompenses'
@@ -17,6 +18,11 @@ import { Route as AutoritesRouteImport } from './routes/autorites'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignalerRoute = SignalerRouteImport.update({
   id: '/signaler',
   path: '/signaler',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
+    | '/sitemap.xml'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
+    | '/sitemap.xml'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
+    | '/sitemap.xml'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,10 +131,18 @@ export interface RootRouteChildren {
   RecompensesRoute: typeof RecompensesRoute
   SensibilisationRoute: typeof SensibilisationRoute
   SignalerRoute: typeof SignalerRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signaler': {
       id: '/signaler'
       path: '/signaler'
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecompensesRoute: RecompensesRoute,
   SensibilisationRoute: SensibilisationRoute,
   SignalerRoute: SignalerRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
