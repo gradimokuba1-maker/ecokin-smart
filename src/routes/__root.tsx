@@ -77,19 +77,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "EcoKin Smart — Gestion intelligente des déchets à Kinshasa" },
+      {
+        name: "description",
+        content:
+          "Plateforme Smart City pour la gestion intelligente des déchets plastiques à Kinshasa (Matete, Lemba, Kisenso). Signalement citoyen, IA, SIG et récompenses Green Points.",
+      },
+      { name: "author", content: "EcoKin Smart" },
+      { property: "og:title", content: "EcoKin Smart — Smart City Kinshasa" },
+      {
+        property: "og:description",
+        content:
+          "Réduire les déchets plastiques et prévenir les inondations grâce à la participation citoyenne, l'IA et les SIG.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       {
         rel: "stylesheet",
-        href: appCss,
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap",
       },
     ],
   }),
