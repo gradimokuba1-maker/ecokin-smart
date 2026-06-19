@@ -9,8 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SignalerRouteImport } from './routes/signaler'
+import { Route as SensibilisationRouteImport } from './routes/sensibilisation'
+import { Route as RecompensesRouteImport } from './routes/recompenses'
+import { Route as CarteRouteImport } from './routes/carte'
+import { Route as AutoritesRouteImport } from './routes/autorites'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignalerRoute = SignalerRouteImport.update({
+  id: '/signaler',
+  path: '/signaler',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SensibilisationRoute = SensibilisationRouteImport.update({
+  id: '/sensibilisation',
+  path: '/sensibilisation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecompensesRoute = RecompensesRouteImport.update({
+  id: '/recompenses',
+  path: '/recompenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarteRoute = CarteRouteImport.update({
+  id: '/carte',
+  path: '/carte',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AutoritesRoute = AutoritesRouteImport.update({
+  id: '/autorites',
+  path: '/autorites',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +61,130 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/autorites': typeof AutoritesRoute
+  '/carte': typeof CarteRoute
+  '/recompenses': typeof RecompensesRoute
+  '/sensibilisation': typeof SensibilisationRoute
+  '/signaler': typeof SignalerRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/autorites': typeof AutoritesRoute
+  '/carte': typeof CarteRoute
+  '/recompenses': typeof RecompensesRoute
+  '/sensibilisation': typeof SensibilisationRoute
+  '/signaler': typeof SignalerRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/autorites': typeof AutoritesRoute
+  '/carte': typeof CarteRoute
+  '/recompenses': typeof RecompensesRoute
+  '/sensibilisation': typeof SensibilisationRoute
+  '/signaler': typeof SignalerRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/autorites'
+    | '/carte'
+    | '/recompenses'
+    | '/sensibilisation'
+    | '/signaler'
+    | '/sitemap.xml'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/autorites'
+    | '/carte'
+    | '/recompenses'
+    | '/sensibilisation'
+    | '/signaler'
+    | '/sitemap.xml'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/autorites'
+    | '/carte'
+    | '/recompenses'
+    | '/sensibilisation'
+    | '/signaler'
+    | '/sitemap.xml'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  AutoritesRoute: typeof AutoritesRoute
+  CarteRoute: typeof CarteRoute
+  RecompensesRoute: typeof RecompensesRoute
+  SensibilisationRoute: typeof SensibilisationRoute
+  SignalerRoute: typeof SignalerRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signaler': {
+      id: '/signaler'
+      path: '/signaler'
+      fullPath: '/signaler'
+      preLoaderRoute: typeof SignalerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sensibilisation': {
+      id: '/sensibilisation'
+      path: '/sensibilisation'
+      fullPath: '/sensibilisation'
+      preLoaderRoute: typeof SensibilisationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recompenses': {
+      id: '/recompenses'
+      path: '/recompenses'
+      fullPath: '/recompenses'
+      preLoaderRoute: typeof RecompensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carte': {
+      id: '/carte'
+      path: '/carte'
+      fullPath: '/carte'
+      preLoaderRoute: typeof CarteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/autorites': {
+      id: '/autorites'
+      path: '/autorites'
+      fullPath: '/autorites'
+      preLoaderRoute: typeof AutoritesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,17 +197,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  AutoritesRoute: AutoritesRoute,
+  CarteRoute: CarteRoute,
+  RecompensesRoute: RecompensesRoute,
+  SensibilisationRoute: SensibilisationRoute,
+  SignalerRoute: SignalerRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

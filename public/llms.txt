@@ -1,0 +1,13 @@
+# EcoKin Smart
+
+> Plateforme Smart City pour la gestion intelligente des déchets plastiques à Kinshasa (Matete, Lemba, Kisenso).
+
+EcoKin Smart combine signalement citoyen, IA de détection des déchets, SIG cartographique et système de récompenses (Green Points) pour réduire la pollution plastique et prévenir les inondations.
+
+## Pages
+- [Accueil](/): vue d'ensemble du projet, statistiques et carte SIG
+- [Carte SIG](/carte): cartographie interactive des signalements et zones à risque
+- [Signaler](/signaler): signalement citoyen avec analyse IA des photos
+- [Récompenses](/recompenses): Green Points, classement et catalogue
+- [Sensibilisation](/sensibilisation): alertes, guides et conseils
+- [Autorités](/autorites): tableau de bord décisionnel
