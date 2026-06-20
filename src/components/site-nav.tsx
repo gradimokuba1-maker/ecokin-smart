@@ -5,12 +5,15 @@ import { useState } from "react";
 
 const links = [
   { to: "/", label: "Accueil" },
+  { to: "/gouverneur", label: "Gouverneur" },
   { to: "/carte", label: "Carte SIG" },
+  { to: "/interventions", label: "Interventions" },
   { to: "/signaler", label: "Signaler" },
   { to: "/recompenses", label: "Récompenses" },
-  { to: "/sensibilisation", label: "Sensibilisation" },
   { to: "/autorites", label: "Autorités" },
+  { to: "/rapports", label: "Rapports" },
 ] as const;
+
 
 export function SiteNav() {
   const { user } = useEcoUser();
