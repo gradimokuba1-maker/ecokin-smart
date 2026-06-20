@@ -1,11 +1,29 @@
 import { useEffect, useRef } from "react";
-import { COMMUNES, type Report, COLLECTION_POINTS, FLOOD_RISK_ZONES, type Commune } from "@/lib/data";
+import {
+  COMMUNES,
+  type Report,
+  COLLECTION_POINTS,
+  FLOOD_RISK_ZONES,
+  type Commune,
+  POIS,
+  ILLEGAL_DUMPS,
+  BLOCKED_DRAINS,
+  MAIN_ROADS,
+  RIVERS,
+  type Truck,
+} from "@/lib/data";
 
 type Props = {
   reports?: Report[];
   height?: number;
   showCollection?: boolean;
   showFloodZones?: boolean;
+  showPois?: boolean;
+  showDumps?: boolean;
+  showDrains?: boolean;
+  showRoads?: boolean;
+  showRivers?: boolean;
+  trucks?: Truck[];
   focusCommune?: Commune["id"] | "all";
   onSelectReport?: (r: Report) => void;
 };
@@ -16,16 +34,29 @@ const sevColor: Record<string, string> = {
   faible: "#10b981",
 };
 
+const poiStyle: Record<string, { bg: string; icon: string }> = {
+  ecole: { bg: "#6366f1", icon: "🎓" },
+  hopital: { bg: "#ef4444", icon: "✚" },
+  marche: { bg: "#a855f7", icon: "🛒" },
+};
+
 export function EcoMap({
   reports = [],
   height = 460,
   showCollection = true,
   showFloodZones = true,
+  showPois = false,
+  showDumps = false,
+  showDrains = false,
+  showRoads = false,
+  showRivers = false,
+  trucks,
   focusCommune = "all",
   onSelectReport,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const truckLayerRef = useRef<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +85,6 @@ export function EcoMap({
         maxZoom: 19,
       }).addTo(map);
 
-      // Communes outlines (approximate circles)
       COMMUNES.forEach((c) => {
         L.circle(c.center, {
           radius: 1700,
@@ -77,16 +107,25 @@ export function EcoMap({
         }).addTo(map);
       });
 
-      // Flood risk zones
+      if (showRivers) {
+        RIVERS.forEach((r) =>
+          L.polyline(r.path, { color: "#0ea5e9", weight: 4, opacity: 0.55 })
+            .bindTooltip(r.name)
+            .addTo(map),
+        );
+      }
+      if (showRoads) {
+        MAIN_ROADS.forEach((r) =>
+          L.polyline(r.path, { color: "#475569", weight: 3, opacity: 0.6, dashArray: "2 6" })
+            .bindTooltip(r.name)
+            .addTo(map),
+        );
+      }
+
       if (showFloodZones) {
         FLOOD_RISK_ZONES.forEach((z) => {
           const color = z.level === "critique" ? "#ef4444" : z.level === "eleve" ? "#f97316" : "#f59e0b";
-          L.circle([z.lat, z.lng], {
-            radius: z.radius,
-            color,
-            weight: 1,
-            fillOpacity: 0.15,
-          })
+          L.circle([z.lat, z.lng], { radius: z.radius, color, weight: 1, fillOpacity: 0.15 })
             .bindPopup(
               `<strong>Zone à risque d'inondation</strong><br/>Commune : ${z.commune}<br/>Niveau : <b style="color:${color}">${z.level}</b>`,
             )
@@ -94,7 +133,6 @@ export function EcoMap({
         });
       }
 
-      // Collection points
       if (showCollection) {
         COLLECTION_POINTS.forEach((cp) => {
           L.marker([cp.lat, cp.lng], {
@@ -110,7 +148,51 @@ export function EcoMap({
         });
       }
 
-      // Reports
+      if (showPois) {
+        POIS.forEach((p) => {
+          const s = poiStyle[p.kind];
+          L.marker([p.lat, p.lng], {
+            icon: L.divIcon({
+              className: "",
+              html: `<div style="background:${s.bg};color:#fff;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);font:700 12px/1 Inter,sans-serif;">${s.icon}</div>`,
+              iconSize: [22, 22],
+              iconAnchor: [11, 11],
+            }),
+          })
+            .bindPopup(`<strong>${p.name}</strong><br/>${p.kind}`)
+            .addTo(map);
+        });
+      }
+
+      if (showDumps) {
+        ILLEGAL_DUMPS.forEach((d) => {
+          L.circleMarker([d.lat, d.lng], {
+            radius: 8,
+            color: "#7c2d12",
+            weight: 2,
+            fillColor: "#b45309",
+            fillOpacity: 0.85,
+          })
+            .bindPopup(`<strong>Décharge sauvage</strong><br/>${d.name}<br/>Volume : ${d.volumeM3} m³`)
+            .addTo(map);
+        });
+      }
+
+      if (showDrains) {
+        BLOCKED_DRAINS.forEach((d) => {
+          const col = d.blockedPct >= 85 ? "#ef4444" : d.blockedPct >= 60 ? "#f97316" : "#f59e0b";
+          L.circleMarker([d.lat, d.lng], {
+            radius: 7,
+            color: col,
+            weight: 2,
+            fillColor: col,
+            fillOpacity: 0.6,
+          })
+            .bindPopup(`<strong>Caniveau obstrué</strong><br/>${d.name}<br/>Obstruction : <b style="color:${col}">${d.blockedPct}%</b>`)
+            .addTo(map);
+        });
+      }
+
       reports.forEach((r) => {
         const color = sevColor[r.severity] ?? "#10b981";
         const m = L.circleMarker([r.lat, r.lng], {
@@ -127,7 +209,8 @@ export function EcoMap({
         if (onSelectReport) m.on("click", () => onSelectReport(r));
       });
 
-      // Invalidate size after mount (containers sometimes 0px before layout)
+      truckLayerRef.current = L.layerGroup().addTo(map);
+
       setTimeout(() => map.invalidateSize(), 100);
     })();
 
@@ -138,7 +221,31 @@ export function EcoMap({
         mapRef.current = null;
       }
     };
-  }, [reports, showCollection, showFloodZones, focusCommune, onSelectReport]);
+  }, [reports, showCollection, showFloodZones, showPois, showDumps, showDrains, showRoads, showRivers, focusCommune, onSelectReport]);
+
+  // Update trucks live without rebuilding the map
+  useEffect(() => {
+    (async () => {
+      if (!trucks || !mapRef.current || !truckLayerRef.current) return;
+      const L = (await import("leaflet")).default;
+      truckLayerRef.current.clearLayers();
+      trucks.forEach((t) => {
+        const col = t.status === "collecte" ? "#10b981" : t.status === "en_route" ? "#0ea5e9" : t.status === "depot" ? "#6366f1" : "#94a3b8";
+        L.marker([t.lat, t.lng], {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="background:${col};color:#fff;padding:3px 6px;border-radius:6px;border:2px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,.25);font:700 11px/1 Inter,sans-serif;display:flex;align-items:center;gap:4px;">🚚 ${t.id}</div>`,
+            iconSize: [60, 22],
+            iconAnchor: [30, 11],
+          }),
+        })
+          .bindPopup(
+            `<strong>${t.id}</strong> · ${t.plate}<br/>Chauffeur : ${t.driver}<br/>Statut : <b>${t.status}</b><br/>Charge : ${t.loadPct}%<br/>Vitesse : ${t.speedKmh} km/h`,
+          )
+          .addTo(truckLayerRef.current);
+      });
+    })();
+  }, [trucks]);
 
   return (
     <div
