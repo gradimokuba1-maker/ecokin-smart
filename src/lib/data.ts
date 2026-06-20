@@ -151,3 +151,132 @@ export const FLOOD_RISK_ZONES = [
   { commune: "lemba", lat: -4.381, lng: 15.299, radius: 450, level: "eleve" },
   { commune: "matete", lat: -4.385, lng: 15.334, radius: 380, level: "modere" },
 ];
+
+// ---------- SIG layers (équipements urbains) ----------
+export type PoiKind = "ecole" | "hopital" | "marche";
+export const POIS: { id: string; name: string; kind: PoiKind; lat: number; lng: number; commune: Commune["id"] }[] = [
+  { id: "ec1", name: "École Lumumba", kind: "ecole", lat: -4.382, lng: 15.330, commune: "matete" },
+  { id: "ec2", name: "Lycée Bosangani", kind: "ecole", lat: -4.378, lng: 15.298, commune: "lemba" },
+  { id: "ec3", name: "Institut Kisenso", kind: "ecole", lat: -4.414, lng: 15.335, commune: "kisenso" },
+  { id: "ec4", name: "École Mokali", kind: "ecole", lat: -4.420, lng: 15.341, commune: "kisenso" },
+  { id: "hp1", name: "Hôpital général Matete", kind: "hopital", lat: -4.385, lng: 15.332, commune: "matete" },
+  { id: "hp2", name: "Centre médical Lemba", kind: "hopital", lat: -4.380, lng: 15.296, commune: "lemba" },
+  { id: "hp3", name: "Hôpital Kisenso", kind: "hopital", lat: -4.412, lng: 15.338, commune: "kisenso" },
+  { id: "mk1", name: "Marché Matete", kind: "marche", lat: -4.386, lng: 15.335, commune: "matete" },
+  { id: "mk2", name: "Marché Lemba-Terminus", kind: "marche", lat: -4.379, lng: 15.300, commune: "lemba" },
+  { id: "mk3", name: "Marché Kimpwanza", kind: "marche", lat: -4.417, lng: 15.340, commune: "kisenso" },
+];
+
+export const ILLEGAL_DUMPS = [
+  { id: "id1", name: "Av. Mokali (talus)", lat: -4.419, lng: 15.342, commune: "kisenso", volumeM3: 12 },
+  { id: "id2", name: "Carrefour Lemba-Sud", lat: -4.383, lng: 15.301, commune: "lemba", volumeM3: 7 },
+  { id: "id3", name: "Pont Matete", lat: -4.387, lng: 15.336, commune: "matete", volumeM3: 5 },
+  { id: "id4", name: "Av. Kimpwanza", lat: -4.421, lng: 15.339, commune: "kisenso", volumeM3: 9 },
+];
+
+export const BLOCKED_DRAINS = [
+  { id: "dr1", name: "Caniveau Av. Lumumba", lat: -4.384, lng: 15.333, commune: "matete", blockedPct: 80 },
+  { id: "dr2", name: "Caniveau Université", lat: -4.377, lng: 15.299, commune: "lemba", blockedPct: 65 },
+  { id: "dr3", name: "Caniveau Mokali", lat: -4.418, lng: 15.340, commune: "kisenso", blockedPct: 92 },
+  { id: "dr4", name: "Caniveau Kimpwanza", lat: -4.416, lng: 15.337, commune: "kisenso", blockedPct: 70 },
+];
+
+export const MAIN_ROADS: { name: string; path: [number, number][] }[] = [
+  { name: "Bd Lumumba", path: [[-4.370, 15.290], [-4.385, 15.320], [-4.405, 15.345]] },
+  { name: "Av. By-Pass", path: [[-4.378, 15.295], [-4.392, 15.320], [-4.418, 15.342]] },
+];
+
+export const RIVERS: { name: string; path: [number, number][] }[] = [
+  { name: "Rivière Matete", path: [[-4.378, 15.325], [-4.388, 15.334], [-4.400, 15.342]] },
+  { name: "Bassin Kisenso", path: [[-4.410, 15.330], [-4.418, 15.339], [-4.425, 15.348]] },
+];
+
+// ---------- Flotte de camions (suivi GPS simulé) ----------
+export type Truck = {
+  id: string;
+  plate: string;
+  commune: Commune["id"];
+  driver: string;
+  status: "en_route" | "collecte" | "depot" | "pause";
+  loadPct: number;
+  lat: number;
+  lng: number;
+  speedKmh: number;
+};
+
+export const TRUCKS: Truck[] = [
+  { id: "T-01", plate: "CD-2041-AA", commune: "matete", driver: "B. Kasongo", status: "collecte", loadPct: 62, lat: -4.385, lng: 15.333, speedKmh: 12 },
+  { id: "T-02", plate: "CD-3187-BK", commune: "lemba", driver: "P. Mwamba", status: "en_route", loadPct: 30, lat: -4.379, lng: 15.297, speedKmh: 28 },
+  { id: "T-03", plate: "CD-4421-CK", commune: "kisenso", driver: "J. Ilunga", status: "collecte", loadPct: 84, lat: -4.416, lng: 15.338, speedKmh: 8 },
+  { id: "T-04", plate: "CD-1209-DK", commune: "kisenso", driver: "S. Mbala", status: "depot", loadPct: 100, lat: -4.413, lng: 15.337, speedKmh: 0 },
+  { id: "T-05", plate: "CD-5566-EK", commune: "matete", driver: "M. Tshala", status: "pause", loadPct: 45, lat: -4.382, lng: 15.331, speedKmh: 0 },
+];
+
+// ---------- Météo / alerte pluie ----------
+export type WeatherDay = {
+  day: string;
+  icon: "sun" | "cloud" | "rain" | "storm";
+  tempC: number;
+  rainMm: number;
+  floodRisk: "faible" | "modere" | "eleve" | "critique";
+};
+
+export const WEATHER_FORECAST: WeatherDay[] = [
+  { day: "Aujourd'hui", icon: "storm", tempC: 27, rainMm: 48, floodRisk: "critique" },
+  { day: "Demain", icon: "rain", tempC: 26, rainMm: 22, floodRisk: "eleve" },
+  { day: "J+2", icon: "rain", tempC: 27, rainMm: 14, floodRisk: "modere" },
+  { day: "J+3", icon: "cloud", tempC: 28, rainMm: 3, floodRisk: "faible" },
+  { day: "J+4", icon: "sun", tempC: 30, rainMm: 0, floodRisk: "faible" },
+  { day: "J+5", icon: "cloud", tempC: 29, rainMm: 6, floodRisk: "faible" },
+  { day: "J+6", icon: "rain", tempC: 27, rainMm: 18, floodRisk: "modere" },
+];
+
+// ---------- Indice de Propreté de Kinshasa (IPK /100) ----------
+export const IPK = {
+  matete: { score: 72, trend: +4, rang: 1 },
+  lemba: { score: 65, trend: +2, rang: 2 },
+  kisenso: { score: 48, trend: -3, rang: 3 },
+};
+export const IPK_KINSHASA = 62;
+
+// ---------- Interventions ----------
+export type Intervention = {
+  id: string;
+  commune: Commune["id"];
+  type: "collecte" | "curage" | "sensibilisation" | "urgence";
+  team: string;
+  truckId?: string;
+  status: "planifiee" | "en_cours" | "terminee";
+  scheduledAt: string;
+  beforePhoto?: string;
+  afterPhoto?: string;
+  notes: string;
+};
+
+export const INTERVENTIONS: Intervention[] = [
+  { id: "INT-101", commune: "kisenso", type: "curage", team: "Équipe Alpha", truckId: "T-03", status: "en_cours", scheduledAt: "2026-06-20 08:00", notes: "Curage caniveau Mokali (92% obstrué)." },
+  { id: "INT-102", commune: "matete", type: "collecte", team: "Équipe Bravo", truckId: "T-01", status: "en_cours", scheduledAt: "2026-06-20 07:30", notes: "Collecte marché Matete." },
+  { id: "INT-103", commune: "lemba", type: "sensibilisation", team: "Équipe Citoyenne", status: "planifiee", scheduledAt: "2026-06-21 09:00", notes: "Atelier tri à l'Université de Kinshasa." },
+  { id: "INT-104", commune: "kisenso", type: "urgence", team: "Équipe Alpha", truckId: "T-04", status: "terminee", scheduledAt: "2026-06-19 16:00", notes: "Inondation Av. Kimpwanza — évacuation 9 m³.", beforePhoto: "x", afterPhoto: "x" },
+  { id: "INT-105", commune: "matete", type: "collecte", team: "Équipe Bravo", truckId: "T-05", status: "planifiee", scheduledAt: "2026-06-22 06:00", notes: "Tournée hebdomadaire quartier Tomba." },
+];
+
+export const COMMUNE_BUDGET = {
+  matete: { hebdo: 4_800_000, mensuel: 19_500_000, cout_tonne: 125_000 },
+  lemba: { hebdo: 6_200_000, mensuel: 24_800_000, cout_tonne: 120_000 },
+  kisenso: { hebdo: 7_100_000, mensuel: 28_400_000, cout_tonne: 138_000 },
+};
+
+export const AI_RECOMMENDATIONS = [
+  { id: "ai1", priorite: 1, commune: "kisenso" as const, titre: "Curage urgent Av. Mokali", motif: "Caniveau 92% obstrué + pluies 48mm prévues. Risque inondation critique.", camions: 3, equipes: 2, eta: "≤ 12 h" },
+  { id: "ai2", priorite: 2, commune: "lemba" as const, titre: "Collecte renforcée Lemba-Sud", motif: "Décharge sauvage 7m³ à 80m d'une école.", camions: 2, equipes: 1, eta: "≤ 24 h" },
+  { id: "ai3", priorite: 3, commune: "matete" as const, titre: "Sensibilisation marché Matete", motif: "Hausse de 18% des signalements plastiques sur 7 jours.", camions: 1, equipes: 1, eta: "≤ 48 h" },
+  { id: "ai4", priorite: 4, commune: "kisenso" as const, titre: "Renfort Kimpwanza", motif: "Zone basse + 2 caniveaux obstrués sur 1 km.", camions: 2, equipes: 1, eta: "≤ 72 h" },
+];
+
+export const PRIORITY_ALERTS = [
+  { id: "pa1", level: "critique" as const, commune: "kisenso" as const, msg: "Inondation imminente — Av. Mokali (Kisenso)" },
+  { id: "pa2", level: "eleve" as const, commune: "lemba" as const, msg: "Décharge sauvage à proximité d'école — Lemba-Sud" },
+  { id: "pa3", level: "modere" as const, commune: "matete" as const, msg: "Caniveau Av. Lumumba — 80% obstrué" },
+];
+

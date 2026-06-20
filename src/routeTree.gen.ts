@@ -13,6 +13,9 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
 import { Route as SensibilisationRouteImport } from './routes/sensibilisation'
 import { Route as RecompensesRouteImport } from './routes/recompenses'
+import { Route as RapportsRouteImport } from './routes/rapports'
+import { Route as InterventionsRouteImport } from './routes/interventions'
+import { Route as GouverneurRouteImport } from './routes/gouverneur'
 import { Route as CarteRouteImport } from './routes/carte'
 import { Route as AutoritesRouteImport } from './routes/autorites'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -36,6 +39,21 @@ const SensibilisationRoute = SensibilisationRouteImport.update({
 const RecompensesRoute = RecompensesRouteImport.update({
   id: '/recompenses',
   path: '/recompenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RapportsRoute = RapportsRouteImport.update({
+  id: '/rapports',
+  path: '/rapports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterventionsRoute = InterventionsRouteImport.update({
+  id: '/interventions',
+  path: '/interventions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GouverneurRoute = GouverneurRouteImport.update({
+  id: '/gouverneur',
+  path: '/gouverneur',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CarteRoute = CarteRouteImport.update({
@@ -64,6 +82,9 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
+  '/gouverneur': typeof GouverneurRoute
+  '/interventions': typeof InterventionsRoute
+  '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
@@ -74,6 +95,9 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
+  '/gouverneur': typeof GouverneurRoute
+  '/interventions': typeof InterventionsRoute
+  '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
@@ -85,6 +109,9 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
+  '/gouverneur': typeof GouverneurRoute
+  '/interventions': typeof InterventionsRoute
+  '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
@@ -97,6 +124,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/autorites'
     | '/carte'
+    | '/gouverneur'
+    | '/interventions'
+    | '/rapports'
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
@@ -107,6 +137,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/autorites'
     | '/carte'
+    | '/gouverneur'
+    | '/interventions'
+    | '/rapports'
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
@@ -117,6 +150,9 @@ export interface FileRouteTypes {
     | '/admin'
     | '/autorites'
     | '/carte'
+    | '/gouverneur'
+    | '/interventions'
+    | '/rapports'
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
@@ -128,6 +164,9 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   AutoritesRoute: typeof AutoritesRoute
   CarteRoute: typeof CarteRoute
+  GouverneurRoute: typeof GouverneurRoute
+  InterventionsRoute: typeof InterventionsRoute
+  RapportsRoute: typeof RapportsRoute
   RecompensesRoute: typeof RecompensesRoute
   SensibilisationRoute: typeof SensibilisationRoute
   SignalerRoute: typeof SignalerRoute
@@ -162,6 +201,27 @@ declare module '@tanstack/react-router' {
       path: '/recompenses'
       fullPath: '/recompenses'
       preLoaderRoute: typeof RecompensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rapports': {
+      id: '/rapports'
+      path: '/rapports'
+      fullPath: '/rapports'
+      preLoaderRoute: typeof RapportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interventions': {
+      id: '/interventions'
+      path: '/interventions'
+      fullPath: '/interventions'
+      preLoaderRoute: typeof InterventionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gouverneur': {
+      id: '/gouverneur'
+      path: '/gouverneur'
+      fullPath: '/gouverneur'
+      preLoaderRoute: typeof GouverneurRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/carte': {
@@ -200,6 +260,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   AutoritesRoute: AutoritesRoute,
   CarteRoute: CarteRoute,
+  GouverneurRoute: GouverneurRoute,
+  InterventionsRoute: InterventionsRoute,
+  RapportsRoute: RapportsRoute,
   RecompensesRoute: RecompensesRoute,
   SensibilisationRoute: SensibilisationRoute,
   SignalerRoute: SignalerRoute,
