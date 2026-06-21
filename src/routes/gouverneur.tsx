@@ -3,6 +3,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { ClientOnly } from "@/components/client-only";
 import { EcoMap } from "@/components/eco-map";
+import { AccessGate } from "@/components/access-gate";
 import { useEffect, useState } from "react";
 import {
   AI_RECOMMENDATIONS,
@@ -43,7 +44,11 @@ export const Route = createFileRoute("/gouverneur")({
       },
     ],
   }),
-  component: GouverneurPage,
+  component: () => (
+    <AccessGate required={["gouverneur", "admin"]} title="Centre de Commandement du Gouverneur">
+      <GouverneurPage />
+    </AccessGate>
+  ),
 });
 
 const ICONS = { sun: Sun, cloud: Cloud, rain: CloudRain, storm: CloudLightning };

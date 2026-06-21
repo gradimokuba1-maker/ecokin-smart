@@ -1,7 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { useEcoUser } from "@/lib/user-store";
-import { Leaf, Menu, X } from "lucide-react";
+import { useAccess } from "@/lib/access-store";
+import { Leaf, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { NotificationBell } from "@/components/notification-bell";
 
 const links = [
   { to: "/", label: "Accueil" },
@@ -17,6 +19,7 @@ const links = [
 
 export function SiteNav() {
   const { user } = useEcoUser();
+  const { session, logout } = useAccess();
   const [open, setOpen] = useState(false);
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
@@ -44,22 +47,29 @@ export function SiteNav() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
+          <NotificationBell />
           <div className="text-right">
             <div className="text-xs font-semibold text-eco">{user.points.toLocaleString()} GP</div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{user.name}</div>
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              {session.role === "citoyen" ? user.name : session.name}
+            </div>
           </div>
-          <Link
-            to="/signaler"
-            className="rounded-full bg-eco px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-eco/30 transition-transform hover:-translate-y-0.5"
-          >
-            Signaler
-          </Link>
-          <Link
-            to="/admin"
-            className="rounded-full border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted"
-          >
-            Admin
-          </Link>
+          {session.role === "citoyen" ? (
+            <Link
+              to="/admin"
+              className="rounded-full border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted"
+            >
+              Connexion autorité
+            </Link>
+          ) : (
+            <button
+              onClick={logout}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted"
+              title="Se déconnecter"
+            >
+              <LogOut className="size-3.5" /> Sortir
+            </button>
+          )}
         </div>
 
         <button onClick={() => setOpen((o) => !o)} className="md:hidden">

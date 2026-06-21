@@ -1,42 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { COMMUNES, COMMUNE_KPIS, IPK, IPK_KINSHASA, INTERVENTIONS, MONTHLY_TREND } from "@/lib/data";
+import { AccessGate } from "@/components/access-gate";
+import { COMMUNES, IPK_KINSHASA, INTERVENTIONS } from "@/lib/data";
+import { downloadReport } from "@/lib/pdf-reports";
 import { Download, FileText, Map as MapIcon } from "lucide-react";
 
 export const Route = createFileRoute("/rapports")({
   head: () => ({
     meta: [
       { title: "Rapports automatiques — EcoKin Smart" },
-      { name: "description", content: "Rapports quotidiens, hebdomadaires et mensuels générés automatiquement pour le Gouverneur et les Bourgmestres." },
+      { name: "description", content: "Rapports PDF quotidiens, hebdomadaires et mensuels générés automatiquement pour le Gouverneur et les Bourgmestres." },
     ],
   }),
-  component: RapportsPage,
+  component: () => (
+    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Rapports & exports PDF">
+      <RapportsPage />
+    </AccessGate>
+  ),
 });
 
-const reports = [
-  { id: "rep1", titre: "Rapport quotidien — 20 juin 2026", periode: "Quotidien", taille: "1.2 Mo", pages: 4 },
-  { id: "rep2", titre: "Rapport hebdomadaire S25", periode: "Hebdomadaire", taille: "3.8 Mo", pages: 12 },
-  { id: "rep3", titre: "Rapport mensuel — Mai 2026", periode: "Mensuel", taille: "8.6 Mo", pages: 28 },
-  { id: "rep4", titre: "Carte PDF — Zones à risque Kisenso", periode: "Cartographie", taille: "2.1 Mo", pages: 1 },
-  { id: "rep5", titre: "Statistiques Gouverneur — Trim. 2", periode: "Stratégique", taille: "5.4 Mo", pages: 18 },
+type ReportKind = Parameters<typeof downloadReport>[0];
+const reports: { id: string; titre: string; periode: string; taille: string; pages: number; kind: ReportKind }[] = [
+  { id: "rep1", titre: "Rapport quotidien", periode: "Quotidien", taille: "≈ 60 Ko", pages: 2, kind: "quotidien" },
+  { id: "rep2", titre: "Rapport hebdomadaire", periode: "Hebdomadaire", taille: "≈ 90 Ko", pages: 3, kind: "hebdomadaire" },
+  { id: "rep3", titre: "Rapport mensuel", periode: "Mensuel", taille: "≈ 140 Ko", pages: 5, kind: "mensuel" },
+  { id: "rep4", titre: "Synthèse cartographique", periode: "Cartographie", taille: "≈ 90 Ko", pages: 3, kind: "carte" },
+  { id: "rep5", titre: "Rapport stratégique Gouverneur", periode: "Stratégique", taille: "≈ 160 Ko", pages: 6, kind: "strategique" },
 ];
-
-function download(name: string) {
-  const stats = COMMUNES.map((c) => {
-    const k = COMMUNE_KPIS[c.id];
-    const ipk = IPK[c.id];
-    return `- ${c.name}: IPK ${ipk.score}/100, ${k.signalements} signalements, ${k.collecte_t}t collectées, ${k.recyclage}% recyclage, risque ${k.risque}%`;
-  }).join("\n");
-  const body = `EcoKin Smart — ${name}\nDate: ${new Date().toLocaleString("fr-FR")}\nIPK Kinshasa: ${IPK_KINSHASA}/100\n\n${stats}\n\nInterventions: ${INTERVENTIONS.length}\nTendance 6 mois: ${MONTHLY_TREND.map(m => `${m.mois}=${m.signalements}`).join(", ")}\n`;
-  const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${name.replace(/\s+/g, "_")}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 function RapportsPage() {
   return (
@@ -75,10 +66,10 @@ function RapportsPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => download(r.titre)}
+                  onClick={() => downloadReport(r.kind)}
                   className="inline-flex items-center gap-2 rounded-xl bg-kin px-4 py-2 text-xs font-bold text-white hover:bg-kin/90"
                 >
-                  <Download className="size-4" /> Télécharger
+                  <Download className="size-4" /> Télécharger PDF
                 </button>
               </li>
             ))}

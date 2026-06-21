@@ -3,6 +3,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { ClientOnly } from "@/components/client-only";
 import { EcoMap } from "@/components/eco-map";
+import { AccessGate } from "@/components/access-gate";
 import { useEffect, useState } from "react";
 import { INTERVENTIONS, TRUCKS, type Intervention, type Truck } from "@/lib/data";
 import { Camera, MapPin, Users } from "lucide-react";
@@ -14,7 +15,11 @@ export const Route = createFileRoute("/interventions")({
       { name: "description", content: "Affectation des équipes, suivi GPS des camions et validation par photo avant/après." },
     ],
   }),
-  component: InterventionsPage,
+  component: () => (
+    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Interventions sur le terrain">
+      <InterventionsPage />
+    </AccessGate>
+  ),
 });
 
 const typeLabel: Record<Intervention["type"], string> = {

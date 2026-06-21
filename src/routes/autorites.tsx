@@ -3,6 +3,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { ClientOnly } from "@/components/client-only";
 import { EcoMap } from "@/components/eco-map";
+import { AccessGate } from "@/components/access-gate";
 import {
   COMMUNES,
   COMMUNE_KPIS,
@@ -33,7 +34,11 @@ export const Route = createFileRoute("/autorites")({
       },
     ],
   }),
-  component: AutoritesPage,
+  component: () => (
+    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Espace Autorités">
+      <AutoritesPage />
+    </AccessGate>
+  ),
 });
 
 function AutoritesPage() {
