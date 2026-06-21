@@ -14,7 +14,11 @@ export const Route = createFileRoute("/interventions")({
       { name: "description", content: "Affectation des équipes, suivi GPS des camions et validation par photo avant/après." },
     ],
   }),
-  component: InterventionsPage,
+  component: () => (
+    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Interventions sur le terrain">
+      <InterventionsPage />
+    </AccessGate>
+  ),
 });
 
 const typeLabel: Record<Intervention["type"], string> = {

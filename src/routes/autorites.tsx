@@ -33,7 +33,11 @@ export const Route = createFileRoute("/autorites")({
       },
     ],
   }),
-  component: AutoritesPage,
+  component: () => (
+    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Espace Autorités">
+      <AutoritesPage />
+    </AccessGate>
+  ),
 });
 
 function AutoritesPage() {
