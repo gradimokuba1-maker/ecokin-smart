@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { ClientOnly } from "@/components/client-only";
 import { EcoMap } from "@/components/eco-map";
-import { COMMUNES, REPORTS, type Commune } from "@/lib/data";
+import { COMMUNES, REPORTS, TRUCKS, type Commune, type Truck } from "@/lib/data";
 
 export const Route = createFileRoute("/carte")({
   head: () => ({
@@ -24,7 +24,29 @@ function CartePage() {
   const [focus, setFocus] = useState<Commune["id"] | "all">("all");
   const [showCollection, setShowCollection] = useState(true);
   const [showFlood, setShowFlood] = useState(true);
+  const [showWeather, setShowWeather] = useState(true);
+  const [showTrucks, setShowTrucks] = useState(true);
   const [sev, setSev] = useState<"all" | "faible" | "modere" | "critique">("all");
+  const [trucks, setTrucks] = useState<Truck[]>(TRUCKS);
+
+  // Live GPS simulation
+  useEffect(() => {
+    const i = setInterval(() => {
+      setTrucks((prev) =>
+        prev.map((t) => {
+          if (t.status === "pause" || t.status === "depot") return t;
+          const j = 0.0006;
+          return {
+            ...t,
+            lat: t.lat + (Math.random() - 0.5) * j,
+            lng: t.lng + (Math.random() - 0.5) * j,
+            speedKmh: Math.max(0, Math.round(t.speedKmh + (Math.random() - 0.5) * 6)),
+          };
+        }),
+      );
+    }, 2500);
+    return () => clearInterval(i);
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -96,6 +118,14 @@ function CartePage() {
             />
             Zones inondation
           </label>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold">
+            <input type="checkbox" checked={showWeather} onChange={(e) => setShowWeather(e.target.checked)} className="accent-kin" />
+            Météo & alerte pluie
+          </label>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold">
+            <input type="checkbox" checked={showTrucks} onChange={(e) => setShowTrucks(e.target.checked)} className="accent-eco" />
+            Camions GPS
+          </label>
         </div>
 
         <ClientOnly
@@ -111,6 +141,8 @@ function CartePage() {
             focusCommune={focus}
             showCollection={showCollection}
             showFloodZones={showFlood}
+            showWeather={showWeather}
+            trucks={showTrucks ? trucks : []}
           />
         </ClientOnly>
 
