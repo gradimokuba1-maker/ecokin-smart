@@ -255,11 +255,50 @@ export function EcoMap({
     })();
   }, [trucks]);
 
+  const todayAlert = WEATHER_FORECAST[0];
   return (
-    <div
-      ref={ref}
-      style={{ height, width: "100%" }}
-      className="overflow-hidden rounded-2xl border border-border bg-secondary"
-    />
+    <div className="relative" style={{ height, width: "100%" }}>
+      <div
+        ref={ref}
+        style={{ height, width: "100%" }}
+        className="overflow-hidden rounded-2xl border border-border bg-secondary"
+      />
+      {showWeather && (
+        <>
+          {/* Flood alert banner */}
+          {(todayAlert.floodRisk === "critique" || todayAlert.floodRisk === "eleve") && (
+            <div className="pointer-events-none absolute left-3 right-3 top-3 z-[400] flex items-center gap-2 rounded-xl border border-red-200 bg-red-500/95 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-red-500/30">
+              <AlertTriangle className="size-4" />
+              <span className="truncate">
+                Alerte pluie {todayAlert.rainMm} mm – risque d'inondation {todayAlert.floodRisk} sur les communes pilotes.
+              </span>
+            </div>
+          )}
+          {/* 7-day forecast panel */}
+          <div className="absolute bottom-3 left-3 right-3 z-[400] rounded-xl border border-border bg-card/95 p-2 shadow-lg backdrop-blur sm:left-auto sm:right-3 sm:w-[420px]">
+            <div className="mb-1.5 flex items-center justify-between px-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Prévision 7 j · risque d'inondation
+              </span>
+              <span className="text-[10px] text-muted-foreground">Kinshasa</span>
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+              {WEATHER_FORECAST.map((d) => {
+                const Icon = WEATHER_ICONS[d.icon];
+                return (
+                  <div key={d.day} className="rounded-lg bg-background p-1.5 text-center">
+                    <div className="truncate text-[9px] font-bold uppercase text-muted-foreground">{d.day}</div>
+                    <Icon className="mx-auto mt-0.5 size-4 text-kin" />
+                    <div className="text-[10px] font-bold">{d.tempC}°</div>
+                    <div className="text-[9px] text-muted-foreground">{d.rainMm}mm</div>
+                    <span className={`mx-auto mt-1 block h-1 w-5 rounded-full ${riskBg(d.floodRisk)}`} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
