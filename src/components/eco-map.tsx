@@ -11,7 +11,13 @@ import {
   MAIN_ROADS,
   RIVERS,
   type Truck,
+  WEATHER_FORECAST,
 } from "@/lib/data";
+import { Cloud, CloudLightning, CloudRain, Sun, AlertTriangle } from "lucide-react";
+
+const WEATHER_ICONS = { sun: Sun, cloud: Cloud, rain: CloudRain, storm: CloudLightning };
+const riskBg = (l: string) =>
+  l === "critique" ? "bg-red-500" : l === "eleve" ? "bg-orange-500" : l === "modere" ? "bg-amber-500" : "bg-emerald-500";
 
 type Props = {
   reports?: Report[];
@@ -23,6 +29,7 @@ type Props = {
   showDrains?: boolean;
   showRoads?: boolean;
   showRivers?: boolean;
+  showWeather?: boolean;
   trucks?: Truck[];
   focusCommune?: Commune["id"] | "all";
   onSelectReport?: (r: Report) => void;
@@ -50,6 +57,7 @@ export function EcoMap({
   showDrains = false,
   showRoads = false,
   showRivers = false,
+  showWeather = false,
   trucks,
   focusCommune = "all",
   onSelectReport,
