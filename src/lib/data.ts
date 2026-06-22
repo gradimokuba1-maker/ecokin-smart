@@ -13,7 +13,28 @@ export const COMMUNES: Commune[] = [
   { id: "kisenso", name: "Kisenso", center: [-4.4156, 15.3361], population: "≈ 450 000", color: "#f59e0b" },
 ];
 
-export type WasteType = "plastique" | "organique" | "metal" | "verre" | "mixte";
+export type WasteType =
+  | "plastique"
+  | "organique"
+  | "menager"
+  | "electronique"
+  | "medical"
+  | "construction"
+  | "metal"
+  | "verre"
+  | "mixte";
+
+export const WASTE_CATEGORIES: { id: WasteType; label: string; color: string; icon: string }[] = [
+  { id: "plastique", label: "Plastiques", color: "#0ea5e9", icon: "🧴" },
+  { id: "organique", label: "Organiques", color: "#65a30d", icon: "🍃" },
+  { id: "menager", label: "Ménagers", color: "#a3a3a3", icon: "🗑" },
+  { id: "electronique", label: "Électroniques", color: "#6366f1", icon: "🔌" },
+  { id: "medical", label: "Médicaux", color: "#ef4444", icon: "⚕" },
+  { id: "construction", label: "Gravats / Construction", color: "#a16207", icon: "🧱" },
+  { id: "metal", label: "Métal", color: "#94a3b8", icon: "⚙" },
+  { id: "verre", label: "Verre", color: "#14b8a6", icon: "🍾" },
+  { id: "mixte", label: "Mixtes", color: "#475569", icon: "♻" },
+];
 export type Severity = "faible" | "modere" | "critique";
 
 export type Report = {
