@@ -27,6 +27,7 @@ export const Route = createFileRoute("/admin")({
 
 const TABS = [
   { id: "overview", label: "Vue d'ensemble", icon: Activity },
+  { id: "ia", label: "Validation IA", icon: Brain },
   { id: "users", label: "Citoyens", icon: Users },
   { id: "reports", label: "Signalements", icon: Database },
   { id: "rewards", label: "Récompenses", icon: Gift },
@@ -111,6 +112,7 @@ function AdminPage() {
 
         <div className="space-y-6">
           {tab === "overview" && <Overview />}
+          {tab === "ia" && <IATab />}
           {tab === "users" && <UsersTab />}
           {tab === "reports" && <ReportsTab />}
           {tab === "rewards" && <RewardsTab />}
