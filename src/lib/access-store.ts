@@ -18,6 +18,11 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   "/interventions": ["bourgmestre", "gouverneur", "admin"],
   "/autorites": ["bourgmestre", "gouverneur", "admin"],
   "/rapports": ["bourgmestre", "gouverneur", "admin"],
+  "/situation": ["bourgmestre", "gouverneur", "admin"],
+  "/predictif": ["bourgmestre", "gouverneur", "admin"],
+  "/crise": ["gouverneur", "admin"],
+  "/assistant-ia": ["bourgmestre", "gouverneur", "admin"],
+  "/decisions": ["bourgmestre", "gouverneur", "admin"],
   "/admin": ["admin"],
 };
 

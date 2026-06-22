@@ -9,18 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SituationRouteImport } from './routes/situation'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
 import { Route as SensibilisationRouteImport } from './routes/sensibilisation'
 import { Route as RecompensesRouteImport } from './routes/recompenses'
 import { Route as RapportsRouteImport } from './routes/rapports'
+import { Route as PredictifRouteImport } from './routes/predictif'
+import { Route as ObservatoireRouteImport } from './routes/observatoire'
 import { Route as InterventionsRouteImport } from './routes/interventions'
 import { Route as GouverneurRouteImport } from './routes/gouverneur'
+import { Route as DecisionsRouteImport } from './routes/decisions'
+import { Route as CriseRouteImport } from './routes/crise'
 import { Route as CarteRouteImport } from './routes/carte'
 import { Route as AutoritesRouteImport } from './routes/autorites'
+import { Route as AssistantIaRouteImport } from './routes/assistant-ia'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SituationRoute = SituationRouteImport.update({
+  id: '/situation',
+  path: '/situation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -46,6 +57,16 @@ const RapportsRoute = RapportsRouteImport.update({
   path: '/rapports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PredictifRoute = PredictifRouteImport.update({
+  id: '/predictif',
+  path: '/predictif',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObservatoireRoute = ObservatoireRouteImport.update({
+  id: '/observatoire',
+  path: '/observatoire',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InterventionsRoute = InterventionsRouteImport.update({
   id: '/interventions',
   path: '/interventions',
@@ -56,6 +77,16 @@ const GouverneurRoute = GouverneurRouteImport.update({
   path: '/gouverneur',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DecisionsRoute = DecisionsRouteImport.update({
+  id: '/decisions',
+  path: '/decisions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CriseRoute = CriseRouteImport.update({
+  id: '/crise',
+  path: '/crise',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CarteRoute = CarteRouteImport.update({
   id: '/carte',
   path: '/carte',
@@ -64,6 +95,11 @@ const CarteRoute = CarteRouteImport.update({
 const AutoritesRoute = AutoritesRouteImport.update({
   id: '/autorites',
   path: '/autorites',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantIaRoute = AssistantIaRouteImport.update({
+  id: '/assistant-ia',
+  path: '/assistant-ia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -80,101 +116,150 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/assistant-ia': typeof AssistantIaRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
+  '/crise': typeof CriseRoute
+  '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
   '/interventions': typeof InterventionsRoute
+  '/observatoire': typeof ObservatoireRoute
+  '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/situation': typeof SituationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/assistant-ia': typeof AssistantIaRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
+  '/crise': typeof CriseRoute
+  '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
   '/interventions': typeof InterventionsRoute
+  '/observatoire': typeof ObservatoireRoute
+  '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/situation': typeof SituationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/assistant-ia': typeof AssistantIaRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
+  '/crise': typeof CriseRoute
+  '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
   '/interventions': typeof InterventionsRoute
+  '/observatoire': typeof ObservatoireRoute
+  '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/situation': typeof SituationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/assistant-ia'
     | '/autorites'
     | '/carte'
+    | '/crise'
+    | '/decisions'
     | '/gouverneur'
     | '/interventions'
+    | '/observatoire'
+    | '/predictif'
     | '/rapports'
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
     | '/sitemap.xml'
+    | '/situation'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
+    | '/assistant-ia'
     | '/autorites'
     | '/carte'
+    | '/crise'
+    | '/decisions'
     | '/gouverneur'
     | '/interventions'
+    | '/observatoire'
+    | '/predictif'
     | '/rapports'
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
     | '/sitemap.xml'
+    | '/situation'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/assistant-ia'
     | '/autorites'
     | '/carte'
+    | '/crise'
+    | '/decisions'
     | '/gouverneur'
     | '/interventions'
+    | '/observatoire'
+    | '/predictif'
     | '/rapports'
     | '/recompenses'
     | '/sensibilisation'
     | '/signaler'
     | '/sitemap.xml'
+    | '/situation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AssistantIaRoute: typeof AssistantIaRoute
   AutoritesRoute: typeof AutoritesRoute
   CarteRoute: typeof CarteRoute
+  CriseRoute: typeof CriseRoute
+  DecisionsRoute: typeof DecisionsRoute
   GouverneurRoute: typeof GouverneurRoute
   InterventionsRoute: typeof InterventionsRoute
+  ObservatoireRoute: typeof ObservatoireRoute
+  PredictifRoute: typeof PredictifRoute
   RapportsRoute: typeof RapportsRoute
   RecompensesRoute: typeof RecompensesRoute
   SensibilisationRoute: typeof SensibilisationRoute
   SignalerRoute: typeof SignalerRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SituationRoute: typeof SituationRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/situation': {
+      id: '/situation'
+      path: '/situation'
+      fullPath: '/situation'
+      preLoaderRoute: typeof SituationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -210,6 +295,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RapportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/predictif': {
+      id: '/predictif'
+      path: '/predictif'
+      fullPath: '/predictif'
+      preLoaderRoute: typeof PredictifRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/observatoire': {
+      id: '/observatoire'
+      path: '/observatoire'
+      fullPath: '/observatoire'
+      preLoaderRoute: typeof ObservatoireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/interventions': {
       id: '/interventions'
       path: '/interventions'
@@ -224,6 +323,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GouverneurRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/decisions': {
+      id: '/decisions'
+      path: '/decisions'
+      fullPath: '/decisions'
+      preLoaderRoute: typeof DecisionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crise': {
+      id: '/crise'
+      path: '/crise'
+      fullPath: '/crise'
+      preLoaderRoute: typeof CriseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/carte': {
       id: '/carte'
       path: '/carte'
@@ -236,6 +349,13 @@ declare module '@tanstack/react-router' {
       path: '/autorites'
       fullPath: '/autorites'
       preLoaderRoute: typeof AutoritesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant-ia': {
+      id: '/assistant-ia'
+      path: '/assistant-ia'
+      fullPath: '/assistant-ia'
+      preLoaderRoute: typeof AssistantIaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -258,15 +378,21 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AssistantIaRoute: AssistantIaRoute,
   AutoritesRoute: AutoritesRoute,
   CarteRoute: CarteRoute,
+  CriseRoute: CriseRoute,
+  DecisionsRoute: DecisionsRoute,
   GouverneurRoute: GouverneurRoute,
   InterventionsRoute: InterventionsRoute,
+  ObservatoireRoute: ObservatoireRoute,
+  PredictifRoute: PredictifRoute,
   RapportsRoute: RapportsRoute,
   RecompensesRoute: RecompensesRoute,
   SensibilisationRoute: SensibilisationRoute,
   SignalerRoute: SignalerRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SituationRoute: SituationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
