@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeWastePhoto, type WasteAnalysis } from "@/lib/waste-ai.functions";
 import { useEcoUser } from "@/lib/user-store";
-import { COMMUNES } from "@/lib/data";
+import { COMMUNES, detectCommune, priorityScore, proximityAlerts } from "@/lib/data";
 import { Camera, Crosshair, Loader2, Sparkles, Trophy, Upload } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,8 +60,12 @@ function SignalerPage() {
     }
     navigator.geolocation.getCurrentPosition(
       (p) => {
-        setPosition({ lat: p.coords.latitude, lng: p.coords.longitude });
-        toast.success("Position détectée");
+        const lat = p.coords.latitude;
+        const lng = p.coords.longitude;
+        setPosition({ lat, lng });
+        const c = detectCommune(lat, lng);
+        setCommune(c);
+        toast.success(`Position détectée — commune de ${c}`);
       },
       () => toast.error("Impossible de récupérer la position"),
       { enableHighAccuracy: true },
@@ -211,11 +215,22 @@ function SignalerPage() {
               </p>
             ) : (
               <div className="mt-4 space-y-4 font-mono text-xs">
-                <Row label="Type" value={result.type.toUpperCase()} />
+                <Row label="Catégorie" value={(result.category ?? result.type).toUpperCase()} />
                 <Row label="Confiance" value={`${Math.round(result.confidence * 100)}%`} />
                 <Row label="Sévérité" value={result.severity} color={sevColor(result.severity)} />
                 <Row label="Volume estimé" value={`${result.volumeEstimateM3.toFixed(1)} m³`} />
+                <Row label="Surface" value={`${(result as any).surfaceM2?.toFixed?.(1) ?? "—"} m²`} />
+                <Row label="Risque sanitaire" value={(result as any).risqueSanitaire ?? "—"} />
+                <Row label="Risque environnemental" value={(result as any).risqueEnvironnemental ?? "—"} />
+                <Row label="Risque obstruction" value={(result as any).risqueObstruction ?? "—"} />
                 <Row label="Risque inondation" value={result.floodRisk ? "OUI" : "non"} color={result.floodRisk ? "text-flood" : ""} />
+                <Row label="Intervention immédiate" value={(result as any).interventionImmediate ? "OUI" : "non"} />
+                {position && (
+                  <Row
+                    label="Score de priorité"
+                    value={priorityScore({ commune: commune as any, lat: position.lat, lng: position.lng, severity: result.severity }) + " / 100"}
+                  />
+                )}
                 <div className="mt-2 rounded-lg bg-background p-3 font-sans text-xs text-foreground">
                   {result.description}
                 </div>
@@ -224,6 +239,18 @@ function SignalerPage() {
                     <li key={i}>{r}</li>
                   ))}
                 </ul>
+                {position && proximityAlerts(position.lat, position.lng).length > 0 && (
+                  <div className="rounded-lg border border-red-200 bg-red-500/5 p-3 font-sans">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-600">
+                      ⚠ Alertes proximité
+                    </div>
+                    <ul className="mt-1 ml-4 list-disc text-xs text-red-700">
+                      {proximityAlerts(position.lat, position.lng).map((a, i) => (
+                        <li key={i}>{a}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
