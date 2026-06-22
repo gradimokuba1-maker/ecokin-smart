@@ -7,13 +7,16 @@ import { NotificationBell } from "@/components/notification-bell";
 
 const links = [
   { to: "/", label: "Accueil" },
-  { to: "/gouverneur", label: "Gouverneur" },
-  { to: "/carte", label: "Carte SIG" },
-  { to: "/interventions", label: "Interventions" },
   { to: "/signaler", label: "Signaler" },
+  { to: "/carte", label: "Carte SIG" },
+  { to: "/situation", label: "Situation" },
+  { to: "/predictif", label: "Prédictif" },
+  { to: "/observatoire", label: "Observatoire" },
+  { to: "/decisions", label: "Décisions" },
+  { to: "/assistant-ia", label: "Assistant IA" },
+  { to: "/crise", label: "Crise" },
+  { to: "/gouverneur", label: "Gouverneur" },
   { to: "/recompenses", label: "Récompenses" },
-  { to: "/autorites", label: "Autorités" },
-  { to: "/rapports", label: "Rapports" },
 ] as const;
 
 
