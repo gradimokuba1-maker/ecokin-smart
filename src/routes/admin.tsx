@@ -291,3 +291,95 @@ function SettingsTab() {
     </div>
   );
 }
+
+function IATab() {
+  const { store, validate, correct, precisionPct } = useLearning();
+  const sample = REPORTS.slice(0, 8);
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-eco/30 bg-eco/5 p-5">
+          <div className="text-xs font-bold uppercase tracking-widest text-eco">Précision IA (apprentissage continu)</div>
+          <div className="mt-1 font-display text-4xl font-bold">{precisionPct}%</div>
+          <div className="mt-1 text-xs text-muted-foreground">{store.validations} validations · {store.corrections.length} corrections</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Modèle</div>
+          <div className="mt-1 font-mono text-sm">google/gemini-3-flash-preview</div>
+          <div className="mt-1 text-xs text-muted-foreground">via Lovable AI Gateway</div>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Catégories</div>
+          <div className="mt-1 font-display text-2xl font-bold">{WASTE_CATEGORIES.length}</div>
+          <div className="mt-1 text-xs text-muted-foreground">Plastique, organique, médical, …</div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h3 className="mb-1 font-display text-lg font-bold">Validation duale IA + commune</h3>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Validez la classification automatique ou corrigez-la. Chaque correction améliore le modèle.
+        </p>
+        <table className="w-full text-sm">
+          <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <tr className="border-b border-border">
+              <th className="py-2">ID</th>
+              <th>Commune</th>
+              <th>Classification IA</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sample.map((r) => (
+              <tr key={r.id} className="border-b border-border/60">
+                <td className="py-2 font-mono text-xs">{r.id}</td>
+                <td className="capitalize">{r.commune}</td>
+                <td className="capitalize">{r.type}</td>
+                <td className="space-x-2">
+                  <button
+                    onClick={validate}
+                    className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco"
+                  >
+                    ✓ Valider
+                  </button>
+                  <select
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      correct({
+                        reportId: r.id,
+                        predicted: r.type,
+                        corrected: e.target.value,
+                        by: "Service communal",
+                        at: new Date().toISOString(),
+                      });
+                      e.currentTarget.selectedIndex = 0;
+                    }}
+                    className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                  >
+                    <option value="">Corriger…</option>
+                    {WASTE_CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {store.corrections.length > 0 && (
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="mb-3 font-display text-lg font-bold">Historique des corrections</h3>
+          <ul className="space-y-1.5 font-mono text-xs">
+            {store.corrections.slice(0, 10).map((c, i) => (
+              <li key={i} className="text-muted-foreground">
+                [{new Date(c.at).toLocaleString()}] {c.reportId} · <span className="text-red-500">{c.predicted}</span> → <span className="text-eco">{c.corrected}</span> ({c.by})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
