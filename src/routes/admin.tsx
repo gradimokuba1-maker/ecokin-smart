@@ -2,9 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { LEADERBOARD, REPORTS, REWARDS, COMMUNES } from "@/lib/data";
+import { LEADERBOARD, REPORTS, REWARDS, COMMUNES, WASTE_CATEGORIES } from "@/lib/data";
+import { useLearning } from "@/lib/learning-store";
 import {
   Activity,
+  Brain,
   Database,
   Gift,
   Lock,
@@ -12,6 +14,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
