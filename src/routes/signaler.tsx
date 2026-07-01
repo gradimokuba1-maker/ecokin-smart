@@ -4,11 +4,15 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeWastePhoto, type WasteAnalysis } from "@/lib/waste-ai.functions";
+import { validateReportHash, commitReportHash } from "@/lib/report-submit.functions";
 import { useEcoUser } from "@/lib/user-store";
-import { COMMUNES, detectCommune, priorityScore, proximityAlerts } from "@/lib/data";
+import { priorityScore, proximityAlerts } from "@/lib/data";
+import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { pushLiveReport, urgencyFromSeverity } from "@/lib/live-reports";
 import { computePerceptualHash, findDuplicate, saveHash } from "@/lib/image-hash";
-import { Camera, Crosshair, ImageIcon, Loader2, ShieldAlert, Sparkles, Trophy } from "lucide-react";
+import { ClientOnly } from "@/components/client-only";
+import { KinshasaMap } from "@/components/kinshasa-map";
+import { Camera, Crosshair, ImageIcon, Loader2, ShieldAlert, ShieldCheck, Sparkles, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/signaler")({
@@ -18,7 +22,7 @@ export const Route = createFileRoute("/signaler")({
       {
         name: "description",
         content:
-          "Signalez un dépôt sauvage. Localisation GPS et analyse IA automatiques, protection anti-fraude, gagnez des Green Points.",
+          "Signalez un dépôt depuis n'importe quelle commune de Kinshasa. GPS live, IA automatique, protection anti-fraude serveur.",
       },
     ],
   }),
@@ -35,20 +39,23 @@ type GeoState =
 function SignalerPage() {
   const { user, addPoints } = useEcoUser();
   const analyze = useServerFn(analyzeWastePhoto);
+  const validateHash = useServerFn(validateReportHash);
+  const commitHash = useServerFn(commitReportHash);
 
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
+  const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [commune, setCommune] = useState<string>("matete");
   const [imgPreview, setImgPreview] = useState<string | null>(null);
   const [imgHash, setImgHash] = useState<string | null>(null);
-  const [duplicate, setDuplicate] = useState<{ similarity: number; at: string } | null>(null);
+  const [duplicate, setDuplicate] = useState<{ similarity: number; at: string; source: "local" | "server" } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<WasteAnalysis | null>(null);
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
-  // -------- Auto géolocalisation à l'ouverture --------
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setGeo({ status: "unavailable" });
@@ -60,22 +67,17 @@ function SignalerPage() {
         const lat = p.coords.latitude;
         const lng = p.coords.longitude;
         setGeo({ status: "ok", lat, lng, accuracy: p.coords.accuracy });
-        setCommune(detectCommune(lat, lng));
+        setPos({ lat, lng });
+        setCommune(detectCityCommune(DEFAULT_CITY, lat, lng).id);
       },
-      (err) => {
-        setGeo({ status: err.code === err.PERMISSION_DENIED ? "denied" : "unavailable" });
-      },
+      (err) => setGeo({ status: err.code === err.PERMISSION_DENIED ? "denied" : "unavailable" }),
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   }, []);
 
-  // -------- Sélection image → hash → dedup → IA auto --------
   async function handleFile(f: File | undefined) {
     if (!f) return;
-    if (f.size > 4 * 1024 * 1024) {
-      toast.error("Image trop volumineuse (max 4 Mo)");
-      return;
-    }
+    if (f.size > 4 * 1024 * 1024) return toast.error("Image trop volumineuse (max 4 Mo)");
     const dataUrl: string = await new Promise((res, rej) => {
       const r = new FileReader();
       r.onload = () => res(r.result as string);
@@ -87,23 +89,44 @@ function SignalerPage() {
     setSubmitted(false);
     setDuplicate(null);
 
-    // 1) Empreinte + détection anti-fraude
     let hash: string;
     try {
       hash = await computePerceptualHash(dataUrl);
       setImgHash(hash);
     } catch {
-      toast.error("Impossible d'analyser l'image");
-      return;
-    }
-    const dup = findDuplicate(hash, 95);
-    if (dup) {
-      setDuplicate({ similarity: dup.similarity, at: dup.match.at });
-      toast.error("Cette photo a déjà été utilisée pour un signalement. Veuillez prendre une nouvelle photo du site.");
-      return;
+      return toast.error("Impossible d'analyser l'image");
     }
 
-    // 2) Analyse IA automatique
+    // 1) Vérification locale (cache navigateur)
+    const localDup = findDuplicate(hash, 95);
+    if (localDup) {
+      setDuplicate({ similarity: localDup.similarity, at: localDup.match.at, source: "local" });
+      return toast.error("Photo déjà utilisée localement pour un signalement.");
+    }
+
+    // 2) Vérification serveur (base globale)
+    try {
+      const check = await validateHash({
+        data: {
+          hash,
+          lat: pos?.lat,
+          lng: pos?.lng,
+          category: "unknown",
+        },
+      });
+      if (check.duplicate) {
+        setDuplicate({
+          similarity: check.similarity ?? 100,
+          at: check.matchedAt ?? new Date().toISOString(),
+          source: "server",
+        });
+        return toast.error("Photo déjà enregistrée sur EcoKin (vérification serveur).");
+      }
+    } catch (e) {
+      console.warn("validateHash failed", e);
+    }
+
+    // 3) Analyse IA
     setAnalyzing(true);
     try {
       const r = await analyze({ data: { imageDataUrl: dataUrl } });
@@ -117,14 +140,16 @@ function SignalerPage() {
     }
   }
 
-  function submitReport() {
-    if (!result || !imgHash) return;
-    if (duplicate) return;
-    const pos = geo.status === "ok" ? { lat: geo.lat, lng: geo.lng } : null;
+  async function submitReport() {
+    if (!result || !imgHash || !pos || submitting || submitted || duplicate) return;
+    setSubmitting(true);
     const earned = result.severity === "critique" ? 80 : result.severity === "modere" ? 50 : 25;
-    const score = pos
-      ? priorityScore({ commune: commune as any, lat: pos.lat, lng: pos.lng, severity: result.severity })
-      : undefined;
+    const score = priorityScore({
+      commune: commune as any,
+      lat: pos.lat,
+      lng: pos.lng,
+      severity: result.severity,
+    });
     const urgency = urgencyFromSeverity(result.severity, result.floodRisk);
     const item = pushLiveReport({
       author: user.name,
@@ -132,14 +157,28 @@ function SignalerPage() {
       category: (result.category ?? result.type) as string,
       urgency,
       description: description || undefined,
-      lat: pos?.lat,
-      lng: pos?.lng,
+      lat: pos.lat,
+      lng: pos.lng,
       volumeM3: result.volumeEstimateM3,
       priorityScore: score,
     });
     saveHash(imgHash, item.id);
+    try {
+      const commit = await commitHash({
+        data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: result.category },
+      });
+      if ("duplicate" in commit && commit.duplicate) {
+        toast.error("Rejeté au commit : cette photo vient d'être signalée par un autre utilisateur.");
+        setDuplicate({ similarity: commit.similarity ?? 100, at: commit.matchedAt ?? new Date().toISOString(), source: "server" });
+        setSubmitting(false);
+        return;
+      }
+    } catch (e) {
+      console.warn("commitHash failed", e);
+    }
     addPoints(earned);
     setSubmitted(true);
+    setSubmitting(false);
     toast.success(`Signalement enregistré · +${earned} Green Points · urgence ${urgency}`);
   }
 
@@ -148,37 +187,62 @@ function SignalerPage() {
       <SiteNav />
       <header className="border-b border-border bg-secondary/40">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <p className="text-xs font-bold uppercase tracking-widest text-eco">Signalement citoyen</p>
-          <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">Signaler un dépôt sauvage</h1>
+          <p className="text-xs font-bold uppercase tracking-widest text-eco">Signalement citoyen · 24 communes</p>
+          <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">Signaler un dépôt à Kinshasa</h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
-            Localisation GPS automatique, analyse IA instantanée dès la photo, protection anti-fraude.
+            Disponible dans toute la ville de Kinshasa. Position GPS en direct, analyse IA
+            automatique, contrôle anti-fraude côté serveur.
           </p>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.2fr_1fr] lg:px-8">
         <div className="space-y-6 rounded-3xl border border-border bg-card p-6 sm:p-8">
-          {/* Étape 1 · GPS auto */}
+          {/* Étape 1 · Carte + GPS */}
           <section>
             <div className="flex items-center justify-between">
-              <label className="text-sm font-bold">1 · Localisation GPS</label>
+              <label className="text-sm font-bold">1 · Position du dépôt</label>
               <GeoBadge geo={geo} />
             </div>
-            {geo.status === "denied" && (
+            {(geo.status === "denied" || geo.status === "unavailable") && (
               <div className="mt-3 rounded-xl border border-amber-300 bg-amber-500/10 p-3 text-xs text-amber-800">
-                Accès à la localisation refusé. Autorisez la géolocalisation dans votre navigateur,
-                ou sélectionnez manuellement votre commune ci-dessous.
+                {geo.status === "denied"
+                  ? "Localisation refusée : cliquez directement sur la carte pour placer le marqueur."
+                  : "GPS indisponible : cliquez sur la carte pour placer le marqueur."}
               </div>
             )}
-            {geo.status === "unavailable" && (
-              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-500/10 p-3 text-xs text-amber-800">
-                Géolocalisation indisponible sur cet appareil. Sélectionnez manuellement votre commune.
-              </div>
-            )}
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              {geo.status === "ok" && (
-                <span className="font-mono text-xs text-muted-foreground">
-                  {geo.lat.toFixed(5)}, {geo.lng.toFixed(5)} · ±{Math.round(geo.accuracy)} m
+            <div className="mt-3">
+              <ClientOnly fallback={<div className="grid h-[380px] place-items-center rounded-2xl bg-secondary text-sm text-muted-foreground">Chargement de la carte…</div>}>
+                <KinshasaMap
+                  city={DEFAULT_CITY}
+                  reports={[]}
+                  height={380}
+                  followUser
+                  onUserLocation={(lat, lng) => {
+                    if (!pos) {
+                      setPos({ lat, lng });
+                      setCommune(detectCityCommune(DEFAULT_CITY, lat, lng).id);
+                    }
+                  }}
+                  picker={
+                    pos
+                      ? {
+                          lat: pos.lat,
+                          lng: pos.lng,
+                          onChange: (lat, lng) => {
+                            setPos({ lat, lng });
+                            setCommune(detectCityCommune(DEFAULT_CITY, lat, lng).id);
+                          },
+                        }
+                      : undefined
+                  }
+                />
+              </ClientOnly>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+              {pos && (
+                <span className="font-mono text-muted-foreground">
+                  {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
                 </span>
               )}
               <select
@@ -186,12 +250,15 @@ function SignalerPage() {
                 onChange={(e) => setCommune(e.target.value)}
                 className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold"
               >
-                {COMMUNES.map((c) => (
+                {DEFAULT_CITY.communes.map((c) => (
                   <option key={c.id} value={c.id}>
-                    Commune de {c.name}
+                    {c.name}
                   </option>
                 ))}
               </select>
+              {!pos && (
+                <span className="text-muted-foreground">Cliquez sur la carte pour placer le marqueur.</span>
+              )}
             </div>
           </section>
 
@@ -211,33 +278,14 @@ function SignalerPage() {
                 )}
               </div>
               <div className="flex flex-col gap-2 sm:w-52">
-                <button
-                  onClick={() => cameraRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-eco px-4 py-3 text-sm font-bold text-white hover:bg-eco/90"
-                >
+                <button onClick={() => cameraRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-eco px-4 py-3 text-sm font-bold text-white hover:bg-eco/90">
                   <Camera className="size-4" /> Prendre photo
                 </button>
-                <button
-                  onClick={() => galleryRef.current?.click()}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-eco/40 bg-eco/5 px-4 py-3 text-sm font-bold text-eco hover:bg-eco/10"
-                >
+                <button onClick={() => galleryRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-eco/40 bg-eco/5 px-4 py-3 text-sm font-bold text-eco hover:bg-eco/10">
                   <ImageIcon className="size-4" /> Depuis la galerie
                 </button>
-                <input
-                  ref={cameraRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0])}
-                />
-                <input
-                  ref={galleryRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0])}
-                />
+                <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
+                <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
               </div>
             </div>
 
@@ -246,15 +294,20 @@ function SignalerPage() {
                 <Loader2 className="size-4 animate-spin" /> Analyse du déchet en cours…
               </div>
             )}
-
+            {imgHash && !duplicate && !analyzing && result && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
+                <ShieldCheck className="size-4" /> Empreinte validée (locale + serveur)
+              </div>
+            )}
             {duplicate && (
               <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-300 bg-red-500/10 p-3 text-sm text-red-800">
                 <ShieldAlert className="mt-0.5 size-4" />
                 <div>
-                  <div className="font-bold">Photo déjà utilisée ({duplicate.similarity}% similaire)</div>
+                  <div className="font-bold">
+                    Photo déjà utilisée · {duplicate.similarity}% similaire · vérification {duplicate.source === "server" ? "serveur" : "locale"}
+                  </div>
                   <p className="text-xs">
-                    Un signalement existe déjà avec cette image (soumis le{" "}
-                    {new Date(duplicate.at).toLocaleString("fr-FR")}). Prenez une nouvelle photo du site.
+                    Un signalement existe déjà avec cette image (le {new Date(duplicate.at).toLocaleString("fr-FR")}). Prenez une nouvelle photo du site.
                   </p>
                 </div>
               </div>
@@ -264,26 +317,14 @@ function SignalerPage() {
           {/* Étape 3 · Description */}
           <section>
             <label className="text-sm font-bold">3 · Description (optionnelle)</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              maxLength={300}
-              placeholder="Ex. caniveau bloqué près du marché Matete, accumulation depuis 3 jours…"
-              className="mt-3 w-full rounded-xl border border-border bg-background p-3 text-sm focus:border-eco focus:outline-none focus:ring-2 focus:ring-eco/30"
-            />
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={300} placeholder="Ex. caniveau bloqué, accumulation depuis 3 jours…" className="mt-3 w-full rounded-xl border border-border bg-background p-3 text-sm focus:border-eco focus:outline-none focus:ring-2 focus:ring-eco/30" />
           </section>
 
-          <button
-            onClick={submitReport}
-            disabled={!result || submitted || !!duplicate || analyzing}
-            className="w-full rounded-xl bg-foreground py-4 text-sm font-bold text-background transition-transform hover:-translate-y-0.5 disabled:opacity-50"
-          >
-            {submitted ? "✓ Signalement envoyé" : "Envoyer le signalement"}
+          <button onClick={submitReport} disabled={!result || submitted || !!duplicate || analyzing || submitting || !pos} className="w-full rounded-xl bg-foreground py-4 text-sm font-bold text-background transition-transform hover:-translate-y-0.5 disabled:opacity-50">
+            {submitting ? "Envoi…" : submitted ? "✓ Signalement envoyé" : "Envoyer le signalement"}
           </button>
         </div>
 
-        {/* Sidebar résultats */}
         <div className="space-y-6">
           <div className="rounded-3xl border border-eco/30 bg-eco/5 p-6">
             <div className="flex items-center gap-2">
@@ -308,30 +349,20 @@ function SignalerPage() {
                 <Row label="Risque sanitaire" value={result.risqueSanitaire ?? "—"} />
                 <Row label="Risque inondation" value={result.floodRisk ? "OUI" : "non"} color={result.floodRisk ? "text-flood" : ""} />
                 <Row label="Intervention immédiate" value={result.interventionImmediate ? "OUI" : "non"} />
-                {geo.status === "ok" && (
-                  <Row
-                    label="Score de priorité"
-                    value={
-                      priorityScore({ commune: commune as any, lat: geo.lat, lng: geo.lng, severity: result.severity }) +
-                      " / 100"
-                    }
-                  />
+                {pos && (
+                  <Row label="Score de priorité" value={priorityScore({ commune: commune as any, lat: pos.lat, lng: pos.lng, severity: result.severity }) + " / 100"} />
                 )}
-                <div className="rounded-lg bg-background p-3 font-sans text-xs text-foreground">
-                  {result.description}
-                </div>
+                <div className="rounded-lg bg-background p-3 font-sans text-xs text-foreground">{result.description}</div>
                 <ul className="ml-4 list-disc space-y-1 font-sans text-xs text-muted-foreground">
                   {result.recommendations.map((r, i) => (
                     <li key={i}>{r}</li>
                   ))}
                 </ul>
-                {geo.status === "ok" && proximityAlerts(geo.lat, geo.lng).length > 0 && (
+                {pos && proximityAlerts(pos.lat, pos.lng).length > 0 && (
                   <div className="rounded-lg border border-red-200 bg-red-500/5 p-3 font-sans">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-600">
-                      ⚠ Alertes proximité
-                    </div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-600">⚠ Alertes proximité</div>
                     <ul className="mt-1 ml-4 list-disc text-xs text-red-700">
-                      {proximityAlerts(geo.lat, geo.lng).map((a, i) => (
+                      {proximityAlerts(pos.lat, pos.lng).map((a, i) => (
                         <li key={i}>{a}</li>
                       ))}
                     </ul>
@@ -373,21 +404,13 @@ function GeoBadge({ geo }: { geo: GeoState }) {
   if (geo.status === "ok")
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
-        <Crosshair className="size-3" /> GPS actif
+        <Crosshair className="size-3" /> GPS actif · ±{Math.round(geo.accuracy)} m
       </span>
     );
   if (geo.status === "denied")
-    return (
-      <span className="rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-red-700">
-        Refusé
-      </span>
-    );
+    return <span className="rounded-full bg-red-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-red-700">Refusé</span>;
   if (geo.status === "unavailable")
-    return (
-      <span className="rounded-full bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700">
-        Indisponible
-      </span>
-    );
+    return <span className="rounded-full bg-amber-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700">Indisponible</span>;
   return null;
 }
 
