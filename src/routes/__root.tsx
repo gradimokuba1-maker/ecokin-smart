@@ -82,14 +82,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Plateforme Smart City pour la gestion intelligente des déchets plastiques à Kinshasa (Matete, Lemba, Kisenso). Signalement citoyen, IA, SIG et récompenses Green Points.",
+          "Plateforme Smart City pour la gestion intelligente des déchets à Kinshasa (Matete, Lemba, Kisenso). Signalement citoyen, IA, SIG et récompenses Green Points.",
       },
       { name: "author", content: "EcoKin Smart" },
       { property: "og:title", content: "EcoKin Smart — Gestion intelligente des déchets à Kinshasa" },
       {
         property: "og:description",
         content:
-          "Réduire les déchets plastiques et prévenir les inondations grâce à la participation citoyenne, l'IA et les SIG.",
+          "Réduire les déchets et prévenir les inondations grâce à la participation citoyenne, l'IA et les SIG.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

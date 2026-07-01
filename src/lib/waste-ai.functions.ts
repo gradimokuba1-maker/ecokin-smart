@@ -41,7 +41,7 @@ const FALLBACK: WasteAnalysis = {
   severity: "modere",
   volumeEstimateM3: 1.4,
   surfaceM2: 3,
-  description: "Dépôt de déchets plastiques détecté. Analyse précise indisponible.",
+  description: "Dépôt de déchets détecté. Analyse précise indisponible.",
   recommendations: ["Confirmer la localisation", "Signaler aux services communaux"],
   floodRisk: false,
   risqueSanitaire: "modere",

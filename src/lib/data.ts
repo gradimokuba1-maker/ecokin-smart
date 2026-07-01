@@ -131,7 +131,7 @@ export const ALERTS = [
   {
     id: "al2",
     title: "Opération de collecte — Lemba Salongo",
-    body: "Équipe RASKIN sur place demain de 06h à 11h. Sortez vos déchets plastiques.",
+    body: "Équipe RASKIN sur place demain de 06h à 11h. Sortez vos déchets.",
     level: "info" as const,
     date: "Demain",
   },

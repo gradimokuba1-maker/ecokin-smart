@@ -6,8 +6,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { analyzeWastePhoto, type WasteAnalysis } from "@/lib/waste-ai.functions";
 import { useEcoUser } from "@/lib/user-store";
 import { COMMUNES, detectCommune, priorityScore, proximityAlerts } from "@/lib/data";
+import { pushLiveReport, urgencyFromSeverity } from "@/lib/live-reports";
 import { Camera, Crosshair, Loader2, Sparkles, Trophy, Upload } from "lucide-react";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/signaler")({
   head: () => ({
@@ -96,10 +98,27 @@ function SignalerPage() {
       return;
     }
     const earned = result.severity === "critique" ? 80 : result.severity === "modere" ? 50 : 25;
+    const score =
+      position !== null
+        ? priorityScore({ commune: commune as any, lat: position.lat, lng: position.lng, severity: result.severity })
+        : undefined;
+    const urgency = urgencyFromSeverity(result.severity, result.floodRisk);
+    pushLiveReport({
+      author: user.name,
+      commune,
+      category: (result.category ?? result.type) as string,
+      urgency,
+      description: description || undefined,
+      lat: position?.lat,
+      lng: position?.lng,
+      volumeM3: result.volumeEstimateM3,
+      priorityScore: score,
+    });
     addPoints(earned);
     setSubmitted(true);
-    toast.success(`Signalement enregistré · +${earned} Green Points`);
+    toast.success(`Signalement enregistré · +${earned} Green Points · urgence ${urgency}`);
   }
+
 
   return (
     <div className="min-h-screen bg-background">

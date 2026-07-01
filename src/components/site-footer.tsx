@@ -14,10 +14,11 @@ export function SiteFooter() {
             </span>
           </div>
           <p className="mt-4 max-w-md text-sm text-muted-foreground">
-            Plateforme Smart City pour la gestion intelligente des déchets plastiques à Kinshasa.
+            Plateforme Smart City pour la gestion intelligente des déchets à Kinshasa.
             Projet pilote sur les communes de Matete, Lemba et Kisenso. Une initiative numérique au
             service d'une ville plus propre, plus saine et résiliente face aux inondations.
           </p>
+
           <div className="mt-6 inline-flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             République Démocratique du Congo · Hôtel de Ville de Kinshasa
           </div>

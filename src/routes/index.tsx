@@ -33,7 +33,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Plateforme Smart City pour la gestion intelligente des déchets plastiques à Kinshasa. Communes pilotes : Matete, Lemba, Kisenso.",
+          "Plateforme Smart City pour la gestion intelligente des déchets à Kinshasa. Communes pilotes : Matete, Lemba, Kisenso.",
       },
     ],
   }),
@@ -62,9 +62,10 @@ function Home() {
               Pour une Kinshasa <span className="text-eco">qui respire</span>.
             </h1>
             <p className="mt-6 max-w-xl text-pretty text-lg text-muted-foreground">
-              Gestion intelligente des déchets plastiques par la participation citoyenne, l'IA et
+              Gestion intelligente des déchets par la participation citoyenne, l'IA et
               les SIG. Réduire la pollution, prévenir les inondations, valoriser nos quartiers.
             </p>
+
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/signaler"
