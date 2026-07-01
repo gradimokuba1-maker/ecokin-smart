@@ -1,6 +1,7 @@
 // Lightweight role-based access control for the demo platform.
 // Persists in localStorage. Replace with Lovable Cloud Auth for production.
 import { useEffect, useState } from "react";
+import { logAudit } from "./audit-log";
 
 export type Role = "citoyen" | "bourgmestre" | "gouverneur" | "admin";
 
@@ -23,6 +24,7 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   "/crise": ["gouverneur", "admin"],
   "/assistant-ia": ["bourgmestre", "gouverneur", "admin"],
   "/decisions": ["bourgmestre", "gouverneur", "admin"],
+  "/audit": ["admin", "gouverneur"],
   "/admin": ["admin"],
 };
 
@@ -48,11 +50,14 @@ export function useAccess() {
     const next: Session = { role, name: role === "admin" ? "Administrateur" : role === "gouverneur" ? "Cabinet du Gouverneur" : "Bourgmestre" };
     localStorage.setItem(KEY, JSON.stringify(next));
     setSession(next);
+    logAudit({ user: next.name, role, action: "login" });
     return true;
   };
   const logout = () => {
+    const prev = read();
     localStorage.removeItem(KEY);
     setSession(DEFAULT);
+    if (prev.role !== "citoyen") logAudit({ user: prev.name, role: prev.role, action: "logout" });
   };
   const can = (path: string) => {
     const allowed = ROUTE_ROLES[path];

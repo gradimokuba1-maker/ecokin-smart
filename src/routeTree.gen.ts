@@ -23,6 +23,7 @@ import { Route as DecisionsRouteImport } from './routes/decisions'
 import { Route as CriseRouteImport } from './routes/crise'
 import { Route as CarteRouteImport } from './routes/carte'
 import { Route as AutoritesRouteImport } from './routes/autorites'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AssistantIaRouteImport } from './routes/assistant-ia'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -97,6 +98,11 @@ const AutoritesRoute = AutoritesRouteImport.update({
   path: '/autorites',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssistantIaRoute = AssistantIaRouteImport.update({
   id: '/assistant-ia',
   path: '/assistant-ia',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/assistant-ia': typeof AssistantIaRoute
+  '/audit': typeof AuditRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
   '/crise': typeof CriseRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/assistant-ia': typeof AssistantIaRoute
+  '/audit': typeof AuditRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
   '/crise': typeof CriseRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/assistant-ia': typeof AssistantIaRoute
+  '/audit': typeof AuditRoute
   '/autorites': typeof AutoritesRoute
   '/carte': typeof CarteRoute
   '/crise': typeof CriseRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/assistant-ia'
+    | '/audit'
     | '/autorites'
     | '/carte'
     | '/crise'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/assistant-ia'
+    | '/audit'
     | '/autorites'
     | '/carte'
     | '/crise'
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/assistant-ia'
+    | '/audit'
     | '/autorites'
     | '/carte'
     | '/crise'
@@ -235,6 +247,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AssistantIaRoute: typeof AssistantIaRoute
+  AuditRoute: typeof AuditRoute
   AutoritesRoute: typeof AutoritesRoute
   CarteRoute: typeof CarteRoute
   CriseRoute: typeof CriseRoute
@@ -351,6 +364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AutoritesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assistant-ia': {
       id: '/assistant-ia'
       path: '/assistant-ia'
@@ -379,6 +399,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AssistantIaRoute: AssistantIaRoute,
+  AuditRoute: AuditRoute,
   AutoritesRoute: AutoritesRoute,
   CarteRoute: CarteRoute,
   CriseRoute: CriseRoute,
@@ -397,13 +418,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
