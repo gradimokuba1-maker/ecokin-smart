@@ -11,7 +11,7 @@ export const Route = createFileRoute("/sensibilisation")({
       {
         name: "description",
         content:
-          "Conseils, alertes et campagnes pour réduire les déchets plastiques et prévenir les inondations à Kinshasa.",
+          "Conseils, alertes et campagnes pour réduire les déchets et prévenir les inondations à Kinshasa.",
       },
     ],
   }),
