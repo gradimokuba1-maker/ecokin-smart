@@ -16,8 +16,10 @@ const links = [
   { to: "/assistant-ia", label: "Assistant IA" },
   { to: "/crise", label: "Crise" },
   { to: "/gouverneur", label: "Gouverneur" },
+  { to: "/audit", label: "Audit" },
   { to: "/recompenses", label: "Récompenses" },
 ] as const;
+
 
 
 export function SiteNav() {
