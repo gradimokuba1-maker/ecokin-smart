@@ -86,7 +86,7 @@ function AutoritesPage() {
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <div className="rounded-2xl border border-border bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold">Carte opérationnelle — 3 communes</h2>
+              <h2 className="font-display text-lg font-bold">Carte opérationnelle — Kinshasa</h2>
               <span className="text-xs font-bold uppercase tracking-widest text-eco">Live</span>
             </div>
             <ClientOnly
