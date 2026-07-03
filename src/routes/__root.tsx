@@ -82,21 +82,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Plateforme Smart City pour la gestion intelligente des déchets à Kinshasa (Matete, Lemba, Kisenso). Signalement citoyen, IA, SIG et récompenses Green Points.",
+          "Plateforme Smart City pour la gestion intelligente des déchets sur les 24 communes de Kinshasa. Signalement citoyen, IA, SIG, suivi GPS et récompenses Green Points.",
       },
       { name: "author", content: "EcoKin Smart" },
       { property: "og:title", content: "EcoKin Smart — Gestion intelligente des déchets à Kinshasa" },
       {
         property: "og:description",
         content:
-          "Réduire les déchets et prévenir les inondations grâce à la participation citoyenne, l'IA et les SIG.",
+          "Réduire les déchets et prévenir les inondations grâce à la participation citoyenne, l'IA et les SIG — sur toute la ville de Kinshasa.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "EcoKin Smart — Gestion intelligente des déchets à Kinshasa" },
-      { name: "description", content: "EcoKin Smart City is a platform for intelligent plastic waste management in Kinshasa's Matete, Lemba, and Kisenso communes." },
-      { property: "og:description", content: "EcoKin Smart City is a platform for intelligent plastic waste management in Kinshasa's Matete, Lemba, and Kisenso communes." },
-      { name: "twitter:description", content: "EcoKin Smart City is a platform for intelligent plastic waste management in Kinshasa's Matete, Lemba, and Kisenso communes." },
+      { name: "twitter:description", content: "Signalement citoyen, IA, SIG et suivi GPS sur les 24 communes de Kinshasa." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5baab05b-0e6f-4063-928d-dcfc32806996/id-preview-b4a4b4b4--e3bb42f9-7a4c-42fc-be4b-b5b7dd8374cc.lovable.app-1781852479674.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5baab05b-0e6f-4063-928d-dcfc32806996/id-preview-b4a4b4b4--e3bb42f9-7a4c-42fc-be4b-b5b7dd8374cc.lovable.app-1781852479674.png" },
     ],
