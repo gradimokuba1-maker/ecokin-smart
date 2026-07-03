@@ -290,7 +290,7 @@ function Home() {
               { l: "Signalements actifs", v: "482", d: "+12% vs hier", c: "text-flood" },
               { l: "Efficacité collecte", v: "78.4%", d: "+5% ce mois", c: "text-eco" },
               { l: "Caniveaux dégagés", v: "47", d: "Cette semaine", c: "text-urban" },
-              { l: "Risque global", v: "Modéré", d: "Kisenso élevé", c: "text-amber-400" },
+              { l: "Risque global", v: "Modéré", d: "Zones basses élevé", c: "text-amber-400" },
             ].map((k) => (
               <div key={k.l} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
