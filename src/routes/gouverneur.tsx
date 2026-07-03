@@ -99,7 +99,7 @@ function GouverneurPage() {
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-white/70">
                 Pilotage opérationnel de la propreté, des risques d'inondation et des interventions
-                sur l'ensemble des communes pilotes de Kinshasa.
+                sur l'ensemble des 24 communes de Kinshasa.
               </p>
             </div>
             <div className="flex items-center gap-3">
