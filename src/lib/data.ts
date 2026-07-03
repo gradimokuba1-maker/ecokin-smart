@@ -1,4 +1,4 @@
-// Mock data for EcoKin Smart — 3 pilot communes of Kinshasa
+// Mock data for EcoKin Smart — Kinshasa (24 communes)
 export type Commune = {
   id: "matete" | "lemba" | "kisenso";
   name: string;
