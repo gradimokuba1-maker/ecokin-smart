@@ -88,7 +88,7 @@ function AdminPage() {
           </div>
           <h1 className="mt-2 font-display text-4xl font-bold">Centre de contrôle EcoKin</h1>
           <p className="mt-1 text-white/70">
-            Gestion globale de la plateforme · 3 communes pilotes · {REPORTS.length} signalements
+            Gestion globale de la plateforme · 24 communes de Kinshasa · {REPORTS.length} signalements
           </p>
         </div>
       </div>
