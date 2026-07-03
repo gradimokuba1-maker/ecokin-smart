@@ -192,7 +192,7 @@ function Home() {
       {/* Communes KPIs */}
       <section className="border-t border-border bg-secondary/40">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <h2 className="font-display text-3xl font-bold">3 communes pilotes en chiffres</h2>
+          <h2 className="font-display text-3xl font-bold">Communes de Kinshasa en chiffres</h2>
           <p className="mt-2 text-muted-foreground">
             Données consolidées des opérations de signalement et de collecte.
           </p>
