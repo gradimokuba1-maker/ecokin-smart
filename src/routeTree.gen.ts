@@ -18,6 +18,7 @@ import { Route as RecompensesRouteImport } from './routes/recompenses'
 import { Route as RapportsRouteImport } from './routes/rapports'
 import { Route as PredictifRouteImport } from './routes/predictif'
 import { Route as ObservatoireRouteImport } from './routes/observatoire'
+import { Route as ItinerairesRouteImport } from './routes/itineraires'
 import { Route as InterventionsRouteImport } from './routes/interventions'
 import { Route as GouverneurRouteImport } from './routes/gouverneur'
 import { Route as DecisionsRouteImport } from './routes/decisions'
@@ -72,6 +73,11 @@ const PredictifRoute = PredictifRouteImport.update({
 const ObservatoireRoute = ObservatoireRouteImport.update({
   id: '/observatoire',
   path: '/observatoire',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItinerairesRoute = ItinerairesRouteImport.update({
+  id: '/itineraires',
+  path: '/itineraires',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InterventionsRoute = InterventionsRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
   '/interventions': typeof InterventionsRoute
+  '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByTo {
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
   '/interventions': typeof InterventionsRoute
+  '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
   '/interventions': typeof InterventionsRoute
+  '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -202,6 +211,7 @@ export interface FileRouteTypes {
     | '/decisions'
     | '/gouverneur'
     | '/interventions'
+    | '/itineraires'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
     | '/decisions'
     | '/gouverneur'
     | '/interventions'
+    | '/itineraires'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/decisions'
     | '/gouverneur'
     | '/interventions'
+    | '/itineraires'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -266,6 +278,7 @@ export interface RootRouteChildren {
   DecisionsRoute: typeof DecisionsRoute
   GouverneurRoute: typeof GouverneurRoute
   InterventionsRoute: typeof InterventionsRoute
+  ItinerairesRoute: typeof ItinerairesRoute
   ObservatoireRoute: typeof ObservatoireRoute
   PredictifRoute: typeof PredictifRoute
   RapportsRoute: typeof RapportsRoute
@@ -340,6 +353,13 @@ declare module '@tanstack/react-router' {
       path: '/observatoire'
       fullPath: '/observatoire'
       preLoaderRoute: typeof ObservatoireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/itineraires': {
+      id: '/itineraires'
+      path: '/itineraires'
+      fullPath: '/itineraires'
+      preLoaderRoute: typeof ItinerairesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/interventions': {
@@ -426,6 +446,7 @@ const rootRouteChildren: RootRouteChildren = {
   DecisionsRoute: DecisionsRoute,
   GouverneurRoute: GouverneurRoute,
   InterventionsRoute: InterventionsRoute,
+  ItinerairesRoute: ItinerairesRoute,
   ObservatoireRoute: ObservatoireRoute,
   PredictifRoute: PredictifRoute,
   RapportsRoute: RapportsRoute,
