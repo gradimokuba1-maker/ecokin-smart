@@ -56,7 +56,7 @@ function Home() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-eco/70" />
                 <span className="relative inline-flex size-2 rounded-full bg-eco" />
               </span>
-              Phase pilote · Matete · Lemba · Kisenso
+              Couverture · 24 communes de Kinshasa
             </div>
             <h1 className="mt-6 text-balance text-5xl font-extrabold leading-[1.02] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
               Pour une Kinshasa <span className="text-eco">qui respire</span>.
