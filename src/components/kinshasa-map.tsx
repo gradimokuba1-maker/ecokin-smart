@@ -98,12 +98,12 @@ export function KinshasaMap({ city, reports, height = 560, picker, followUser = 
       city.communes.forEach((c) => {
         L.circleMarker(c.center, {
           radius: 4,
-          color: c.pilot ? "#10b981" : "#94a3b8",
+          color: "#10b981",
           weight: 2,
-          fillColor: c.pilot ? "#10b981" : "#cbd5e1",
-          fillOpacity: 0.6,
+          fillColor: "#10b981",
+          fillOpacity: 0.5,
         })
-          .bindTooltip(c.pilot ? `${c.name} (pilote)` : c.name, { direction: "top" })
+          .bindTooltip(c.name, { direction: "top" })
           .addTo(map);
       });
 

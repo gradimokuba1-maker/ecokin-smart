@@ -88,7 +88,7 @@ function AdminPage() {
           </div>
           <h1 className="mt-2 font-display text-4xl font-bold">Centre de contrôle EcoKin</h1>
           <p className="mt-1 text-white/70">
-            Gestion globale de la plateforme · 3 communes pilotes · {REPORTS.length} signalements
+            Gestion globale de la plateforme · 24 communes de Kinshasa · {REPORTS.length} signalements
           </p>
         </div>
       </div>
@@ -263,7 +263,7 @@ function SettingsTab() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="mb-4 font-display text-lg font-bold">Communes pilotes</h3>
+        <h3 className="mb-4 font-display text-lg font-bold">Communes actives</h3>
         <ul className="divide-y divide-border">
           {COMMUNES.map((c) => (
             <li key={c.id} className="flex items-center justify-between py-3">

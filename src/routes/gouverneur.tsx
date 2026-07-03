@@ -99,7 +99,7 @@ function GouverneurPage() {
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-white/70">
                 Pilotage opérationnel de la propreté, des risques d'inondation et des interventions
-                sur l'ensemble des communes pilotes de Kinshasa.
+                sur l'ensemble des 24 communes de Kinshasa.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -137,7 +137,7 @@ function GouverneurPage() {
           <KpiCard icon={<Gauge />} label="État propreté" value={`${IPK_KINSHASA}/100`} sub="Indice moyen" tone="eco" />
           <KpiCard icon={<Activity />} label="Interventions" value={String(totalInter)} sub={`${inCours} en cours`} tone="kin" />
           <KpiCard icon={<TruckIcon />} label="Camions actifs" value={`${trucksActive}/${trucks.length}`} sub="Flotte GPS" tone="kin" />
-          <KpiCard icon={<Banknote />} label="Budget mensuel" value={`${(totalBudget / 1_000_000).toFixed(1)} M CDF`} sub="3 communes" tone="eco" />
+          <KpiCard icon={<Banknote />} label="Budget mensuel" value={`${(totalBudget / 1_000_000).toFixed(1)} M CDF`} sub="Kinshasa" tone="eco" />
         </section>
 
         {/* Map + AI engine */}

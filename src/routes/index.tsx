@@ -33,7 +33,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Plateforme Smart City pour la gestion intelligente des déchets à Kinshasa. Communes pilotes : Matete, Lemba, Kisenso.",
+          "Plateforme Smart City pour la gestion intelligente des déchets sur les 24 communes de Kinshasa.",
       },
     ],
   }),
@@ -56,7 +56,7 @@ function Home() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-eco/70" />
                 <span className="relative inline-flex size-2 rounded-full bg-eco" />
               </span>
-              Phase pilote · Matete · Lemba · Kisenso
+              Couverture · 24 communes de Kinshasa
             </div>
             <h1 className="mt-6 text-balance text-5xl font-extrabold leading-[1.02] tracking-tight text-foreground sm:text-6xl lg:text-7xl">
               Pour une Kinshasa <span className="text-eco">qui respire</span>.
@@ -192,7 +192,7 @@ function Home() {
       {/* Communes KPIs */}
       <section className="border-t border-border bg-secondary/40">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <h2 className="font-display text-3xl font-bold">3 communes pilotes en chiffres</h2>
+          <h2 className="font-display text-3xl font-bold">Communes de Kinshasa en chiffres</h2>
           <p className="mt-2 text-muted-foreground">
             Données consolidées des opérations de signalement et de collecte.
           </p>
@@ -290,7 +290,7 @@ function Home() {
               { l: "Signalements actifs", v: "482", d: "+12% vs hier", c: "text-flood" },
               { l: "Efficacité collecte", v: "78.4%", d: "+5% ce mois", c: "text-eco" },
               { l: "Caniveaux dégagés", v: "47", d: "Cette semaine", c: "text-urban" },
-              { l: "Risque global", v: "Modéré", d: "Kisenso élevé", c: "text-amber-400" },
+              { l: "Risque global", v: "Modéré", d: "Zones basses élevé", c: "text-amber-400" },
             ].map((k) => (
               <div key={k.l} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
@@ -303,7 +303,7 @@ function Home() {
           </div>
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-              Carte thermique (Kisenso)
+              Carte thermique (Kinshasa)
             </div>
             <div className="mt-3 flex h-24 items-end gap-1">
               {Array.from({ length: 28 }).map((_, i) => {

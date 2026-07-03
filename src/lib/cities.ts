@@ -20,9 +20,9 @@ export type City = {
 
 // 24 communes de Kinshasa (centres approximatifs).
 export const KINSHASA_COMMUNES: CityCommune[] = [
-  { id: "matete", name: "Matete", center: [-4.3833, 15.3333], pilot: true },
-  { id: "lemba", name: "Lemba", center: [-4.3786, 15.2978], pilot: true },
-  { id: "kisenso", name: "Kisenso", center: [-4.4156, 15.3361], pilot: true },
+  { id: "matete", name: "Matete", center: [-4.3833, 15.3333] },
+  { id: "lemba", name: "Lemba", center: [-4.3786, 15.2978] },
+  { id: "kisenso", name: "Kisenso", center: [-4.4156, 15.3361] },
   { id: "gombe", name: "Gombe", center: [-4.3157, 15.3081] },
   { id: "kintambo", name: "Kintambo", center: [-4.3399, 15.2707] },
   { id: "bandalungwa", name: "Bandalungwa", center: [-4.3542, 15.2861] },

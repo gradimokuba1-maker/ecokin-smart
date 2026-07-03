@@ -181,9 +181,7 @@ function Page() {
             </div>
             <ul className="mt-3 space-y-1.5 text-xs">
               <li>✅ Cabinet du Gouverneur</li>
-              <li>✅ Bourgmestre Kisenso</li>
-              <li>✅ Bourgmestre Lemba</li>
-              <li>✅ Bourgmestre Matete</li>
+              <li>✅ Bourgmestres des 24 communes</li>
               <li>✅ Direction Urbanisme</li>
               <li>✅ Croix-Rouge RDC</li>
               <li>⌛ Protection civile (à confirmer)</li>

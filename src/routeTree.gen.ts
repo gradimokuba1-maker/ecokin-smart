@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SuiviEvaluationRouteImport } from './routes/suivi-evaluation'
 import { Route as SituationRouteImport } from './routes/situation'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
@@ -17,7 +18,9 @@ import { Route as RecompensesRouteImport } from './routes/recompenses'
 import { Route as RapportsRouteImport } from './routes/rapports'
 import { Route as PredictifRouteImport } from './routes/predictif'
 import { Route as ObservatoireRouteImport } from './routes/observatoire'
+import { Route as ItinerairesRouteImport } from './routes/itineraires'
 import { Route as InterventionsRouteImport } from './routes/interventions'
+import { Route as GpsFlotteRouteImport } from './routes/gps-flotte'
 import { Route as GouverneurRouteImport } from './routes/gouverneur'
 import { Route as DecisionsRouteImport } from './routes/decisions'
 import { Route as CriseRouteImport } from './routes/crise'
@@ -28,6 +31,11 @@ import { Route as AssistantIaRouteImport } from './routes/assistant-ia'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SuiviEvaluationRoute = SuiviEvaluationRouteImport.update({
+  id: '/suivi-evaluation',
+  path: '/suivi-evaluation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SituationRoute = SituationRouteImport.update({
   id: '/situation',
   path: '/situation',
@@ -68,9 +76,19 @@ const ObservatoireRoute = ObservatoireRouteImport.update({
   path: '/observatoire',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ItinerairesRoute = ItinerairesRouteImport.update({
+  id: '/itineraires',
+  path: '/itineraires',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InterventionsRoute = InterventionsRouteImport.update({
   id: '/interventions',
   path: '/interventions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GpsFlotteRoute = GpsFlotteRouteImport.update({
+  id: '/gps-flotte',
+  path: '/gps-flotte',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GouverneurRoute = GouverneurRouteImport.update({
@@ -129,7 +147,9 @@ export interface FileRoutesByFullPath {
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
+  '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
+  '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -138,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
+  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -149,7 +170,9 @@ export interface FileRoutesByTo {
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
+  '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
+  '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -158,6 +181,7 @@ export interface FileRoutesByTo {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
+  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,7 +194,9 @@ export interface FileRoutesById {
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
+  '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
+  '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -179,6 +205,7 @@ export interface FileRoutesById {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
+  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,7 +219,9 @@ export interface FileRouteTypes {
     | '/crise'
     | '/decisions'
     | '/gouverneur'
+    | '/gps-flotte'
     | '/interventions'
+    | '/itineraires'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -201,6 +230,7 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
+    | '/suivi-evaluation'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -212,7 +242,9 @@ export interface FileRouteTypes {
     | '/crise'
     | '/decisions'
     | '/gouverneur'
+    | '/gps-flotte'
     | '/interventions'
+    | '/itineraires'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -221,6 +253,7 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
+    | '/suivi-evaluation'
   id:
     | '__root__'
     | '/'
@@ -232,7 +265,9 @@ export interface FileRouteTypes {
     | '/crise'
     | '/decisions'
     | '/gouverneur'
+    | '/gps-flotte'
     | '/interventions'
+    | '/itineraires'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -241,6 +276,7 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
+    | '/suivi-evaluation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -253,7 +289,9 @@ export interface RootRouteChildren {
   CriseRoute: typeof CriseRoute
   DecisionsRoute: typeof DecisionsRoute
   GouverneurRoute: typeof GouverneurRoute
+  GpsFlotteRoute: typeof GpsFlotteRoute
   InterventionsRoute: typeof InterventionsRoute
+  ItinerairesRoute: typeof ItinerairesRoute
   ObservatoireRoute: typeof ObservatoireRoute
   PredictifRoute: typeof PredictifRoute
   RapportsRoute: typeof RapportsRoute
@@ -262,10 +300,18 @@ export interface RootRouteChildren {
   SignalerRoute: typeof SignalerRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SituationRoute: typeof SituationRoute
+  SuiviEvaluationRoute: typeof SuiviEvaluationRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/suivi-evaluation': {
+      id: '/suivi-evaluation'
+      path: '/suivi-evaluation'
+      fullPath: '/suivi-evaluation'
+      preLoaderRoute: typeof SuiviEvaluationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/situation': {
       id: '/situation'
       path: '/situation'
@@ -322,11 +368,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ObservatoireRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/itineraires': {
+      id: '/itineraires'
+      path: '/itineraires'
+      fullPath: '/itineraires'
+      preLoaderRoute: typeof ItinerairesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/interventions': {
       id: '/interventions'
       path: '/interventions'
       fullPath: '/interventions'
       preLoaderRoute: typeof InterventionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gps-flotte': {
+      id: '/gps-flotte'
+      path: '/gps-flotte'
+      fullPath: '/gps-flotte'
+      preLoaderRoute: typeof GpsFlotteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gouverneur': {
@@ -405,7 +465,9 @@ const rootRouteChildren: RootRouteChildren = {
   CriseRoute: CriseRoute,
   DecisionsRoute: DecisionsRoute,
   GouverneurRoute: GouverneurRoute,
+  GpsFlotteRoute: GpsFlotteRoute,
   InterventionsRoute: InterventionsRoute,
+  ItinerairesRoute: ItinerairesRoute,
   ObservatoireRoute: ObservatoireRoute,
   PredictifRoute: PredictifRoute,
   RapportsRoute: RapportsRoute,
@@ -414,6 +476,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignalerRoute: SignalerRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SituationRoute: SituationRoute,
+  SuiviEvaluationRoute: SuiviEvaluationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
