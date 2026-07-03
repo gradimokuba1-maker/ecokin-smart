@@ -70,7 +70,7 @@ function AutoritesPage() {
             { l: "Signalements actifs", v: "482", d: "+12% vs hier", c: "text-flood" },
             { l: "Tonnes collectées (mois)", v: "124.8", d: "+8% objectif", c: "text-eco" },
             { l: "Taux de recyclage", v: "38.4%", d: "+3.2 pts", c: "text-urban" },
-            { l: "Risque inondation", v: "Modéré", d: "Kisenso élevé", c: "text-amber-500" },
+            { l: "Risque inondation", v: "Modéré", d: "Zones basses élevé", c: "text-amber-500" },
           ].map((k) => (
             <div key={k.l} className="rounded-2xl border border-border bg-card p-5">
               <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
