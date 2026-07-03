@@ -137,7 +137,7 @@ function GouverneurPage() {
           <KpiCard icon={<Gauge />} label="État propreté" value={`${IPK_KINSHASA}/100`} sub="Indice moyen" tone="eco" />
           <KpiCard icon={<Activity />} label="Interventions" value={String(totalInter)} sub={`${inCours} en cours`} tone="kin" />
           <KpiCard icon={<TruckIcon />} label="Camions actifs" value={`${trucksActive}/${trucks.length}`} sub="Flotte GPS" tone="kin" />
-          <KpiCard icon={<Banknote />} label="Budget mensuel" value={`${(totalBudget / 1_000_000).toFixed(1)} M CDF`} sub="3 communes" tone="eco" />
+          <KpiCard icon={<Banknote />} label="Budget mensuel" value={`${(totalBudget / 1_000_000).toFixed(1)} M CDF`} sub="Kinshasa" tone="eco" />
         </section>
 
         {/* Map + AI engine */}
