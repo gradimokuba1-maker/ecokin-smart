@@ -303,7 +303,7 @@ function Home() {
           </div>
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-              Carte thermique (Kisenso)
+              Carte thermique (Kinshasa)
             </div>
             <div className="mt-3 flex h-24 items-end gap-1">
               {Array.from({ length: 28 }).map((_, i) => {
