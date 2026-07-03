@@ -48,7 +48,7 @@ function RapportsPage() {
         <section className="grid gap-3 sm:grid-cols-3">
           <Tile label="IPK Kinshasa" value={`${IPK_KINSHASA}/100`} />
           <Tile label="Interventions" value={String(INTERVENTIONS.length)} />
-          <Tile label="Communes pilotes" value={String(COMMUNES.length)} />
+          <Tile label="Communes couvertes" value="24" />
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-5">
