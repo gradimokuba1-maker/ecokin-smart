@@ -53,7 +53,7 @@ function Page() {
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid gap-4 md:grid-cols-3">
           {[
-            { l: "Hotspots actifs", v: HOTSPOTS.length.toString(), d: "3 communes" },
+            { l: "Hotspots actifs", v: HOTSPOTS.length.toString(), d: "Kinshasa" },
             { l: "Caniveaux à risque", v: BLOCKED_DRAINS.filter((d) => d.blockedPct > 75).length + "", d: "obstruction > 75%" },
             { l: "Pluies 7j", v: WEATHER_FORECAST.reduce((s, d) => s + d.rainMm, 0) + " mm", d: "cumul prévu" },
           ].map((k) => (
