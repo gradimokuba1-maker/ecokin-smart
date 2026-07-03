@@ -263,7 +263,7 @@ function SettingsTab() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="mb-4 font-display text-lg font-bold">Communes pilotes</h3>
+        <h3 className="mb-4 font-display text-lg font-bold">Communes actives</h3>
         <ul className="divide-y divide-border">
           {COMMUNES.map((c) => (
             <li key={c.id} className="flex items-center justify-between py-3">
