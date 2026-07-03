@@ -20,6 +20,7 @@ import { Route as PredictifRouteImport } from './routes/predictif'
 import { Route as ObservatoireRouteImport } from './routes/observatoire'
 import { Route as ItinerairesRouteImport } from './routes/itineraires'
 import { Route as InterventionsRouteImport } from './routes/interventions'
+import { Route as GpsFlotteRouteImport } from './routes/gps-flotte'
 import { Route as GouverneurRouteImport } from './routes/gouverneur'
 import { Route as DecisionsRouteImport } from './routes/decisions'
 import { Route as CriseRouteImport } from './routes/crise'
@@ -85,6 +86,11 @@ const InterventionsRoute = InterventionsRouteImport.update({
   path: '/interventions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GpsFlotteRoute = GpsFlotteRouteImport.update({
+  id: '/gps-flotte',
+  path: '/gps-flotte',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GouverneurRoute = GouverneurRouteImport.update({
   id: '/gouverneur',
   path: '/gouverneur',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
+  '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
+  '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
+  '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
   '/observatoire': typeof ObservatoireRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/crise'
     | '/decisions'
     | '/gouverneur'
+    | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
     | '/observatoire'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/crise'
     | '/decisions'
     | '/gouverneur'
+    | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
     | '/observatoire'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/crise'
     | '/decisions'
     | '/gouverneur'
+    | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
     | '/observatoire'
@@ -277,6 +289,7 @@ export interface RootRouteChildren {
   CriseRoute: typeof CriseRoute
   DecisionsRoute: typeof DecisionsRoute
   GouverneurRoute: typeof GouverneurRoute
+  GpsFlotteRoute: typeof GpsFlotteRoute
   InterventionsRoute: typeof InterventionsRoute
   ItinerairesRoute: typeof ItinerairesRoute
   ObservatoireRoute: typeof ObservatoireRoute
@@ -369,6 +382,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterventionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/gps-flotte': {
+      id: '/gps-flotte'
+      path: '/gps-flotte'
+      fullPath: '/gps-flotte'
+      preLoaderRoute: typeof GpsFlotteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/gouverneur': {
       id: '/gouverneur'
       path: '/gouverneur'
@@ -445,6 +465,7 @@ const rootRouteChildren: RootRouteChildren = {
   CriseRoute: CriseRoute,
   DecisionsRoute: DecisionsRoute,
   GouverneurRoute: GouverneurRoute,
+  GpsFlotteRoute: GpsFlotteRoute,
   InterventionsRoute: InterventionsRoute,
   ItinerairesRoute: ItinerairesRoute,
   ObservatoireRoute: ObservatoireRoute,
