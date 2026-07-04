@@ -99,16 +99,8 @@ export const COLLECTION_POINTS = [
   { id: "cp5", name: "Centre de tri Lemba-Université", commune: "lemba", lat: -4.376, lng: 15.300, kind: "tri" },
 ];
 
-export const LEADERBOARD = [
-  { rank: 1, name: "Moussa Bashala", commune: "Matete", points: 4820, reports: 142, badges: ["sentinelle", "eco", "champion"] },
-  { rank: 2, name: "Sarah Kabongo", commune: "Lemba", points: 3850, reports: 98, badges: ["eco", "champion"] },
-  { rank: 3, name: "Jean-Paul Mbiya", commune: "Kisenso", points: 3100, reports: 84, badges: ["sentinelle"] },
-  { rank: 4, name: "Francine Bilonda", commune: "Lemba", points: 2780, reports: 71, badges: ["eco"] },
-  { rank: 5, name: "Patrick Tshibanda", commune: "Matete", points: 2410, reports: 65, badges: ["sentinelle"] },
-  { rank: 6, name: "Aline Nzuzi", commune: "Kisenso", points: 2050, reports: 58, badges: ["eco"] },
-  { rank: 7, name: "Christian Mbuyi", commune: "Matete", points: 1780, reports: 51, badges: [] },
-  { rank: 8, name: "Diane Lwamba", commune: "Lemba", points: 1620, reports: 47, badges: [] },
-];
+// Classement citoyens — alimenté par les vrais signalements après réinitialisation.
+export const LEADERBOARD: { rank: number; name: string; commune: string; points: number; reports: number; badges: string[] }[] = [];
 
 export const REWARDS = [
   { id: "rw1", name: "Crédit Orange 1 000 CDF", cost: 500, kind: "telecom" },
@@ -119,29 +111,8 @@ export const REWARDS = [
   { id: "rw6", name: "Sac réutilisable EcoKin", cost: 1200, kind: "merch" },
 ];
 
-export const ALERTS = [
-  {
-    id: "al1",
-    title: "Pluies fortes prévues à Kisenso (48 h)",
-    body: "Évitez les zones basses des avenues Mokali et Kimpwanza. Signalez tout caniveau obstrué.",
-    level: "critique" as const,
-    date: "Aujourd'hui",
-  },
-  {
-    id: "al2",
-    title: "Opération de collecte — Lemba Salongo",
-    body: "Équipe RASKIN sur place demain de 06h à 11h. Sortez vos déchets.",
-    level: "info" as const,
-    date: "Demain",
-  },
-  {
-    id: "al3",
-    title: "Atelier sensibilisation jeunesse — Matete",
-    body: "Samedi à la place du marché, de 09h à 13h. +100 Green Points pour la participation.",
-    level: "info" as const,
-    date: "Samedi",
-  },
-];
+// Aucune alerte pré-remplie : les alertes seront calculées à partir des données terrain.
+export const ALERTS: { id: string; title: string; body: string; level: "critique" | "info"; date: string }[] = [];
 
 export const TIPS = [
   "Un sachet plastique met jusqu'à 400 ans à se décomposer dans nos caniveaux.",
@@ -151,26 +122,13 @@ export const TIPS = [
   "Un signalement précis (photo + position) accélère l'intervention de jusqu'à 4×.",
 ];
 
-export const COMMUNE_KPIS = {
-  matete: { signalements: 284, collecte_t: 38.2, recyclage: 42, risque: 28 },
-  lemba: { signalements: 412, collecte_t: 51.6, recyclage: 39, risque: 35 },
-  kisenso: { signalements: 386, collecte_t: 34.9, recyclage: 31, risque: 62 },
-};
+// KPIs par commune — réinitialisés. Alimentés dynamiquement par les signalements réels.
+export const COMMUNE_KPIS: Record<string, { signalements: number; collecte_t: number; recyclage: number; risque: number }> = {};
 
-export const MONTHLY_TREND = [
-  { mois: "Jan", signalements: 180, collecte: 22 },
-  { mois: "Fév", signalements: 240, collecte: 28 },
-  { mois: "Mar", signalements: 310, collecte: 34 },
-  { mois: "Avr", signalements: 380, collecte: 41 },
-  { mois: "Mai", signalements: 460, collecte: 48 },
-  { mois: "Juin", signalements: 540, collecte: 56 },
-];
+export const MONTHLY_TREND: { mois: string; signalements: number; collecte: number }[] = [];
 
-export const FLOOD_RISK_ZONES = [
-  { commune: "kisenso", lat: -4.418, lng: 15.339, radius: 600, level: "critique" },
-  { commune: "lemba", lat: -4.381, lng: 15.299, radius: 450, level: "eleve" },
-  { commune: "matete", lat: -4.385, lng: 15.334, radius: 380, level: "modere" },
-];
+// Zones à risque d'inondation — calculées dynamiquement à partir des données météo & signalements.
+export const FLOOD_RISK_ZONES: { commune: string; lat: number; lng: number; radius: number; level: string }[] = [];
 
 // ---------- SIG layers (équipements urbains) ----------
 export type PoiKind = "ecole" | "hopital" | "marche";
