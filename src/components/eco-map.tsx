@@ -263,14 +263,14 @@ export function EcoMap({
         style={{ height, width: "100%" }}
         className="overflow-hidden rounded-2xl border border-border bg-secondary"
       />
-      {showWeather && (
+      {showWeather && todayAlert && (
         <>
           {/* Flood alert banner */}
           {(todayAlert.floodRisk === "critique" || todayAlert.floodRisk === "eleve") && (
             <div className="pointer-events-none absolute left-3 right-3 top-3 z-[400] flex items-center gap-2 rounded-xl border border-red-200 bg-red-500/95 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-red-500/30">
               <AlertTriangle className="size-4" />
               <span className="truncate">
-                Alerte pluie {todayAlert.rainMm} mm – risque d'inondation {todayAlert.floodRisk} sur les communes pilotes.
+                Alerte pluie {todayAlert.rainMm} mm – risque d'inondation {todayAlert.floodRisk}.
               </span>
             </div>
           )}
