@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEcoUser } from "@/lib/user-store";
 import { useAccess } from "@/lib/access-store";
+import { formatNumber } from "@/lib/utils";
 import { Leaf, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
