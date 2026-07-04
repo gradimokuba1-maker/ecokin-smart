@@ -72,7 +72,7 @@ function Content() {
                 <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                   <Mini label="Signalements" value={reports.length.toString()} />
                   <Mini label="Critiques" value={critiques.toString()} />
-                  <Mini label="IPK" value={perf.ipk + ""} />
+                  <Mini label="IPK" value={perf ? perf.ipk + "" : "—"} />
                 </div>
               </div>
             );
