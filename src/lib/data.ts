@@ -145,19 +145,10 @@ export const POIS: { id: string; name: string; kind: PoiKind; lat: number; lng: 
   { id: "mk3", name: "Marché Kimpwanza", kind: "marche", lat: -4.417, lng: 15.340, commune: "kisenso" },
 ];
 
-export const ILLEGAL_DUMPS = [
-  { id: "id1", name: "Av. Mokali (talus)", lat: -4.419, lng: 15.342, commune: "kisenso", volumeM3: 12 },
-  { id: "id2", name: "Carrefour Lemba-Sud", lat: -4.383, lng: 15.301, commune: "lemba", volumeM3: 7 },
-  { id: "id3", name: "Pont Matete", lat: -4.387, lng: 15.336, commune: "matete", volumeM3: 5 },
-  { id: "id4", name: "Av. Kimpwanza", lat: -4.421, lng: 15.339, commune: "kisenso", volumeM3: 9 },
-];
+// Décharges sauvages & caniveaux obstrués — alimentés uniquement par les signalements terrain.
+export const ILLEGAL_DUMPS: { id: string; name: string; lat: number; lng: number; commune: string; volumeM3: number }[] = [];
 
-export const BLOCKED_DRAINS = [
-  { id: "dr1", name: "Caniveau Av. Lumumba", lat: -4.384, lng: 15.333, commune: "matete", blockedPct: 80 },
-  { id: "dr2", name: "Caniveau Université", lat: -4.377, lng: 15.299, commune: "lemba", blockedPct: 65 },
-  { id: "dr3", name: "Caniveau Mokali", lat: -4.418, lng: 15.340, commune: "kisenso", blockedPct: 92 },
-  { id: "dr4", name: "Caniveau Kimpwanza", lat: -4.416, lng: 15.337, commune: "kisenso", blockedPct: 70 },
-];
+export const BLOCKED_DRAINS: { id: string; name: string; lat: number; lng: number; commune: string; blockedPct: number }[] = [];
 
 export const MAIN_ROADS: { name: string; path: [number, number][] }[] = [
   { name: "Bd Lumumba", path: [[-4.370, 15.290], [-4.385, 15.320], [-4.405, 15.345]] },
