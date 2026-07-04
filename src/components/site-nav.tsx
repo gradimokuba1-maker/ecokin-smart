@@ -58,7 +58,7 @@ export function SiteNav() {
         <div className="hidden items-center gap-3 md:flex">
           <NotificationBell />
           <div className="text-right">
-            <div className="text-xs font-semibold text-eco">{user.points.toLocaleString()} GP</div>
+            <div className="text-xs font-semibold text-eco">{formatNumber(user.points)} GP</div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
               {session.role === "citoyen" ? user.name : session.name}
             </div>
