@@ -17,7 +17,7 @@ export const Route = createFileRoute("/suivi-evaluation")({
     ],
   }),
   component: () => (
-    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Suivi & Évaluation Kin Label">
+    <AccessGate required={["agent", "bourgmestre", "gouverneur", "admin"]} title="Suivi & Évaluation Kin Label">
       <SuiviPage />
     </AccessGate>
   ),

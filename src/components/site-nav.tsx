@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEcoUser } from "@/lib/user-store";
 import { useAccess } from "@/lib/access-store";
+import { formatNumber } from "@/lib/utils";
 import { Leaf, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -57,7 +58,7 @@ export function SiteNav() {
         <div className="hidden items-center gap-3 md:flex">
           <NotificationBell />
           <div className="text-right">
-            <div className="text-xs font-semibold text-eco">{user.points.toLocaleString()} GP</div>
+            <div className="text-xs font-semibold text-eco">{formatNumber(user.points)} GP</div>
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
               {session.role === "citoyen" ? user.name : session.name}
             </div>

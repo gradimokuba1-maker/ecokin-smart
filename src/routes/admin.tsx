@@ -260,27 +260,65 @@ function RewardsTab() {
 }
 
 function SettingsTab() {
+  const [confirming, setConfirming] = useState(false);
+  const [done, setDone] = useState(false);
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6">
+        <h3 className="mb-1 font-display text-lg font-bold text-red-700">Réinitialisation complète de la plateforme</h3>
+        <p className="text-sm text-muted-foreground">
+          Supprime tous les signalements, statistiques, activités Kin Label, GPS flotte,
+          notifications, journaux d'audit et sessions autorités. Les compteurs repartent à 0.
+          Les données réelles collectées durant la phase de test alimenteront ensuite tableaux
+          de bord, cartes et indicateurs.
+        </p>
+        {!confirming ? (
+          <button
+            onClick={() => setConfirming(true)}
+            className="mt-4 rounded-xl border border-red-500/40 bg-white px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-500/10"
+          >
+            Réinitialiser toutes les données
+          </button>
+        ) : (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-red-700">Cette action est irréversible.</span>
+            <button
+              onClick={async () => {
+                const { resetAllEcoKinData } = await import("@/lib/utils");
+                resetAllEcoKinData();
+                setDone(true);
+                setTimeout(() => window.location.reload(), 800);
+              }}
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white"
+            >
+              Confirmer la réinitialisation
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              className="rounded-xl border border-border px-3 py-2 text-sm font-semibold"
+            >
+              Annuler
+            </button>
+            {done && <span className="text-xs font-semibold text-eco">✓ Données remises à zéro…</span>}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="mb-4 font-display text-lg font-bold">Communes actives</h3>
-        <ul className="divide-y divide-border">
+        <h3 className="mb-4 font-display text-lg font-bold">Communes couvertes ({COMMUNES.length})</h3>
+        <ul className="grid gap-2 sm:grid-cols-2">
           {COMMUNES.map((c) => (
-            <li key={c.id} className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <span className="size-3 rounded-full" style={{ background: c.color }} />
-                <div>
-                  <div className="font-semibold">{c.name}</div>
-                  <div className="text-xs text-muted-foreground">{c.population} hab.</div>
-                </div>
-              </div>
-              <span className="rounded-full bg-eco/10 px-3 py-1 text-xs font-bold text-eco">
-                Active
+            <li key={c.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <span className="flex items-center gap-2 text-sm">
+                <span className="size-2.5 rounded-full" style={{ background: c.color }} />
+                {c.name}
               </span>
+              <span className="rounded-full bg-eco/10 px-2 py-0.5 text-[10px] font-bold text-eco">Active</span>
             </li>
           ))}
         </ul>
       </div>
+
       <div className="rounded-2xl border border-border bg-card p-6">
         <h3 className="mb-2 font-display text-lg font-bold">Modèle IA</h3>
         <p className="text-sm text-muted-foreground">

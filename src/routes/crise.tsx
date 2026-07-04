@@ -30,7 +30,7 @@ export const Route = createFileRoute("/crise")({
 
 function Page() {
   const w = WEATHER_FORECAST[0];
-  const active = w.floodRisk === "critique" || w.floodRisk === "eleve";
+  const active = !!w && (w.floodRisk === "critique" || w.floodRisk === "eleve");
   const { items, ack, assign, setStatus } = useLiveReports();
   const { session } = useAccess();
 

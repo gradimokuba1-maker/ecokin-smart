@@ -14,10 +14,10 @@ export type EcoUser = {
 
 const DEFAULT: EcoUser = {
   name: "Citoyen EcoKin",
-  commune: "Matete",
-  points: 1420,
-  reports: 17,
-  badges: ["eco", "sentinelle"],
+  commune: "Kinshasa",
+  points: 0,
+  reports: 0,
+  badges: [],
 };
 
 function read(): EcoUser {

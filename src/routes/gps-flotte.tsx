@@ -18,7 +18,7 @@ export const Route = createFileRoute("/gps-flotte")({
     ],
   }),
   component: () => (
-    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Suivi GPS de la flotte">
+    <AccessGate required={["agent", "bourgmestre", "gouverneur", "admin"]} title="Suivi GPS de la flotte">
       <GpsPage />
     </AccessGate>
   ),

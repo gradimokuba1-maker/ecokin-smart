@@ -237,41 +237,52 @@ function Home() {
             <Sparkles className="size-5 text-eco" />
             <h3 className="font-display text-2xl font-bold">Espace citoyen — Green Points</h3>
           </div>
-          <div className="rounded-2xl bg-gradient-to-br from-eco/10 via-card to-urban/10 p-6">
-            <div className="flex items-end justify-between">
-              <div>
-                <div className="text-xs font-semibold text-muted-foreground">Top citoyen</div>
-                <div className="mt-1 font-display text-3xl font-bold">{LEADERBOARD[0].name}</div>
-                <div className="text-sm text-muted-foreground">
-                  Commune de {LEADERBOARD[0].commune} · {LEADERBOARD[0].reports} signalements
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-eco">
-                  Green Points
-                </div>
-                <div className="font-display text-4xl font-extrabold text-eco">
-                  {LEADERBOARD[0].points.toLocaleString()}
-                </div>
-              </div>
+          {LEADERBOARD.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-8 text-center">
+              <div className="text-sm font-semibold">Classement à venir</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Le tableau s'alimentera automatiquement à partir des signalements réels des citoyens.
+              </p>
             </div>
-          </div>
-          <ul className="mt-6 divide-y divide-border">
-            {LEADERBOARD.slice(1, 5).map((l) => (
-              <li key={l.rank} className="flex items-center justify-between py-3 text-sm">
-                <span className="flex items-center gap-3">
-                  <span className="grid size-7 place-items-center rounded-full bg-secondary text-xs font-bold">
-                    {l.rank}
-                  </span>
-                  <span>
-                    <span className="font-medium">{l.name}</span>{" "}
-                    <span className="text-muted-foreground">· {l.commune}</span>
-                  </span>
-                </span>
-                <span className="font-semibold text-eco">{l.points.toLocaleString()} pts</span>
-              </li>
-            ))}
-          </ul>
+          ) : (
+            <>
+              <div className="rounded-2xl bg-gradient-to-br from-eco/10 via-card to-urban/10 p-6">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-muted-foreground">Top citoyen</div>
+                    <div className="mt-1 font-display text-3xl font-bold">{LEADERBOARD[0].name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      Commune de {LEADERBOARD[0].commune} · {LEADERBOARD[0].reports} signalements
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-eco">
+                      Green Points
+                    </div>
+                    <div className="font-display text-4xl font-extrabold text-eco">
+                      {LEADERBOARD[0].points.toLocaleString("fr-FR")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <ul className="mt-6 divide-y divide-border">
+                {LEADERBOARD.slice(1, 5).map((l) => (
+                  <li key={l.rank} className="flex items-center justify-between py-3 text-sm">
+                    <span className="flex items-center gap-3">
+                      <span className="grid size-7 place-items-center rounded-full bg-secondary text-xs font-bold">
+                        {l.rank}
+                      </span>
+                      <span>
+                        <span className="font-medium">{l.name}</span>{" "}
+                        <span className="text-muted-foreground">· {l.commune}</span>
+                      </span>
+                    </span>
+                    <span className="font-semibold text-eco">{l.points.toLocaleString("fr-FR")} pts</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <Link
             to="/recompenses"
             className="mt-6 inline-flex items-center gap-1 text-sm font-bold text-eco hover:underline"
