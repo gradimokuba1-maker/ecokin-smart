@@ -231,21 +231,12 @@ export type Hotspot = {
   predictedRiskNext7d: "faible" | "modere" | "eleve" | "critique";
 };
 
-export const HOTSPOTS: Hotspot[] = [
-  { id: "hs1", commune: "kisenso", lat: -4.418, lng: 15.340, name: "Av. Mokali — virage bas", recurrence: 28, trend: "hausse", predictedRiskNext7d: "critique" },
-  { id: "hs2", commune: "kisenso", lat: -4.421, lng: 15.339, name: "Av. Kimpwanza", recurrence: 22, trend: "hausse", predictedRiskNext7d: "eleve" },
-  { id: "hs3", commune: "lemba", lat: -4.383, lng: 15.301, name: "Carrefour Lemba-Sud", recurrence: 19, trend: "stable", predictedRiskNext7d: "eleve" },
-  { id: "hs4", commune: "matete", lat: -4.387, lng: 15.336, name: "Pont Matete", recurrence: 14, trend: "stable", predictedRiskNext7d: "modere" },
-  { id: "hs5", commune: "matete", lat: -4.382, lng: 15.331, name: "Marché Matete (arrière)", recurrence: 11, trend: "baisse", predictedRiskNext7d: "modere" },
-  { id: "hs6", commune: "lemba", lat: -4.378, lng: 15.299, name: "Université — av. principale", recurrence: 9, trend: "stable", predictedRiskNext7d: "faible" },
-];
+// Hotspots prédictifs — calculés dynamiquement à partir des récurrences réelles.
+export const HOTSPOTS: Hotspot[] = [];
 
 // ---------- Performance des communes ----------
-export const COMMUNE_PERFORMANCE = {
-  matete: { ipk: 72, tauxCollecte: 78, tauxResolution: 84, tauxValorisation: 42, tempsReponseH: 6.2 },
-  lemba: { ipk: 65, tauxCollecte: 71, tauxResolution: 77, tauxValorisation: 39, tempsReponseH: 7.8 },
-  kisenso: { ipk: 48, tauxCollecte: 58, tauxResolution: 62, tauxValorisation: 31, tempsReponseH: 11.4 },
-};
+// Les indicateurs sont calculés à partir des signalements et interventions réels.
+export const COMMUNE_PERFORMANCE: Record<string, { ipk: number; tauxCollecte: number; tauxResolution: number; tauxValorisation: number; tempsReponseH: number }> = {};
 
 // ---------- Mur des Décisions ----------
 export type Decision = {
@@ -261,88 +252,13 @@ export type Decision = {
   kpis: { label: string; value: string }[];
 };
 
-export const DECISIONS: Decision[] = [
-  {
-    id: "DEC-001",
-    titre: "Curage d'urgence Av. Mokali (Kisenso)",
-    responsable: "Bourgmestre Kisenso",
-    commune: "kisenso",
-    dateLancement: "2026-06-18",
-    budget: 18_500_000,
-    etat: "en_cours",
-    avancementPct: 65,
-    resultats: "4 caniveaux dégagés sur 6, ≈ 22 m³ de déchets évacués.",
-    kpis: [{ label: "Caniveaux dégagés", value: "4 / 6" }, { label: "Volume", value: "22 m³" }],
-  },
-  {
-    id: "DEC-002",
-    titre: "Brigade verte Lemba-Sud",
-    responsable: "Bourgmestre Lemba",
-    commune: "lemba",
-    dateLancement: "2026-06-10",
-    budget: 9_200_000,
-    etat: "en_cours",
-    avancementPct: 40,
-    resultats: "Recrutement 24 jeunes, 3 tournées hebdo opérationnelles.",
-    kpis: [{ label: "Emplois", value: "24" }, { label: "Tournées/sem.", value: "3" }],
-  },
-  {
-    id: "DEC-003",
-    titre: "Campagne IEC plastiques marchés",
-    responsable: "Cabinet du Gouverneur",
-    commune: "kinshasa",
-    dateLancement: "2026-06-05",
-    budget: 4_500_000,
-    etat: "terminee",
-    avancementPct: 100,
-    resultats: "12 marchés couverts, −18% signalements plastiques.",
-    kpis: [{ label: "Marchés", value: "12" }, { label: "Réduction", value: "−18%" }],
-  },
-  {
-    id: "DEC-004",
-    titre: "Acquisition 5 camions bennes",
-    responsable: "Cabinet du Gouverneur",
-    commune: "kinshasa",
-    dateLancement: "2026-05-22",
-    budget: 285_000_000,
-    etat: "planifiee",
-    avancementPct: 10,
-    resultats: "Appel d'offres lancé.",
-    kpis: [{ label: "Offres reçues", value: "3" }, { label: "ETA", value: "Q4 2026" }],
-  },
-  {
-    id: "DEC-005",
-    titre: "Plan anti-inondations saison pluvieuse",
-    responsable: "Direction urbanisme",
-    commune: "kinshasa",
-    dateLancement: "2026-04-01",
-    budget: 62_000_000,
-    etat: "bloquee",
-    avancementPct: 28,
-    resultats: "Financement partiel — attente déblocage tranche 2.",
-    kpis: [{ label: "Caniveaux ciblés", value: "184" }, { label: "Traités", value: "52" }],
-  },
-];
+export const DECISIONS: Decision[] = [];
 
 // ---------- Historique des interventions résolues ----------
-export const INTERVENTION_HISTORY = [
-  { date: "2026-06-19", commune: "kisenso", type: "urgence", duree_h: 4, volume_m3: 9, equipe: "Alpha" },
-  { date: "2026-06-18", commune: "matete", type: "collecte", duree_h: 3, volume_m3: 14, equipe: "Bravo" },
-  { date: "2026-06-17", commune: "lemba", type: "curage", duree_h: 5, volume_m3: 6, equipe: "Citoyenne" },
-  { date: "2026-06-16", commune: "kisenso", type: "collecte", duree_h: 4, volume_m3: 18, equipe: "Alpha" },
-  { date: "2026-06-15", commune: "lemba", type: "sensibilisation", duree_h: 4, volume_m3: 0, equipe: "Citoyenne" },
-  { date: "2026-06-14", commune: "matete", type: "collecte", duree_h: 3, volume_m3: 12, equipe: "Bravo" },
-];
+export const INTERVENTION_HISTORY: { date: string; commune: string; type: string; duree_h: number; volume_m3: number; equipe: string }[] = [];
 
 // ---------- Évolution mensuelle de la propreté ----------
-export const IPK_TREND = [
-  { mois: "Jan", matete: 58, lemba: 54, kisenso: 41, kinshasa: 51 },
-  { mois: "Fév", matete: 61, lemba: 56, kisenso: 42, kinshasa: 53 },
-  { mois: "Mar", matete: 64, lemba: 58, kisenso: 44, kinshasa: 55 },
-  { mois: "Avr", matete: 67, lemba: 60, kisenso: 45, kinshasa: 57 },
-  { mois: "Mai", matete: 70, lemba: 63, kisenso: 47, kinshasa: 60 },
-  { mois: "Juin", matete: 72, lemba: 65, kisenso: 48, kinshasa: 62 },
-];
+export const IPK_TREND: { mois: string; matete: number; lemba: number; kisenso: number; kinshasa: number }[] = [];
 
 // ---------- Helpers ----------
 export function detectCommune(lat: number, lng: number): Commune["id"] {
