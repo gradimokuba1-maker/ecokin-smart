@@ -173,13 +173,8 @@ export type Truck = {
   speedKmh: number;
 };
 
-export const TRUCKS: Truck[] = [
-  { id: "T-01", plate: "CD-2041-AA", commune: "matete", driver: "B. Kasongo", status: "collecte", loadPct: 62, lat: -4.385, lng: 15.333, speedKmh: 12 },
-  { id: "T-02", plate: "CD-3187-BK", commune: "lemba", driver: "P. Mwamba", status: "en_route", loadPct: 30, lat: -4.379, lng: 15.297, speedKmh: 28 },
-  { id: "T-03", plate: "CD-4421-CK", commune: "kisenso", driver: "J. Ilunga", status: "collecte", loadPct: 84, lat: -4.416, lng: 15.338, speedKmh: 8 },
-  { id: "T-04", plate: "CD-1209-DK", commune: "kisenso", driver: "S. Mbala", status: "depot", loadPct: 100, lat: -4.413, lng: 15.337, speedKmh: 0 },
-  { id: "T-05", plate: "CD-5566-EK", commune: "matete", driver: "M. Tshala", status: "pause", loadPct: 45, lat: -4.382, lng: 15.331, speedKmh: 0 },
-];
+// Flotte de camions — les véhicules connectés apparaîtront ici via GPS temps réel.
+export const TRUCKS: Truck[] = [];
 
 // ---------- Météo / alerte pluie ----------
 export type WeatherDay = {
