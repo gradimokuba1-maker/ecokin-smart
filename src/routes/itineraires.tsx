@@ -17,7 +17,7 @@ export const Route = createFileRoute("/itineraires")({
     ],
   }),
   component: () => (
-    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Itinéraires intelligents">
+    <AccessGate required={["agent", "bourgmestre", "gouverneur", "admin"]} title="Itinéraires intelligents">
       <ItinerairesPage />
     </AccessGate>
   ),
