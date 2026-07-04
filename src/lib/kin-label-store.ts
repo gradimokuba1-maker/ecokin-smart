@@ -50,7 +50,7 @@ function read(): KinLabelActivity[] {
     const raw = localStorage.getItem(KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return seed();
+  return [];
 }
 
 function write(list: KinLabelActivity[]) {
