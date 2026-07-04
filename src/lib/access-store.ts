@@ -75,7 +75,12 @@ export function useAccess() {
 
   const login = (role: Exclude<Role, "citoyen">, code: string) => {
     if (ACCESS_CODES[role] !== code) return false;
-    const next: Session = { role, name: role === "admin" ? "Administrateur" : role === "gouverneur" ? "Cabinet du Gouverneur" : "Bourgmestre" };
+    const label =
+      role === "admin" ? "Administrateur" :
+      role === "gouverneur" ? "Cabinet du Gouverneur" :
+      role === "bourgmestre" ? "Bourgmestre" :
+      "Agent terrain";
+    const next: Session = { role, name: label };
     localStorage.setItem(KEY, JSON.stringify(next));
     setSession(next);
     logAudit({ user: next.name, role, action: "login" });
@@ -92,5 +97,6 @@ export function useAccess() {
     if (!allowed) return true;
     return allowed.includes(session.role);
   };
-  return { session, login, logout, can };
+  const hasPermission = (perm: Permission) => (ROLE_PERMISSIONS[session.role] ?? []).includes(perm);
+  return { session, login, logout, can, hasPermission };
 }
