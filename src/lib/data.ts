@@ -185,23 +185,14 @@ export type WeatherDay = {
   floodRisk: "faible" | "modere" | "eleve" | "critique";
 };
 
-export const WEATHER_FORECAST: WeatherDay[] = [
-  { day: "Aujourd'hui", icon: "storm", tempC: 27, rainMm: 48, floodRisk: "critique" },
-  { day: "Demain", icon: "rain", tempC: 26, rainMm: 22, floodRisk: "eleve" },
-  { day: "J+2", icon: "rain", tempC: 27, rainMm: 14, floodRisk: "modere" },
-  { day: "J+3", icon: "cloud", tempC: 28, rainMm: 3, floodRisk: "faible" },
-  { day: "J+4", icon: "sun", tempC: 30, rainMm: 0, floodRisk: "faible" },
-  { day: "J+5", icon: "cloud", tempC: 29, rainMm: 6, floodRisk: "faible" },
-  { day: "J+6", icon: "rain", tempC: 27, rainMm: 18, floodRisk: "modere" },
-];
+// Prévisions météo — à connecter à une source réelle (OpenWeather / DGM RDC).
+// Vide par défaut : évite d'afficher un risque d'inondation en saison sèche.
+export const WEATHER_FORECAST: WeatherDay[] = [];
 
 // ---------- Indice de Propreté de Kinshasa (IPK /100) ----------
-export const IPK = {
-  matete: { score: 72, trend: +4, rang: 1 },
-  lemba: { score: 65, trend: +2, rang: 2 },
-  kisenso: { score: 48, trend: -3, rang: 3 },
-};
-export const IPK_KINSHASA = 62;
+// Calculé dynamiquement à partir des signalements réels.
+export const IPK: Record<string, { score: number; trend: number; rang: number }> = {};
+export const IPK_KINSHASA = 0;
 
 // ---------- Interventions ----------
 export type Intervention = {
@@ -217,32 +208,15 @@ export type Intervention = {
   notes: string;
 };
 
-export const INTERVENTIONS: Intervention[] = [
-  { id: "INT-101", commune: "kisenso", type: "curage", team: "Équipe Alpha", truckId: "T-03", status: "en_cours", scheduledAt: "2026-06-20 08:00", notes: "Curage caniveau Mokali (92% obstrué)." },
-  { id: "INT-102", commune: "matete", type: "collecte", team: "Équipe Bravo", truckId: "T-01", status: "en_cours", scheduledAt: "2026-06-20 07:30", notes: "Collecte marché Matete." },
-  { id: "INT-103", commune: "lemba", type: "sensibilisation", team: "Équipe Citoyenne", status: "planifiee", scheduledAt: "2026-06-21 09:00", notes: "Atelier tri à l'Université de Kinshasa." },
-  { id: "INT-104", commune: "kisenso", type: "urgence", team: "Équipe Alpha", truckId: "T-04", status: "terminee", scheduledAt: "2026-06-19 16:00", notes: "Inondation Av. Kimpwanza — évacuation 9 m³.", beforePhoto: "x", afterPhoto: "x" },
-  { id: "INT-105", commune: "matete", type: "collecte", team: "Équipe Bravo", truckId: "T-05", status: "planifiee", scheduledAt: "2026-06-22 06:00", notes: "Tournée hebdomadaire quartier Tomba." },
-];
+export const INTERVENTIONS: Intervention[] = [];
 
-export const COMMUNE_BUDGET = {
-  matete: { hebdo: 4_800_000, mensuel: 19_500_000, cout_tonne: 125_000 },
-  lemba: { hebdo: 6_200_000, mensuel: 24_800_000, cout_tonne: 120_000 },
-  kisenso: { hebdo: 7_100_000, mensuel: 28_400_000, cout_tonne: 138_000 },
-};
+// Budgets communaux — à saisir par les autorités (module Kin Label).
+export const COMMUNE_BUDGET: Record<string, { hebdo: number; mensuel: number; cout_tonne: number }> = {};
 
-export const AI_RECOMMENDATIONS = [
-  { id: "ai1", priorite: 1, commune: "kisenso" as const, titre: "Curage urgent Av. Mokali", motif: "Caniveau 92% obstrué + pluies 48mm prévues. Risque inondation critique.", camions: 3, equipes: 2, eta: "≤ 12 h" },
-  { id: "ai2", priorite: 2, commune: "lemba" as const, titre: "Collecte renforcée Lemba-Sud", motif: "Décharge sauvage 7m³ à 80m d'une école.", camions: 2, equipes: 1, eta: "≤ 24 h" },
-  { id: "ai3", priorite: 3, commune: "matete" as const, titre: "Sensibilisation marché Matete", motif: "Hausse de 18% des signalements plastiques sur 7 jours.", camions: 1, equipes: 1, eta: "≤ 48 h" },
-  { id: "ai4", priorite: 4, commune: "kisenso" as const, titre: "Renfort Kimpwanza", motif: "Zone basse + 2 caniveaux obstrués sur 1 km.", camions: 2, equipes: 1, eta: "≤ 72 h" },
-];
+export const AI_RECOMMENDATIONS: { id: string; priorite: number; commune: string; titre: string; motif: string; camions: number; equipes: number; eta: string }[] = [];
 
-export const PRIORITY_ALERTS = [
-  { id: "pa1", level: "critique" as const, commune: "kisenso" as const, msg: "Inondation imminente — Av. Mokali (Kisenso)" },
-  { id: "pa2", level: "eleve" as const, commune: "lemba" as const, msg: "Décharge sauvage à proximité d'école — Lemba-Sud" },
-  { id: "pa3", level: "modere" as const, commune: "matete" as const, msg: "Caniveau Av. Lumumba — 80% obstrué" },
-];
+export const PRIORITY_ALERTS: { id: string; level: "critique" | "eleve" | "modere"; commune: string; msg: string }[] = [];
+
 
 
 // ---------- Hotspots prédictifs (analyse récurrente) ----------
