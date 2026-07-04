@@ -86,11 +86,10 @@ function seed(commune: Commune, count: number, baseId: number): Report[] {
   });
 }
 
-export const REPORTS: Report[] = [
-  ...seed(COMMUNES[0], 14, 1001),
-  ...seed(COMMUNES[1], 18, 2001),
-  ...seed(COMMUNES[2], 22, 3001),
-];
+// Réinitialisation complète : les signalements proviendront exclusivement
+// des tests terrain (live-reports.ts). Aucune donnée simulée.
+export const REPORTS: Report[] = [];
+void seed;
 
 export const COLLECTION_POINTS = [
   { id: "cp1", name: "Centre de tri Matete", commune: "matete", lat: -4.382, lng: 15.331, kind: "tri" },
