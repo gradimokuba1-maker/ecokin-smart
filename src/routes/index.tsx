@@ -13,15 +13,18 @@ import {
 } from "@/lib/data";
 import {
   AlertTriangle,
+  ArrowRight,
   Camera,
   Cpu,
   Droplets,
   Gift,
+  Home as HomeIcon,
   LineChart,
   MapPin,
   Recycle,
   ShieldCheck,
   Sparkles,
+  Trash2,
   TrendingUp,
   Users,
 } from "lucide-react";
