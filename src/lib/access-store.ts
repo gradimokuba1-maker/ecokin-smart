@@ -30,7 +30,7 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   "/interventions": ["agent", "bourgmestre", "gouverneur", "admin"],
   "/itineraires": ["agent", "bourgmestre", "gouverneur", "admin"],
   "/gps-flotte": ["agent", "bourgmestre", "gouverneur", "admin"],
-  "/suivi-evaluation": ["agent", "bourgmestre", "gouverneur", "admin"],
+  
   "/autorites": ["bourgmestre", "gouverneur", "admin"],
   "/rapports": ["bourgmestre", "gouverneur", "admin"],
   // Journal d'audit & administration
@@ -43,7 +43,7 @@ export type Permission =
   | "signaler"          // créer un signalement citoyen
   | "export_data"       // exporter PDF/CSV
   | "manage_alerts"     // émettre/acquitter alertes
-  | "manage_activities" // créer/éditer activités Kin Label
+  | "manage_activities" // gérer activités opérationnelles
   | "manage_fleet"      // gérer flotte GPS et itinéraires
   | "moderate_reports"  // valider/rejeter signalements
   | "reset_data";       // réinitialiser la plateforme

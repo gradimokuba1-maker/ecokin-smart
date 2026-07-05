@@ -210,7 +210,7 @@ export type Intervention = {
 
 export const INTERVENTIONS: Intervention[] = [];
 
-// Budgets communaux — à saisir par les autorités (module Kin Label).
+// Budgets communaux — à saisir par les autorités.
 export const COMMUNE_BUDGET: Record<string, { hebdo: number; mensuel: number; cout_tonne: number }> = {};
 
 export const AI_RECOMMENDATIONS: { id: string; priorite: number; commune: string; titre: string; motif: string; camions: number; equipes: number; eta: string }[] = [];

@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SuiviEvaluationRouteImport } from './routes/suivi-evaluation'
 import { Route as SituationRouteImport } from './routes/situation'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
@@ -18,6 +17,7 @@ import { Route as RecompensesRouteImport } from './routes/recompenses'
 import { Route as RapportsRouteImport } from './routes/rapports'
 import { Route as PredictifRouteImport } from './routes/predictif'
 import { Route as ObservatoireRouteImport } from './routes/observatoire'
+import { Route as MenagersRouteImport } from './routes/menagers'
 import { Route as ItinerairesRouteImport } from './routes/itineraires'
 import { Route as InterventionsRouteImport } from './routes/interventions'
 import { Route as GpsFlotteRouteImport } from './routes/gps-flotte'
@@ -31,11 +31,6 @@ import { Route as AssistantIaRouteImport } from './routes/assistant-ia'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
-const SuiviEvaluationRoute = SuiviEvaluationRouteImport.update({
-  id: '/suivi-evaluation',
-  path: '/suivi-evaluation',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SituationRoute = SituationRouteImport.update({
   id: '/situation',
   path: '/situation',
@@ -74,6 +69,11 @@ const PredictifRoute = PredictifRouteImport.update({
 const ObservatoireRoute = ObservatoireRouteImport.update({
   id: '/observatoire',
   path: '/observatoire',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MenagersRoute = MenagersRouteImport.update({
+  id: '/menagers',
+  path: '/menagers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ItinerairesRoute = ItinerairesRouteImport.update({
@@ -150,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
+  '/menagers': typeof MenagersRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -158,7 +159,6 @@ export interface FileRoutesByFullPath {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
-  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -173,6 +173,7 @@ export interface FileRoutesByTo {
   '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
+  '/menagers': typeof MenagersRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -181,7 +182,6 @@ export interface FileRoutesByTo {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
-  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -197,6 +197,7 @@ export interface FileRoutesById {
   '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
+  '/menagers': typeof MenagersRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -205,7 +206,6 @@ export interface FileRoutesById {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
-  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -222,6 +222,7 @@ export interface FileRouteTypes {
     | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
+    | '/menagers'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -230,7 +231,6 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
-    | '/suivi-evaluation'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -245,6 +245,7 @@ export interface FileRouteTypes {
     | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
+    | '/menagers'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -253,7 +254,6 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
-    | '/suivi-evaluation'
   id:
     | '__root__'
     | '/'
@@ -268,6 +268,7 @@ export interface FileRouteTypes {
     | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
+    | '/menagers'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -276,7 +277,6 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
-    | '/suivi-evaluation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -292,6 +292,7 @@ export interface RootRouteChildren {
   GpsFlotteRoute: typeof GpsFlotteRoute
   InterventionsRoute: typeof InterventionsRoute
   ItinerairesRoute: typeof ItinerairesRoute
+  MenagersRoute: typeof MenagersRoute
   ObservatoireRoute: typeof ObservatoireRoute
   PredictifRoute: typeof PredictifRoute
   RapportsRoute: typeof RapportsRoute
@@ -300,18 +301,10 @@ export interface RootRouteChildren {
   SignalerRoute: typeof SignalerRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SituationRoute: typeof SituationRoute
-  SuiviEvaluationRoute: typeof SuiviEvaluationRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/suivi-evaluation': {
-      id: '/suivi-evaluation'
-      path: '/suivi-evaluation'
-      fullPath: '/suivi-evaluation'
-      preLoaderRoute: typeof SuiviEvaluationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/situation': {
       id: '/situation'
       path: '/situation'
@@ -366,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/observatoire'
       fullPath: '/observatoire'
       preLoaderRoute: typeof ObservatoireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/menagers': {
+      id: '/menagers'
+      path: '/menagers'
+      fullPath: '/menagers'
+      preLoaderRoute: typeof MenagersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/itineraires': {
@@ -468,6 +468,7 @@ const rootRouteChildren: RootRouteChildren = {
   GpsFlotteRoute: GpsFlotteRoute,
   InterventionsRoute: InterventionsRoute,
   ItinerairesRoute: ItinerairesRoute,
+  MenagersRoute: MenagersRoute,
   ObservatoireRoute: ObservatoireRoute,
   PredictifRoute: PredictifRoute,
   RapportsRoute: RapportsRoute,
@@ -476,18 +477,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignalerRoute: SignalerRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SituationRoute: SituationRoute,
-  SuiviEvaluationRoute: SuiviEvaluationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

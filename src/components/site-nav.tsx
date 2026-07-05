@@ -14,7 +14,7 @@ const links = [
   { to: "/predictif", label: "Prédictif" },
   { to: "/observatoire", label: "Observatoire" },
   { to: "/decisions", label: "Décisions" },
-  { to: "/suivi-evaluation", label: "Kin Label M&E" },
+  { to: "/menagers", label: "Déchets ménagers" },
   { to: "/itineraires", label: "Itinéraires" },
   { to: "/gps-flotte", label: "GPS Flotte" },
   { to: "/assistant-ia", label: "Assistant IA" },
