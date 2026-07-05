@@ -17,6 +17,7 @@ import { Route as RecompensesRouteImport } from './routes/recompenses'
 import { Route as RapportsRouteImport } from './routes/rapports'
 import { Route as PredictifRouteImport } from './routes/predictif'
 import { Route as ObservatoireRouteImport } from './routes/observatoire'
+import { Route as MenagersRouteImport } from './routes/menagers'
 import { Route as ItinerairesRouteImport } from './routes/itineraires'
 import { Route as InterventionsRouteImport } from './routes/interventions'
 import { Route as GpsFlotteRouteImport } from './routes/gps-flotte'
@@ -68,6 +69,11 @@ const PredictifRoute = PredictifRouteImport.update({
 const ObservatoireRoute = ObservatoireRouteImport.update({
   id: '/observatoire',
   path: '/observatoire',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MenagersRoute = MenagersRouteImport.update({
+  id: '/menagers',
+  path: '/menagers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ItinerairesRoute = ItinerairesRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
+  '/menagers': typeof MenagersRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByTo {
   '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
+  '/menagers': typeof MenagersRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -189,6 +197,7 @@ export interface FileRoutesById {
   '/gps-flotte': typeof GpsFlotteRoute
   '/interventions': typeof InterventionsRoute
   '/itineraires': typeof ItinerairesRoute
+  '/menagers': typeof MenagersRoute
   '/observatoire': typeof ObservatoireRoute
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
@@ -213,6 +222,7 @@ export interface FileRouteTypes {
     | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
+    | '/menagers'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
+    | '/menagers'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/gps-flotte'
     | '/interventions'
     | '/itineraires'
+    | '/menagers'
     | '/observatoire'
     | '/predictif'
     | '/rapports'
@@ -280,6 +292,7 @@ export interface RootRouteChildren {
   GpsFlotteRoute: typeof GpsFlotteRoute
   InterventionsRoute: typeof InterventionsRoute
   ItinerairesRoute: typeof ItinerairesRoute
+  MenagersRoute: typeof MenagersRoute
   ObservatoireRoute: typeof ObservatoireRoute
   PredictifRoute: typeof PredictifRoute
   RapportsRoute: typeof RapportsRoute
@@ -346,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/observatoire'
       fullPath: '/observatoire'
       preLoaderRoute: typeof ObservatoireRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/menagers': {
+      id: '/menagers'
+      path: '/menagers'
+      fullPath: '/menagers'
+      preLoaderRoute: typeof MenagersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/itineraires': {
@@ -448,6 +468,7 @@ const rootRouteChildren: RootRouteChildren = {
   GpsFlotteRoute: GpsFlotteRoute,
   InterventionsRoute: InterventionsRoute,
   ItinerairesRoute: ItinerairesRoute,
+  MenagersRoute: MenagersRoute,
   ObservatoireRoute: ObservatoireRoute,
   PredictifRoute: PredictifRoute,
   RapportsRoute: RapportsRoute,
