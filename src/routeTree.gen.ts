@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SuiviEvaluationRouteImport } from './routes/suivi-evaluation'
 import { Route as SituationRouteImport } from './routes/situation'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
@@ -31,11 +30,6 @@ import { Route as AssistantIaRouteImport } from './routes/assistant-ia'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
-const SuiviEvaluationRoute = SuiviEvaluationRouteImport.update({
-  id: '/suivi-evaluation',
-  path: '/suivi-evaluation',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SituationRoute = SituationRouteImport.update({
   id: '/situation',
   path: '/situation',
@@ -158,7 +152,6 @@ export interface FileRoutesByFullPath {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
-  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -181,7 +174,6 @@ export interface FileRoutesByTo {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
-  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -205,7 +197,6 @@ export interface FileRoutesById {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
-  '/suivi-evaluation': typeof SuiviEvaluationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,7 +221,6 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
-    | '/suivi-evaluation'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -253,7 +243,6 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
-    | '/suivi-evaluation'
   id:
     | '__root__'
     | '/'
@@ -276,7 +265,6 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
-    | '/suivi-evaluation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -300,18 +288,10 @@ export interface RootRouteChildren {
   SignalerRoute: typeof SignalerRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SituationRoute: typeof SituationRoute
-  SuiviEvaluationRoute: typeof SuiviEvaluationRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/suivi-evaluation': {
-      id: '/suivi-evaluation'
-      path: '/suivi-evaluation'
-      fullPath: '/suivi-evaluation'
-      preLoaderRoute: typeof SuiviEvaluationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/situation': {
       id: '/situation'
       path: '/situation'
@@ -476,7 +456,6 @@ const rootRouteChildren: RootRouteChildren = {
   SignalerRoute: SignalerRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SituationRoute: SituationRoute,
-  SuiviEvaluationRoute: SuiviEvaluationRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
