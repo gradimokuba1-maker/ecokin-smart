@@ -267,7 +267,7 @@ function SettingsTab() {
       <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6">
         <h3 className="mb-1 font-display text-lg font-bold text-red-700">Réinitialisation complète de la plateforme</h3>
         <p className="text-sm text-muted-foreground">
-          Supprime tous les signalements, statistiques, activités Kin Label, GPS flotte,
+          Supprime tous les signalements, statistiques, ménages enregistrés, GPS flotte,
           notifications, journaux d'audit et sessions autorités. Les compteurs repartent à 0.
           Les données réelles collectées durant la phase de test alimenteront ensuite tableaux
           de bord, cartes et indicateurs.
