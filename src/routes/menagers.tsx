@@ -43,7 +43,14 @@ import { useMemo, useState } from "react";
 import { useHouseholds, scheduleFor, SORT_TIPS, type Household, type BinType, type HouseholdKind } from "@/lib/household-store";
 import { useWasteTax, PAYMENT_PROVIDERS, formatCdf, type Invoice, type PaymentMethod } from "@/lib/waste-tax";
 import { KINSHASA_COMMUNES } from "@/lib/cities";
-import { pushNotification } from "@/components/notification-bell";
+function pushNotification(n: { title: string; body: string; level?: string }) {
+  if (typeof window === "undefined") return;
+  try {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(n.title, { body: n.body });
+    }
+  } catch {}
+}
 import { formatNumber } from "@/lib/utils";
 
 export const Route = createFileRoute("/menagers")({
