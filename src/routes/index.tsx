@@ -122,6 +122,86 @@ function Home() {
         </div>
       </section>
 
+      {/* Super App — Modules */}
+      <section className="border-y border-border bg-secondary/40">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <div className="mb-10 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-eco/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-eco">
+                Plateforme modulaire
+              </div>
+              <h2 className="mt-3 font-display text-3xl font-bold sm:text-4xl">
+                Choisissez votre module EcoKin
+              </h2>
+              <p className="mt-2 max-w-2xl text-muted-foreground">
+                Un seul compte, un seul système de Green Points, une seule cartographie SIG —
+                deux modules pensés pour toutes les situations de gestion des déchets à Kinshasa.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Link
+              to="/signaler"
+              className="group relative overflow-hidden rounded-3xl border border-border bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+            >
+              <div className="absolute right-0 top-0 -mr-16 -mt-16 size-48 rounded-full bg-eco/10 blur-2xl" />
+              <div className="relative">
+                <span className="grid size-14 place-items-center rounded-2xl bg-eco text-white shadow-lg shadow-eco/30">
+                  <Trash2 className="size-7" />
+                </span>
+                <h3 className="mt-6 font-display text-2xl font-bold">
+                  Dépôts sauvages & tas de déchets
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Signalez un dépôt, suivez la carte SIG en temps réel, gagnez des Green Points
+                  et suivez les interventions de collecte sur l'ensemble des 24 communes.
+                </p>
+                <ul className="mt-5 space-y-1.5 text-sm">
+                  {["Signalement photo + IA", "Cartographie SIG temps réel", "Salle de crise & alertes"].map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                      <span className="size-1.5 rounded-full bg-eco" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <span className="mt-6 inline-flex items-center gap-1 text-sm font-bold text-eco">
+                  Ouvrir le module <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                </span>
+              </div>
+            </Link>
+
+            <Link
+              to="/menagers"
+              className="group relative overflow-hidden rounded-3xl border border-border bg-card p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl"
+            >
+              <div className="absolute right-0 top-0 -mr-16 -mt-16 size-48 rounded-full bg-urban/10 blur-2xl" />
+              <div className="relative">
+                <span className="grid size-14 place-items-center rounded-2xl bg-urban text-white shadow-lg shadow-urban/30">
+                  <HomeIcon className="size-7" />
+                </span>
+                <h3 className="mt-6 font-display text-2xl font-bold">
+                  Déchets ménagers
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Enregistrez votre ménage ou PME, consultez le calendrier de collecte,
+                  payez votre taxe (Mobile Money, banque, carte) et téléchargez vos reçus.
+                </p>
+                <ul className="mt-5 space-y-1.5 text-sm">
+                  {["Calendrier & collecte exceptionnelle", "Taxe déchets & paiement numérique", "Historique & conseils de tri"].map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                      <span className="size-1.5 rounded-full bg-urban" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <span className="mt-6 inline-flex items-center gap-1 text-sm font-bold text-urban">
+                  Ouvrir le module <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+                </span>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+
       {/* Live stats banner */}
       <section className="border-y border-border bg-foreground text-background">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-6 px-4 py-5 sm:px-6 lg:px-8">
