@@ -14,6 +14,7 @@ import { ClientOnly } from "@/components/client-only";
 import { KinshasaMap } from "@/components/kinshasa-map";
 import { Camera, Crosshair, ImageIcon, Loader2, ShieldAlert, ShieldCheck, Sparkles, Trophy } from "lucide-react";
 import { toast } from "sonner";
+import { CitizenGate } from "@/components/citizen-gate";
 
 export const Route = createFileRoute("/signaler")({
   head: () => ({
@@ -26,8 +27,20 @@ export const Route = createFileRoute("/signaler")({
       },
     ],
   }),
-  component: SignalerPage,
+  component: SignalerRoute,
 });
+
+function SignalerRoute() {
+  return (
+    <CitizenGate
+      title="Signaler un dépôt"
+      description="Créez votre compte citoyen pour envoyer vos signalements et cumuler vos Green Points. Vous les retrouverez à chaque connexion."
+    >
+      <SignalerPage />
+    </CitizenGate>
+  );
+}
+
 
 type GeoState =
   | { status: "idle" }

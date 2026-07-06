@@ -43,6 +43,7 @@ import { useMemo, useState } from "react";
 import { useHouseholds, scheduleFor, SORT_TIPS, type Household, type BinType, type HouseholdKind } from "@/lib/household-store";
 import { useWasteTax, PAYMENT_PROVIDERS, formatCdf, type Invoice, type PaymentMethod } from "@/lib/waste-tax";
 import { KINSHASA_COMMUNES } from "@/lib/cities";
+import { CitizenGate } from "@/components/citizen-gate";
 function pushNotification(n: { title: string; body: string; level?: string }) {
   if (typeof window === "undefined") return;
   try {
@@ -70,8 +71,20 @@ export const Route = createFileRoute("/menagers")({
       },
     ],
   }),
-  component: MenagersPage,
+  component: MenagersRoute,
 });
+
+function MenagersRoute() {
+  return (
+    <CitizenGate
+      title="Déchets ménagers"
+      description="Créez votre compte citoyen pour enregistrer votre ménage, gérer vos collectes et payer votre taxe déchets. Vos Green Points restent liés à votre compte."
+    >
+      <MenagersPage />
+    </CitizenGate>
+  );
+}
+
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 

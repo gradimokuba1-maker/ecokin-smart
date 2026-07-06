@@ -1,5 +1,5 @@
 // Lightweight client-side "session" for the demo citizen account.
-// Persists in localStorage. Real auth would replace this with Lovable Cloud.
+// Persists in localStorage so Green Points and registration survive reloads.
 import { useEffect, useState } from "react";
 
 const KEY = "ecokin_user_v1";
@@ -7,6 +7,9 @@ const KEY = "ecokin_user_v1";
 export type EcoUser = {
   name: string;
   commune: string;
+  phone: string;
+  pin: string;
+  registered: boolean;
   points: number;
   reports: number;
   badges: string[];
@@ -15,6 +18,9 @@ export type EcoUser = {
 const DEFAULT: EcoUser = {
   name: "Citoyen EcoKin",
   commune: "Kinshasa",
+  phone: "",
+  pin: "",
+  registered: false,
   points: 0,
   reports: 0,
   badges: [],
@@ -51,5 +57,27 @@ export function useEcoUser() {
     update({ points: user.points - n });
     return true;
   };
-  return { user, update, addPoints, spend };
+  const register = (data: { name: string; commune: string; phone: string; pin: string }) => {
+    // Preserve accumulated Green Points, reports and badges.
+    const current = read();
+    const next: EcoUser = { ...current, ...data, registered: true };
+    write(next);
+    setUser(next);
+    return true;
+  };
+  const signIn = (phone: string, pin: string) => {
+    const current = read();
+    if (current.registered && current.phone === phone && current.pin === pin) {
+      setUser(current);
+      return true;
+    }
+    return false;
+  };
+  const signOut = () => {
+    const current = read();
+    const next: EcoUser = { ...current, registered: false };
+    write(next);
+    setUser(next);
+  };
+  return { user, update, addPoints, spend, register, signIn, signOut };
 }
