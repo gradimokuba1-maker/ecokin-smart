@@ -281,7 +281,7 @@ function Home() {
           </p>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {COMMUNES.map((c) => {
-              const k = COMMUNE_KPIS[c.id];
+              const k = COMMUNE_KPIS[c.id] ?? { signalements: 0, collecte_t: 0, recyclage: 0, risque: 0 };
               return (
                 <div key={c.id} className="rounded-3xl border border-border bg-card p-6 shadow-sm">
                   <div className="flex items-center justify-between">
