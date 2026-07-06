@@ -70,7 +70,22 @@ export const Route = createFileRoute("/menagers")({
       },
     ],
   }),
-  component: MenagersPage,
+  component: MenagersRoute,
+});
+
+function MenagersRoute() {
+  return (
+    <CitizenGate
+      title="Déchets ménagers"
+      description="Créez votre compte citoyen pour enregistrer votre ménage, gérer vos collectes et payer votre taxe déchets. Vos Green Points restent liés à votre compte."
+    >
+      <MenagersPage />
+    </CitizenGate>
+  );
+}
+
+const _menagersRouteEnd = createFileRoute("/menagers")({
+  component: MenagersRoute,
 });
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
