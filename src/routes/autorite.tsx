@@ -87,7 +87,7 @@ function AuthorityHub() {
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
-      <AccessGate path="/autorite">
+      <AccessGate required={["agent", "bourgmestre", "gouverneur", "admin"]} title="Espace Autorité & Suivi">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <span className="grid size-12 place-items-center rounded-2xl bg-foreground text-background">
