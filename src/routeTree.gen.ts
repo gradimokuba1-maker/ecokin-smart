@@ -29,6 +29,7 @@ import { Route as AutoritesRouteImport } from './routes/autorites'
 import { Route as AutoriteRouteImport } from './routes/autorite'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AssistantIaRouteImport } from './routes/assistant-ia'
+import { Route as AdminLoginRouteImport } from './routes/admin-login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -132,6 +133,11 @@ const AssistantIaRoute = AssistantIaRouteImport.update({
   path: '/assistant-ia',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin-login',
+  path: '/admin-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -146,6 +152,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-login': typeof AdminLoginRoute
   '/assistant-ia': typeof AssistantIaRoute
   '/audit': typeof AuditRoute
   '/autorite': typeof AutoriteRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-login': typeof AdminLoginRoute
   '/assistant-ia': typeof AssistantIaRoute
   '/audit': typeof AuditRoute
   '/autorite': typeof AutoriteRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin-login': typeof AdminLoginRoute
   '/assistant-ia': typeof AssistantIaRoute
   '/audit': typeof AuditRoute
   '/autorite': typeof AutoriteRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin-login'
     | '/assistant-ia'
     | '/audit'
     | '/autorite'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/admin-login'
     | '/assistant-ia'
     | '/audit'
     | '/autorite'
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin-login'
     | '/assistant-ia'
     | '/audit'
     | '/autorite'
@@ -294,6 +306,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   AssistantIaRoute: typeof AssistantIaRoute
   AuditRoute: typeof AuditRoute
   AutoriteRoute: typeof AutoriteRoute
@@ -458,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssistantIaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin-login': {
+      id: '/admin-login'
+      path: '/admin-login'
+      fullPath: '/admin-login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -478,6 +498,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AdminLoginRoute: AdminLoginRoute,
   AssistantIaRoute: AssistantIaRoute,
   AuditRoute: AuditRoute,
   AutoriteRoute: AutoriteRoute,
