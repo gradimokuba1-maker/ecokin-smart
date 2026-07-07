@@ -1,7 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { AccessGate } from "@/components/access-gate";
 import { LEADERBOARD, REPORTS, REWARDS, COMMUNES, WASTE_CATEGORIES } from "@/lib/data";
 import { useLearning } from "@/lib/learning-store";
 import { useAccess } from "@/lib/access-store";
@@ -15,7 +14,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -37,12 +36,31 @@ const TABS = [
 ] as const;
 
 function AdminPage() {
+  const navigate = useNavigate();
+  const { session } = useAccess();
+  const isAdmin = session.role === "admin";
+
+  // Redirection automatique vers /admin-login si l'utilisateur n'est pas admin.
+  useEffect(() => {
+    if (!isAdmin) navigate({ to: "/admin-login", replace: true });
+  }, [isAdmin, navigate]);
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteNav />
+        <div className="mx-auto max-w-md px-4 py-24 text-center text-sm text-muted-foreground">
+          Redirection vers la page de connexion administrateur…
+        </div>
+        <SiteFooter />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
-      <AccessGate required={["admin"]} title="Espace administrateur">
-        <AdminConsole />
-      </AccessGate>
+      <AdminConsole />
       <SiteFooter />
     </div>
   );

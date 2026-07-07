@@ -69,6 +69,9 @@ function read(): Session {
   }
 }
 
+// Identifiants téléphone + PIN pour la connexion admin dédiée.
+export const ADMIN_CREDENTIALS = { phone: "+243900000000", pin: "2026" };
+
 export function useAccess() {
   const [session, setSession] = useState<Session>(DEFAULT);
   useEffect(() => setSession(read()), []);
@@ -86,6 +89,16 @@ export function useAccess() {
     logAudit({ user: next.name, role, action: "login" });
     return true;
   };
+  const loginAdmin = (phone: string, pin: string) => {
+    if (phone.replace(/\s/g, "") !== ADMIN_CREDENTIALS.phone || pin !== ADMIN_CREDENTIALS.pin) {
+      return false;
+    }
+    const next: Session = { role: "admin", name: "Administrateur" };
+    localStorage.setItem(KEY, JSON.stringify(next));
+    setSession(next);
+    logAudit({ user: next.name, role: "admin", action: "login" });
+    return true;
+  };
   const logout = () => {
     const prev = read();
     localStorage.removeItem(KEY);
@@ -98,5 +111,6 @@ export function useAccess() {
     return allowed.includes(session.role);
   };
   const hasPermission = (perm: Permission) => (ROLE_PERMISSIONS[session.role] ?? []).includes(perm);
-  return { session, login, logout, can, hasPermission };
+  return { session, login, loginAdmin, logout, can, hasPermission };
 }
+
