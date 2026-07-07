@@ -1,14 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
+import { AccessGate } from "@/components/access-gate";
 import { LEADERBOARD, REPORTS, REWARDS, COMMUNES, WASTE_CATEGORIES } from "@/lib/data";
 import { useLearning } from "@/lib/learning-store";
+import { useAccess } from "@/lib/access-store";
 import {
   Activity,
   Brain,
   Database,
   Gift,
-  Lock,
+  LogOut,
   Settings,
   ShieldCheck,
   Users,
