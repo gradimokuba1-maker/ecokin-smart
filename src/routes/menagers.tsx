@@ -32,6 +32,7 @@ import {
   History,
   Home,
   Info,
+  MapPinned,
   Package,
   Receipt,
   Recycle,
@@ -44,13 +45,14 @@ import { useHouseholds, scheduleFor, SORT_TIPS, type Household, type BinType, ty
 import { useWasteTax, PAYMENT_PROVIDERS, formatCdf, type Invoice, type PaymentMethod } from "@/lib/waste-tax";
 import { KINSHASA_COMMUNES } from "@/lib/cities";
 import { CitizenGate } from "@/components/citizen-gate";
+import { WasteInfrastructurePanel } from "@/components/waste-infrastructure-panel";
 function pushNotification(n: { title: string; body: string; level?: string }) {
   if (typeof window === "undefined") return;
   try {
     if ("Notification" in window && Notification.permission === "granted") {
       new Notification(n.title, { body: n.body });
     }
-  } catch {}
+  } catch { }
 }
 import { formatNumber } from "@/lib/utils";
 
@@ -124,11 +126,10 @@ function MenagersPage() {
               <button
                 key={h.id}
                 onClick={() => setActiveId(h.id)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  household?.id === h.id
-                    ? "border-eco bg-eco text-white"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted"
-                }`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${household?.id === h.id
+                  ? "border-eco bg-eco text-white"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted"
+                  }`}
               >
                 {h.name} · {h.commune}
               </button>
@@ -156,6 +157,9 @@ function MenagersPage() {
             <TabsTrigger value="history" className="gap-1.5">
               <History className="size-3.5" /> Historique
             </TabsTrigger>
+            <TabsTrigger value="infrastructure" className="gap-1.5">
+              <MapPinned className="size-3.5" /> Infrastructure SIG
+            </TabsTrigger>
             <TabsTrigger value="tips" className="gap-1.5">
               <Recycle className="size-3.5" /> Conseils tri
             </TabsTrigger>
@@ -181,6 +185,9 @@ function MenagersPage() {
           </TabsContent>
           <TabsContent value="history">
             <HistoryTab household={household} store={store} />
+          </TabsContent>
+          <TabsContent value="infrastructure">
+            <WasteInfrastructurePanel />
           </TabsContent>
           <TabsContent value="tips">
             <TipsTab />
@@ -368,9 +375,8 @@ function RegisterTab({
               <button
                 key={b}
                 onClick={() => setBinType(b)}
-                className={`rounded-xl border px-4 py-2 text-sm font-semibold ${
-                  binType === b ? "border-eco bg-eco text-white" : "border-border bg-background"
-                }`}
+                className={`rounded-xl border px-4 py-2 text-sm font-semibold ${binType === b ? "border-eco bg-eco text-white" : "border-border bg-background"
+                  }`}
               >
                 {b}
               </button>
@@ -422,9 +428,8 @@ function CalendarTab({ household }: { household: Household | null }) {
             return (
               <div
                 key={d.toISOString()}
-                className={`rounded-lg border p-2 ${
-                  isPass ? "border-eco bg-eco/10 font-bold text-eco" : "border-border"
-                } ${isToday ? "ring-2 ring-primary" : ""}`}
+                className={`rounded-lg border p-2 ${isPass ? "border-eco bg-eco/10 font-bold text-eco" : "border-border"
+                  } ${isToday ? "ring-2 ring-primary" : ""}`}
               >
                 <div className="text-[10px]">{d.getDate()}/{d.getMonth() + 1}</div>
                 {isPass && <div className="mt-1 text-[10px]">Collecte</div>}
@@ -689,8 +694,8 @@ function TaxTab({ household }: { household: Household | null }) {
                         variant="outline"
                         className={
                           inv.status === "paid" ? "border-eco text-eco" :
-                          inv.status === "late" ? "border-red-500 text-red-500" :
-                          "border-amber-500 text-amber-500"
+                            inv.status === "late" ? "border-red-500 text-red-500" :
+                              "border-amber-500 text-amber-500"
                         }
                       >
                         {inv.status === "paid" ? "Payé" : inv.status === "late" ? "En retard" : "À payer"}
@@ -786,9 +791,8 @@ function PayDialog({
                 <button
                   key={m}
                   onClick={() => { setMethod(m); setProvider(PAYMENT_PROVIDERS[m][0]); }}
-                  className={`rounded-lg border px-3 py-2 text-xs font-semibold ${
-                    method === m ? "border-eco bg-eco text-white" : "border-border"
-                  }`}
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold ${method === m ? "border-eco bg-eco text-white" : "border-border"
+                    }`}
                 >
                   {m === "mobile_money" ? "Mobile Money" : m === "bank" ? "Banque" : "Carte"}
                 </button>
