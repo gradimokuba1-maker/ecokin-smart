@@ -37,61 +37,42 @@ const TABS = [
 ] as const;
 
 function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
-  const [code, setCode] = useState("");
-
-  if (!authed) {
-    return (
-      <div className="min-h-screen bg-background">
-        <SiteNav />
-        <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24">
-          <div className="grid size-16 place-items-center rounded-2xl bg-kin text-white">
-            <Lock className="size-7" />
-          </div>
-          <h1 className="mt-6 font-display text-3xl font-bold">Espace administrateur</h1>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            Accès réservé aux agents de la régie d'assainissement et aux autorités communales.
-          </p>
-          <div className="mt-8 w-full rounded-2xl border border-border bg-card p-6">
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Code agent (démo : <span className="font-mono">ECOKIN2026</span>)
-            </label>
-            <input
-              type="password"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm font-mono focus:border-eco focus:outline-none focus:ring-2 focus:ring-eco/30"
-              placeholder="••••••••••"
-            />
-            <button
-              onClick={() => {
-                if (code === "ECOKIN2026") setAuthed(true);
-                else alert("Code invalide");
-              }}
-              className="mt-4 w-full rounded-xl bg-eco py-3 text-sm font-bold text-white"
-            >
-              Se connecter
-            </button>
-          </div>
-        </div>
-        <SiteFooter />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
+      <AccessGate required={["admin"]} title="Espace administrateur">
+        <AdminConsole />
+      </AccessGate>
+      <SiteFooter />
+    </div>
+  );
+}
+
+function AdminConsole() {
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
+  const { session, logout } = useAccess();
+
+  return (
+    <>
       <div className="border-b border-border bg-kin text-white">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-eco">
-            <ShieldCheck className="size-4" /> Console administrateur
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-eco">
+                <ShieldCheck className="size-4" /> Console administrateur
+              </div>
+              <h1 className="mt-2 font-display text-4xl font-bold">Centre de contrôle EcoKin</h1>
+              <p className="mt-1 text-white/70">
+                Connecté : <span className="font-semibold">{session.name}</span> · rôle {session.role} · {REPORTS.length} signalements
+              </p>
+            </div>
+            <button
+              onClick={logout}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20"
+            >
+              <LogOut className="size-4" /> Se déconnecter
+            </button>
           </div>
-          <h1 className="mt-2 font-display text-4xl font-bold">Centre de contrôle EcoKin</h1>
-          <p className="mt-1 text-white/70">
-            Gestion globale de la plateforme · 24 communes de Kinshasa · {REPORTS.length} signalements
-          </p>
         </div>
       </div>
 
@@ -121,9 +102,7 @@ function AdminPage() {
           {tab === "settings" && <SettingsTab />}
         </div>
       </div>
-
-      <SiteFooter />
-    </div>
+    </>
   );
 }
 
