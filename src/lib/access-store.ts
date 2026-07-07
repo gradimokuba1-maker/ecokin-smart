@@ -125,11 +125,12 @@ export function useAccess() {
     setSession(DEFAULT);
     if (prev.role !== "citoyen") logAudit({ user: prev.name, role: prev.role, action: "logout" });
   };
+  const loginAdmin = (identifier: string, password?: string) => login("admin", identifier, password);
   const can = (path: string) => {
     const allowed = ROUTE_ROLES[path];
     if (!allowed) return true;
     return allowed.includes(session.role);
   };
   const hasPermission = (perm: Permission) => (ROLE_PERMISSIONS[session.role] ?? []).includes(perm);
-  return { session, login, logout, can, hasPermission };
+  return { session, login, loginAdmin, logout, can, hasPermission };
 }

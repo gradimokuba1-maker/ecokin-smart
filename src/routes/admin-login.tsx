@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ShieldCheck, Lock, Phone } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { useAccess, ADMIN_CREDENTIALS } from "@/lib/access-store";
+import { useAccess, AUTH_USERS } from "@/lib/access-store";
 
 export const Route = createFileRoute("/admin-login")({
   head: () => ({
@@ -106,8 +106,8 @@ function AdminLoginPage() {
             <details className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
               <summary className="cursor-pointer font-semibold">Identifiants de démonstration</summary>
               <ul className="mt-2 space-y-0.5 font-mono">
-                <li>Téléphone : {ADMIN_CREDENTIALS.phone}</li>
-                <li>PIN : {ADMIN_CREDENTIALS.pin}</li>
+                <li>Téléphone : {AUTH_USERS.admin.identifier}</li>
+                <li>PIN : {AUTH_USERS.admin.password}</li>
               </ul>
             </details>
             <Link to="/" className="block text-center text-xs text-muted-foreground hover:underline">
