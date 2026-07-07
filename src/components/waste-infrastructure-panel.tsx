@@ -1,193 +1,129 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, Factory, MapPinned, Recycle, ShieldCheck, Truck, Warehouse } from "lucide-react";
+import { Factory, MapPinned, Recycle, Truck, Warehouse } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-type FillLevel = "faible" | "moyen" | "critique";
-type InfrastructureType = "PRD" | "CTEV" | "Transfert";
+type SiteCategory = "traitement" | "transfert" | "regroupement";
+type SiteStatus = "fonctionnel" | "maintenance" | "saturé";
 
-type PrdPoint = {
+type WasteSite = {
     id: string;
     name: string;
+    category: SiteCategory;
     commune: string;
     quartier: string;
-    avenue: string;
     gps: string;
-    capacityTonsPerDay: number;
-    fillLevel: FillLevel;
-    acceptedWaste: string[];
-    lastCollection: string;
-    collectionFrequency: string;
-    householdsServed: number;
-    team: string;
-    vehicle: string;
-    alert: string;
+    status: SiteStatus;
+    description: string;
+    x: number;
+    y: number;
 };
 
-type TransferCenter = {
-    id: string;
-    name: string;
-    commune: string;
-    zoneServed: string;
-    inboundVehicles: number;
-    outboundVehicles: number;
-    dailyVolumeTons: number;
-    storageHours: number;
-    maxCapacityTons: number;
-    status: "stable" | "saturation";
-};
-
-type TreatmentCenter = {
-    id: string;
-    name: string;
-    commune: string;
-    gps: string;
-    areaHa: number;
-    responsable: string;
-    commissioningYear: number;
-    treatmentCapacityTons: number;
-    landfillCapacityTons: number;
-    lifeYears: number;
-    technologies: string[];
-    dailyReceivedTons: number;
-    valorizedTons: number;
-    recycledTons: number;
-    buriedTons: number;
-    valorizationRate: number;
-    environmentalMonitoring: string[];
-};
-
-const PRD_POINTS: PrdPoint[] = [
+const SITES: WasteSite[] = [
     {
-        id: "prd-1",
+        id: "ctev-kingasani",
+        name: "CTEV de Kingasani",
+        category: "traitement",
+        commune: "Kingasani",
+        quartier: "Kingasani",
+        gps: "-4.4412, 15.3201",
+        status: "fonctionnel",
+        description: "Centre de tri, compostage et valorisation pour les déchets organiques et recyclables.",
+        x: 28,
+        y: 56,
+    },
+    {
+        id: "ctev-nsele",
+        name: "Centre de valorisation de Nsele",
+        category: "traitement",
+        commune: "Nsele",
+        quartier: "Nsele",
+        gps: "-4.4700, 15.3600",
+        status: "fonctionnel",
+        description: "Infrastructure moderne orientée valorisation énergétique, recyclage et enfouissement contrôlé.",
+        x: 18,
+        y: 72,
+    },
+    {
+        id: "transfer-masina",
+        name: "Centre de transfert de Masina",
+        category: "transfert",
+        commune: "Masina",
+        quartier: "Masina Nord",
+        gps: "-4.3920, 15.3010",
+        status: "fonctionnel",
+        description: "Point intermédiaire entre collecte de quartier et traitement final, avec forte capacité journalière.",
+        x: 62,
+        y: 44,
+    },
+    {
+        id: "transfer-mont-ngafula",
+        name: "Hub de transfert de Mont Ngafula",
+        category: "transfert",
+        commune: "Mont Ngafula",
+        quartier: "Mont Ngafula",
+        gps: "-4.4100, 15.2600",
+        status: "saturé",
+        description: "Centre de transit très sollicité en période de forte densité et de collecte décentralisée.",
+        x: 72,
+        y: 63,
+    },
+    {
+        id: "prd-gombe",
         name: "Point de regroupement Gombe",
+        category: "regroupement",
         commune: "Gombe",
         quartier: "Kasa-Vubu",
-        avenue: "Avenue des Aviateurs",
         gps: "-4.3210, 15.3090",
-        capacityTonsPerDay: 28,
-        fillLevel: "moyen",
-        acceptedWaste: ["ménagers organiques", "plastiques", "papiers"],
-        lastCollection: "2026-07-06",
-        collectionFrequency: "2 fois/jour",
-        householdsServed: 1840,
-        team: "Équipe 3",
-        vehicle: "Camion compact 6 m³",
-        alert: "Alerte d’optimisation de collecte recommandée dans 6h.",
+        status: "fonctionnel",
+        description: "Point de regroupement central pour les déchets ménagers, plastiques et papiers issus du centre-ville.",
+        x: 48,
+        y: 28,
     },
     {
-        id: "prd-2",
+        id: "prd-limete",
         name: "Centre de regroupement Limete",
+        category: "regroupement",
         commune: "Limete",
         quartier: "Matete",
-        avenue: "Avenue Colonel Mondjiba",
         gps: "-4.3589, 15.2886",
-        capacityTonsPerDay: 22,
-        fillLevel: "critique",
-        acceptedWaste: ["plastiques", "métaux", "recyclables"],
-        lastCollection: "2026-07-05",
-        collectionFrequency: "Collecte urgente",
-        householdsServed: 1520,
-        team: "Équipe 1",
-        vehicle: "Tracteur 10 m³",
-        alert: "Capacité critique — planification de collecte immédiate requise.",
+        status: "saturé",
+        description: "Point fortement sollicité avec besoin de collecte renforcée pour éviter la saturation rapide.",
+        x: 54,
+        y: 52,
     },
     {
-        id: "prd-3",
+        id: "prd-ndjili",
         name: "PRD Ndjili Nord",
+        category: "regroupement",
         commune: "Ndjili",
         quartier: "Makala",
-        avenue: "Avenue de la Paix",
         gps: "-4.3841, 15.4283",
-        capacityTonsPerDay: 35,
-        fillLevel: "faible",
-        acceptedWaste: ["organiques", "papiers", "métaux"],
-        lastCollection: "2026-07-06",
-        collectionFrequency: "1 fois/jour",
-        householdsServed: 2180,
-        team: "Équipe 4",
-        vehicle: "Camion 8 m³",
-        alert: "Capacité stable — collecte préventive programmée.",
+        status: "maintenance",
+        description: "Infrastructure de proximité utilisée pour la collecte décentralisée et l’évacuation vers les centres de transfert.",
+        x: 76,
+        y: 24,
     },
 ];
 
-const TRANSFER_CENTERS: TransferCenter[] = [
-    {
-        id: "transfer-1",
-        name: "Centre de transfert de Masina",
-        commune: "Masina",
-        zoneServed: "Masina Nord & Kintambo",
-        inboundVehicles: 16,
-        outboundVehicles: 14,
-        dailyVolumeTons: 118,
-        storageHours: 6,
-        maxCapacityTons: 140,
-        status: "stable",
-    },
-    {
-        id: "transfer-2",
-        name: "Hub de transfert de Mont Ngafula",
-        commune: "Mont Ngafula",
-        zoneServed: "Quartiers périphériques",
-        inboundVehicles: 11,
-        outboundVehicles: 9,
-        dailyVolumeTons: 86,
-        storageHours: 10,
-        maxCapacityTons: 100,
-        status: "saturation",
-    },
+const FILTERS: Array<{ value: "all" | SiteCategory; label: string }> = [
+    { value: "all", label: "Toutes les infrastructures" },
+    { value: "traitement", label: "Traitement / valorisation" },
+    { value: "transfert", label: "Centres de transfert" },
+    { value: "regroupement", label: "Points de regroupement" },
 ];
 
-const TREATMENT_CENTERS: TreatmentCenter[] = [
-    {
-        id: "ctev-1",
-        name: "CTEV de Kingasani",
-        commune: "Kingasani",
-        gps: "-4.4412, 15.3201",
-        areaHa: 18,
-        responsable: "Ing. Mukendi",
-        commissioningYear: 2019,
-        treatmentCapacityTons: 160,
-        landfillCapacityTons: 420,
-        lifeYears: 11,
-        technologies: ["tri manuel", "compostage", "recyclage plastique"],
-        dailyReceivedTons: 142,
-        valorizedTons: 74,
-        recycledTons: 31,
-        buriedTons: 48,
-        valorizationRate: 52,
-        environmentalMonitoring: ["lixiviats", "émissions", "nuisances"],
-    },
-    {
-        id: "ctev-2",
-        name: "Centre de valorisation de Nsele",
-        commune: "Nsele",
-        gps: "-4.4700, 15.3600",
-        areaHa: 24,
-        responsable: "M. Nlandu",
-        commissioningYear: 2022,
-        treatmentCapacityTons: 200,
-        landfillCapacityTons: 560,
-        lifeYears: 14,
-        technologies: ["tri automatisé", "valorisation énergétique", "enfouissement contrôlé"],
-        dailyReceivedTons: 186,
-        valorizedTons: 103,
-        recycledTons: 57,
-        buriedTons: 43,
-        valorizationRate: 55,
-        environmentalMonitoring: ["lixiviats", "gaz", "surveillance acoustique"],
-    },
-];
+const CATEGORY_META: Record<SiteCategory, { label: string; color: string; icon: typeof Factory }> = {
+    traitement: { label: "Traitement / valorisation / enfouissement", color: "border-emerald-500 bg-emerald-500/10 text-emerald-700", icon: Factory },
+    transfert: { label: "Centre de transfert", color: "border-amber-500 bg-amber-500/10 text-amber-700", icon: Warehouse },
+    regroupement: { label: "Point de regroupement", color: "border-sky-500 bg-sky-500/10 text-sky-700", icon: Recycle },
+};
 
-const COMMUNES = ["Toutes", ...new Set(PRD_POINTS.map((p) => p.commune))];
-const STATUS_OPTIONS = ["Tous", "faible", "moyen", "critique"];
-const TYPE_OPTIONS = ["Tous", "PRD", "CTEV", "Transfert"];
-
-function fillLevelBadge(level: FillLevel) {
-    switch (level) {
-        case "critique":
+function statusBadge(status: SiteStatus) {
+    switch (status) {
+        case "saturé":
             return "border-red-500/30 bg-red-500/10 text-red-600";
-        case "moyen":
+        case "maintenance":
             return "border-amber-500/30 bg-amber-500/10 text-amber-700";
         default:
             return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
