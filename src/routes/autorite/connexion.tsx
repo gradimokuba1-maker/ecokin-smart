@@ -2,7 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useAccess, getAuthorityDashboardPath } from "@/lib/access-store";
+import { useServerFn } from "@tanstack/react-start";
 import { Building2, Lock, ShieldCheck, UserCog, UserRound } from "lucide-react";
+import { loginAuthority } from "@/lib/auth.functions";
 import { useState } from "react";
 
 export const Route = createFileRoute("/autorite/connexion")({
@@ -38,7 +40,8 @@ const OPTIONS: AuthorityOption[] = [
 
 function AuthorityLoginPage() {
     const navigate = useNavigate();
-    const { login } = useAccess();
+    const { setSession } = useAccess();
+    const loginServer = useServerFn(loginAuthority);
     const search = Route.useSearch();
     const [role, setRole] = useState<AuthorityRole>(
         search.role === "gouverneur" || search.role === "bourgmestre" || search.role === "admin" || search.role === "agent"

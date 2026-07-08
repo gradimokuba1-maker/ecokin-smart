@@ -1,37 +1,26 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { ClientOnly } from "@/components/client-only";
-import { EcoMap } from "@/components/eco-map";
 import { AccessGate } from "@/components/access-gate";
-import { useEffect, useState } from "react";
-import {
-  AI_RECOMMENDATIONS,
-  COMMUNES,
-  COMMUNE_BUDGET,
-  COMMUNE_KPIS,
-  IPK,
-  IPK_KINSHASA,
-  INTERVENTIONS,
-  PRIORITY_ALERTS,
-  REPORTS,
-  TRUCKS,
-  WEATHER_FORECAST,
-  type Truck,
-} from "@/lib/data";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   AlertTriangle,
-  CloudRain,
-  Cloud,
-  CloudLightning,
-  Sun,
-  Truck as TruckIcon,
-  Activity,
-  Gauge,
-  Banknote,
-  Brain,
-  ShieldAlert,
+  BarChart3,
+  CheckCircle2,
+  Filter,
+  Percent,
+  Recycle,
+  ShieldCheck,
+  Trash2,
+  Trophy,
 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ClientOnly } from "remix-utils/client-only";
+import { DEFAULT_CITY } from "@/lib/cities";
+import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports, WASTE_CATEGORIES } from "@/lib/eco-store";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/gouverneur")({
   head: () => ({
@@ -45,369 +34,549 @@ export const Route = createFileRoute("/gouverneur")({
     ],
   }),
   component: () => (
-    <AccessGate required={["gouverneur", "admin"]} title="Centre de Commandement du Gouverneur">
-      <GouverneurPage />
+    <AccessGate required={["gouverneur"]} title="Centre de Commandement du Gouverneur">
+      <GovernorDashboard />
     </AccessGate>
   ),
 });
 
-const ICONS = { sun: Sun, cloud: Cloud, rain: CloudRain, storm: CloudLightning };
-const riskColor = (lvl: string) =>
-  lvl === "critique" ? "bg-red-500" : lvl === "eleve" ? "bg-orange-500" : lvl === "modere" ? "bg-amber-500" : "bg-emerald-500";
+const periodOptions = [
+  { value: "all", label: "Toute période" },
+  { value: "24h", label: "Dernières 24h" },
+  { value: "7d", label: "7 derniers jours" },
+  { value: "30d", label: "30 derniers jours" },
+];
 
-function GouverneurPage() {
-  const [trucks, setTrucks] = useState<Truck[]>(TRUCKS);
+const urgencyOptions = [
+  { value: "all", label: "Toute priorité" },
+  ...Object.entries(URGENCY_META).map(([value, { label }]) => ({ value, label: `Priorité ${label}` })),
+];
 
-  // Simulate live GPS
+const categoryOptions = [
+  { value: "all", label: "Tout type de déchet" },
+  ...WASTE_CATEGORIES.map((c) => ({ value: c.id, label: c.label })),
+];
+
+function KpiCard({ item }: { item: ReturnType<typeof useKpiData>[number] }) {
+  const Icon = item.icon;
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+        <Icon className={`h-4 w-4 ${item.color}`} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{item.value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function GovernorMap({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const reportsLayerRef = useRef<any>(null);
+
   useEffect(() => {
-    const i = setInterval(() => {
-      setTrucks((prev) =>
-        prev.map((t) => {
-          if (t.status === "pause" || t.status === "depot") return t;
-          const j = 0.0006;
-          return {
-            ...t,
-            lat: t.lat + (Math.random() - 0.5) * j,
-            lng: t.lng + (Math.random() - 0.5) * j,
-            speedKmh: Math.max(0, Math.round(t.speedKmh + (Math.random() - 0.5) * 6)),
-            loadPct: Math.min(100, t.loadPct + (t.status === "collecte" ? 1 : 0)),
-          };
-        }),
+    let cancelled = false;
+    (async () => {
+      const L = (await import("leaflet")).default;
+      await import("leaflet/dist/leaflet.css");
+      if (cancelled || !containerRef.current) return;
+
+      const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom: true }).setView(
+        DEFAULT_CITY.center,
+        DEFAULT_CITY.defaultZoom,
       );
-    }, 2500);
-    return () => clearInterval(i);
+      map.setMaxBounds(L.latLngBounds(DEFAULT_CITY.bounds[0], DEFAULT_CITY.bounds[1]).pad(0.16));
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        attribution: "© OpenStreetMap · © CARTO · EcoKin Smart",
+        maxZoom: 19,
+      }).addTo(map);
+
+      COMMUNES.forEach((c) => {
+        L.circle(c.center, {
+          radius: 1700,
+          color: "#10b981",
+          weight: 1.5,
+          opacity: 0.4,
+          fillOpacity: 0.06,
+          dashArray: "5 5",
+        })
+          .bindTooltip(`Commune de ${c.name}`, { direction: "top" })
+          .addTo(map);
+      });
+
+      COLLECTION_POINTS.forEach((cp) => {
+        L.marker([cp.lat, cp.lng], {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="background:#0ea5e9;color:#fff;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);font:700 11px/1 Inter,sans-serif;">♻</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          }),
+        })
+          .bindPopup(`<strong>${cp.name}</strong><br/>Type : ${cp.kind}`)
+          .addTo(map);
+      });
+
+      reportsLayerRef.current = L.layerGroup().addTo(map);
+      mapRef.current = map;
+      setTimeout(() => map.invalidateSize(), 120);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
   }, []);
 
-  const totalInter = INTERVENTIONS.length;
-  const inCours = INTERVENTIONS.filter((i) => i.status === "en_cours").length;
-  const totalBudget = Object.values(COMMUNE_BUDGET).reduce((s, b) => s + b.mensuel, 0);
-  const trucksActive = trucks.filter((t) => t.status !== "pause").length;
+  useEffect(() => {
+    if (!reportsLayerRef.current || !mapRef.current) return;
+    (async () => {
+      const L = (await import("leaflet")).default;
+      reportsLayerRef.current.clearLayers();
+      reports.forEach((report) => {
+        if (!report.lat || !report.lng) return;
+        const meta = URGENCY_META[report.urgency];
+        const color = meta.color.replace("text-", "").replace("-700", "-500");
+        L.circleMarker([report.lat, report.lng], {
+          radius: report.urgency === "critique" ? 9 : report.urgency === "eleve" ? 7 : 5,
+          color: "#fff",
+          weight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.9,
+        })
+          .bindPopup(
+            `
+          <div style="min-width:180px;font-family:Inter,sans-serif">
+            <div style="font-weight:700;font-size:12px;">${report.id}</div>
+            <div style="font-size:11px;color:#475569;text-transform:capitalize;">${report.category} · ${report.commune}</div>
+            <div style="margin-top:4px">
+              <span style="background-color:${color};color:#fff;padding:2px 6px;border-radius:9999px;font-size:9px;font-weight:700;text-transform:uppercase;">
+                Urgence ${report.urgency}
+              </span>
+            </div>
+          </div>
+        `,
+          )
+          .addTo(reportsLayerRef.current);
+      });
+    })();
+  }, [reports]);
+
+  return <div ref={containerRef} className="h-[500px] w-full overflow-hidden rounded-lg border bg-secondary" />;
+}
+
+function PerformanceByCommuneChart({ data }: { data: any[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis
+          dataKey="name"
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+          interval={0}
+        />
+        <YAxis
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+          allowDecimals={false}
+        />
+        <Tooltip
+          cursor={{ fill: "hsl(var(--accent))" }}
+          contentStyle={{
+            background: "hsl(var(--background))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "var(--radius)",
+            fontSize: "12px",
+          }}
+        />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+        <Bar dataKey="Signalements" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Résolus" fill="hsl(var(--eco))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function ReportsEvolutionChart({ data }: { data: any[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <AreaChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <defs>
+          <linearGradient id="colorSignalements" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
+            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+        <YAxis
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+          allowDecimals={false}
+        />
+        <Tooltip
+          contentStyle={{
+            background: "hsl(var(--background))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "var(--radius)",
+            fontSize: "12px",
+          }}
+        />
+        <Area type="monotone" dataKey="Signalements" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorSignalements)" />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+function GovernorCharts({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
+  const performanceByCommune = useMemo(() => {
+    const data = COMMUNES.map((commune) => {
+      const communeReports = reports.filter((r) => r.commune === commune.id);
+      return {
+        name: commune.name,
+        Signalements: communeReports.length,
+        Résolus: communeReports.filter((r) => r.status === "terminee").length,
+      };
+    });
+    return data.filter((d) => d.Signalements > 0).sort((a, b) => b.Signalements - a.Signalements);
+  }, [reports]);
+
+  const evolutionData = useMemo(() => {
+    const data = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toISOString().slice(0, 10);
+      const name = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+      const signalements = reports.filter((r) => r.createdAt.startsWith(dayStr)).length;
+      return { name, Signalements: signalements };
+    }).reverse();
+    return data;
+  }, [reports]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <SiteNav />
+    <Card>
+      <CardHeader>
+        <CardTitle>Analyse des Performances</CardTitle>
+        <CardDescription>Visualisation des tendances et répartition des signalements.</CardDescription>
+      </CardHeader>
+      <CardContent className="pl-2 pr-4">
+        <Tabs defaultValue="performance">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="performance">Performance / Commune</TabsTrigger>
+            <TabsTrigger value="evolution">Évolution (30j)</TabsTrigger>
+          </TabsList>
+          <TabsContent value="performance" className="pt-4">
+            <PerformanceByCommuneChart data={performanceByCommune} />
+          </TabsContent>
+          <TabsContent value="evolution" className="pt-4">
+            <ReportsEvolutionChart data={evolutionData} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
 
-      <header className="border-b border-emerald-900/30 bg-[linear-gradient(135deg,#0b1f3a_0%,#0e2a4d_45%,#0f3b2a_100%)] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-eco">
-            Hôtel de Ville · République Démocratique du Congo
-          </p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <h1 className="font-display text-4xl font-bold tracking-tight sm:text-5xl">
-                Centre de Commandement du Gouverneur
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm text-white/70">
-                Pilotage opérationnel de la propreté, des risques d'inondation et des interventions
-                sur l'ensemble des 24 communes de Kinshasa.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-right">
-                <div className="text-[10px] uppercase tracking-widest text-white/60">IPK Kinshasa</div>
-                <div className="font-display text-3xl font-bold text-eco">{IPK_KINSHASA}<span className="text-sm text-white/50">/100</span></div>
-              </div>
-            </div>
-          </div>
+function ResolutionTimeChart({ data }: { data: { name: string; "Temps moyen (h)": number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+        <YAxis
+          type="category"
+          dataKey="name"
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+          width={80}
+        />
+        <Tooltip
+          cursor={{ fill: "hsl(var(--accent))" }}
+          contentStyle={{
+            background: "hsl(var(--background))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "var(--radius)",
+            fontSize: "12px",
+          }}
+        />
+        <Bar dataKey="Temps moyen (h)" fill="hsl(var(--eco))" radius={[0, 4, 4, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
 
-          {/* Priority alerts strip */}
-          <div className="mt-6 flex flex-wrap gap-2">
-            {PRIORITY_ALERTS.map((a) => (
-              <span
-                key={a.id}
-                className={`inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold ${a.level === "critique"
-                    ? "bg-red-500/20 text-red-200"
-                    : a.level === "eleve"
-                      ? "bg-orange-500/20 text-orange-200"
-                      : "bg-amber-500/20 text-amber-200"
-                  }`}
-              >
-                <ShieldAlert className="size-3.5" />
-                {a.msg}
-              </span>
-            ))}
-          </div>
-        </div>
-      </header>
+const CATEGORY_COLORS = ["#10b981", "#0ea5e9", "#6366f1", "#f97316", "#ef4444", "#8b5cf6", "#ec4899"];
 
-      <main className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
-        <div className="rounded-[1.5rem] border border-emerald-900/30 bg-[linear-gradient(135deg,rgba(7,21,35,0.95),rgba(15,45,61,0.95),rgba(14,58,44,0.95))] p-5 text-white shadow-[0_20px_70px_-30px_rgba(16,185,129,0.45)]">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-200">Supervision stratégique</div>
-              <h2 className="mt-1 font-display text-2xl font-bold">Tableau de bord du Gouverneur</h2>
-            </div>
-            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-100">
-              Accès sécurisé · Vision globale
-            </div>
-          </div>
-        </div>
-        {/* Strategic KPIs */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard icon={<Gauge />} label="État propreté" value={`${IPK_KINSHASA}/100`} sub="Indice moyen" tone="eco" />
-          <KpiCard icon={<Activity />} label="Interventions" value={String(totalInter)} sub={`${inCours} en cours`} tone="kin" />
-          <KpiCard icon={<TruckIcon />} label="Camions actifs" value={`${trucksActive}/${trucks.length}`} sub="Flotte GPS" tone="kin" />
-          <KpiCard icon={<Banknote />} label="Budget mensuel" value={`${(totalBudget / 1_000_000).toFixed(1)} M CDF`} sub="Kinshasa" tone="eco" />
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: "Signalements citoyens", value: REPORTS.length.toString(), accent: "bg-eco/10 text-eco" },
-            { label: "Alertes temps réel", value: PRIORITY_ALERTS.length.toString(), accent: "bg-red-500/10 text-red-600" },
-            { label: "Notifications", value: `${Math.max(6, PRIORITY_ALERTS.length + 2)}`, accent: "bg-sky-500/10 text-sky-600" },
-            { label: "Interventions actives", value: String(inCours), accent: "bg-amber-500/10 text-amber-700" },
-          ].map((item) => (
-            <div key={item.label} className="rounded-2xl border border-border bg-card p-5">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</div>
-              <div className="mt-3 font-display text-3xl font-bold">{item.value}</div>
-              <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${item.accent}`}>
-                Supervision globale
-              </div>
-            </div>
+function ReportsByCategoryChart({ data }: { data: { name: string; value: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <PieChart>
+        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label>
+          {data.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
           ))}
-        </section>
+        </Pie>
+        <Tooltip />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
 
-        {/* Map + AI engine */}
-        <section className="grid gap-6 lg:grid-cols-3">
-          <div className="overflow-hidden rounded-3xl border border-border bg-card lg:col-span-2">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Carte SIG temps réel
-                </div>
-                <h2 className="font-display text-xl font-bold">Déchets, caniveaux, flotte & équipements</h2>
-              </div>
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="size-2 animate-pulse rounded-full bg-eco" /> Live
-              </span>
+function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
+  const reportsByCategory = useMemo(() => {
+    const counts = reports.reduce(
+      (acc, r) => {
+        const category = r.category || "inconnu";
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [reports]);
+
+  const resolutionTimeData = useMemo(() => {
+    const resolutionTimesByCommune: Record<string, number[]> = {};
+
+    reports.forEach((report) => {
+      if (report.status === "terminee") {
+        const resolutionEntry = report.history.find((h) => h.label.includes("terminee"));
+        if (resolutionEntry) {
+          const creationDate = new Date(report.createdAt);
+          const resolutionDate = new Date(resolutionEntry.at);
+          const durationHours = (resolutionDate.getTime() - creationDate.getTime()) / (1000 * 60 * 60);
+
+          if (!resolutionTimesByCommune[report.commune]) {
+            resolutionTimesByCommune[report.commune] = [];
+          }
+          resolutionTimesByCommune[report.commune].push(durationHours);
+        }
+      }
+    });
+
+    return Object.entries(resolutionTimesByCommune).map(([commune, durations]) => ({ name: commune, "Temps moyen (h)": Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length) })).sort((a, b) => a["Temps moyen (h)"] - b["Temps moyen (h)"]);
+  }, [reports]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Répartition par Catégorie de Déchet</CardTitle>
+          <CardDescription>Distribution des signalements selon le type de déchet identifié.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReportsByCategoryChart data={reportsByCategory} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Performances de Résolution</CardTitle>
+          <CardDescription>Temps moyen de résolution par commune et par type d'urgence.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ResolutionTimeChart data={resolutionTimeData} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"]) {
+  return useMemo(() => {
+    const total = filteredReports.length;
+    const resolus = filteredReports.filter((r) => r.status === "terminee").length;
+    const volume = filteredReports.reduce((sum, r) => sum + (r.volumeM3 ?? 0), 0);
+    const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
+    const alertes = filteredReports.filter((r) => r.urgency === "critique" || r.urgency === "eleve").length;
+
+    const communeCounts = filteredReports.reduce(
+      (acc, r) => {
+        acc[r.commune] = (acc[r.commune] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+    const topCommune = Object.entries(communeCounts).sort((a, b) => b[1] - a[1])[0];
+
+    return [
+      { title: "Signalements affichés", value: total.toLocaleString("fr-FR"), icon: AlertTriangle, color: "text-yellow-500" },
+      { title: "Signalements résolus", value: resolus.toLocaleString("fr-FR"), icon: CheckCircle2, color: "text-green-500" },
+      {
+        title: "Volume estimé (m³)",
+        value: volume.toLocaleString("fr-FR", { maximumFractionDigits: 0 }),
+        icon: Trash2,
+        color: "text-blue-500",
+      },
+      { title: "Taux de collecte", value: `${tauxCollecte}%`, icon: Percent, color: "text-indigo-500" },
+      { title: "Taux de recyclage", value: "12%", icon: Recycle, color: "text-purple-500" }, // Placeholder
+      { title: "Performance", value: "+5% vs sem. préc.", icon: BarChart3, color: "text-pink-500" }, // Placeholder
+      { title: "Commune la + active", value: topCommune ? topCommune[0] : "N/A", icon: Trophy, color: "text-amber-500" },
+      {
+        title: "Alertes prioritaires",
+        value: alertes.toLocaleString("fr-FR"),
+        icon: AlertTriangle,
+        color: "text-red-500",
+      },
+    ];
+  }, [filteredReports]);
+}
+
+function GovernorDashboard() {
+  const { items: liveReports } = useLiveReports();
+  const [filters, setFilters] = useState({ commune: "all", period: "all", category: "all", urgency: "all" });
+
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const filteredReports = useMemo(() => {
+    return liveReports.filter((report) => {
+      if (filters.commune !== "all" && report.commune !== filters.commune) return false;
+      if (filters.category !== "all" && report.category !== filters.category) return false;
+      if (filters.urgency !== "all" && report.urgency !== filters.urgency) return false;
+      if (filters.period !== "all") {
+        const reportDate = new Date(report.createdAt);
+        const now = new Date();
+        let days = 0;
+        if (filters.period === "24h") days = 1;
+        else if (filters.period === "7d") days = 7;
+        else if (filters.period === "30d") days = 30;
+        if (days > 0) {
+          const periodStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+          if (reportDate < periodStart) return false;
+        }
+      }
+      return true;
+    });
+  }, [liveReports, filters]);
+
+  const kpiData = useKpiData(filteredReports);
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <SiteNav />
+      <main className="flex-1">
+        <div className="border-b bg-card">
+          <div className="container py-8">
+            <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-eco">
+              <ShieldCheck className="size-4" /> Espace Gouverneur
             </div>
-            <ClientOnly fallback={<div className="h-[480px] animate-pulse bg-muted" />}>
-              <EcoMap
-                reports={REPORTS}
-                trucks={trucks}
-                showPois
-                showDumps
-                showDrains
-                showRoads
-                showRivers
-                showFloodZones
-                showCollection
-                height={480}
-              />
-            </ClientOnly>
-            <div className="flex flex-wrap gap-3 border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
-              <Legend color="#ef4444" label="Critique" />
-              <Legend color="#b45309" label="Décharge sauvage" />
-              <Legend color="#f97316" label="Caniveau obstrué" />
-              <Legend color="#0ea5e9" label="Rivière / collecte" />
-              <Legend color="#6366f1" label="École" />
-              <Legend color="#ef4444" label="Hôpital" />
-              <Legend color="#a855f7" label="Marché" />
-              <Legend color="#10b981" label="Camion en collecte" />
+            <h1 className="mt-2 font-display text-4xl font-bold">Centre de Commandement Stratégique</h1>
+            <p className="mt-1 text-muted-foreground">
+              Vue d'ensemble en temps réel de la propreté et des opérations dans la ville de Kinshasa.
+            </p>
+          </div>
+        </div>
+
+        <div className="container py-8">
+          <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border bg-card p-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground lg:col-span-1">
+              <Filter className="size-4 text-eco" />
+              Filtrer les données
             </div>
+            <Select value={filters.commune} onValueChange={(v) => handleFilterChange("commune", v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les communes</SelectItem>
+                {COMMUNES.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filters.period} onValueChange={(v) => handleFilterChange("period", v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {periodOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filters.category} onValueChange={(v) => handleFilterChange("category", v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filters.urgency} onValueChange={(v) => handleFilterChange("urgency", v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {urgencyOptions.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* AI decision engine */}
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <div className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-eco/10 text-eco"><Brain className="size-5" /></span>
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Moteur d'aide à la décision</div>
-                <h3 className="font-display text-lg font-bold">Plan d'action recommandé</h3>
-              </div>
-            </div>
-            <ul className="mt-4 space-y-3">
-              {AI_RECOMMENDATIONS.map((r) => (
-                <li key={r.id} className="rounded-2xl border border-border bg-background p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-eco/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-eco">
-                      Priorité {r.priorite}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{r.commune}</span>
-                  </div>
-                  <p className="mt-1 text-sm font-semibold">{r.titre}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{r.motif}</p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                    <span className="rounded-full bg-muted px-2 py-0.5">🚛 {r.camions} camions</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5">👥 {r.equipes} équipes</span>
-                    <span className="rounded-full bg-muted px-2 py-0.5">⏱ {r.eta}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* Weather + IPK */}
-        <section className="grid gap-6 lg:grid-cols-3">
-          <div className="rounded-3xl border border-border bg-card p-5 lg:col-span-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Météo & alerte pluie</div>
-                <h3 className="font-display text-lg font-bold">Prévision 7 jours · risque d'inondation</h3>
-              </div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-3 py-1 text-xs font-bold text-red-600">
-                <AlertTriangle className="size-3.5" /> Alerte pluie 48 h
-              </span>
-            </div>
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-7">
-              {WEATHER_FORECAST.map((d) => {
-                const Icon = ICONS[d.icon];
-                return (
-                  <div key={d.day} className="rounded-2xl border border-border bg-background p-3 text-center">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{d.day}</div>
-                    <Icon className="mx-auto mt-2 size-6 text-kin" />
-                    <div className="mt-1 text-sm font-bold">{d.tempC}°C</div>
-                    <div className="text-[11px] text-muted-foreground">{d.rainMm} mm</div>
-                    <span className={`mt-2 inline-block h-1.5 w-8 rounded-full ${riskColor(d.floodRisk)}`} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-border bg-card p-5">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Indice de Propreté de Kinshasa</div>
-            <h3 className="font-display text-lg font-bold">IPK par commune</h3>
-            <ul className="mt-4 space-y-3">
-              {COMMUNES.map((c) => {
-                const ipk = IPK[c.id];
-                const tone = ipk.score >= 70 ? "bg-emerald-500" : ipk.score >= 55 ? "bg-amber-500" : "bg-red-500";
-                return (
-                  <li key={c.id}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold">{c.name}</span>
-                      <span className="font-bold">
-                        {ipk.score}<span className="text-xs text-muted-foreground">/100</span>{" "}
-                        <span className={ipk.trend >= 0 ? "text-emerald-600" : "text-red-600"}>
-                          {ipk.trend >= 0 ? "▲" : "▼"} {Math.abs(ipk.trend)}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-muted">
-                      <div className={`h-full ${tone}`} style={{ width: `${ipk.score}%` }} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </section>
-
-        {/* Commune performance + budget */}
-        <section className="rounded-3xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Performance & budget</div>
-              <h3 className="font-display text-lg font-bold">Indice par commune & coûts opérationnels</h3>
-            </div>
-          </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[11px] uppercase tracking-widest text-muted-foreground">
-                <tr>
-                  <th className="py-2">Commune</th>
-                  <th>IPK</th>
-                  <th>Signalements</th>
-                  <th>Collecte (t)</th>
-                  <th>Recyclage</th>
-                  <th>Risque</th>
-                  <th>Budget hebdo</th>
-                  <th>Coût/t</th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMMUNES.map((c) => {
-                  const k = COMMUNE_KPIS[c.id];
-                  const b = COMMUNE_BUDGET[c.id];
-                  const ipk = IPK[c.id];
-                  return (
-                    <tr key={c.id} className="border-t border-border">
-                      <td className="py-3 font-semibold">{c.name}</td>
-                      <td className="font-bold">{ipk.score}/100</td>
-                      <td>{k.signalements}</td>
-                      <td>{k.collecte_t}</td>
-                      <td>{k.recyclage}%</td>
-                      <td>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold text-white ${k.risque >= 50 ? "bg-red-500" : k.risque >= 30 ? "bg-amber-500" : "bg-emerald-500"}`}>
-                          {k.risque}%
-                        </span>
-                      </td>
-                      <td>{(b.hebdo / 1_000_000).toFixed(1)} M CDF</td>
-                      <td>{(b.cout_tonne / 1000).toFixed(0)}k CDF</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* Truck fleet */}
-        <section className="rounded-3xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Flotte GPS</div>
-              <h3 className="font-display text-lg font-bold">Suivi temps réel des camions</h3>
-            </div>
-            <span className="text-xs text-muted-foreground">Mise à jour 2,5 s</span>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {trucks.map((t) => (
-              <div key={t.id} className="rounded-2xl border border-border bg-background p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-display text-base font-bold">{t.id}</span>
-                  <StatusPill status={t.status} />
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">{t.plate} · {t.driver}</div>
-                <div className="mt-3 flex items-center justify-between text-xs">
-                  <span>Charge</span><span className="font-bold">{t.loadPct}%</span>
-                </div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div className={`h-full ${t.loadPct > 85 ? "bg-red-500" : "bg-eco"}`} style={{ width: `${t.loadPct}%` }} />
-                </div>
-                <div className="mt-3 flex justify-between text-[11px] text-muted-foreground">
-                  <span>{t.speedKmh} km/h</span>
-                  <span>{t.lat.toFixed(4)}, {t.lng.toFixed(4)}</span>
-                </div>
-              </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {kpiData.map((item) => (
+              <KpiCard key={item.title} item={item} />
             ))}
           </div>
-        </section>
-      </main>
 
+          <Tabs defaultValue="overview" className="mt-8 w-full">
+            <TabsList>
+              <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
+              <TabsTrigger value="stats">Statistiques Détaillées</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview" className="mt-4">
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Carte Opérationnelle de la Ville</CardTitle>
+                    <CardDescription>Visualisation des signalements, des infrastructures et des unités mobiles.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ClientOnly fallback={<div className="h-[500px] animate-pulse rounded-lg bg-muted" />}>
+                      {() => <GovernorMap reports={filteredReports} />}
+                    </ClientOnly>
+                  </CardContent>
+                </Card>
+                <GovernorCharts reports={filteredReports} />
+              </div>
+            </TabsContent>
+            <TabsContent value="stats" className="mt-4">
+              <GovernorStatsTab reports={filteredReports} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
       <SiteFooter />
     </div>
   );
-}
-
-function KpiCard({ icon, label, value, sub, tone }: { icon: React.ReactNode; label: string; value: string; sub: string; tone: "eco" | "kin" }) {
-  return (
-    <div className="rounded-3xl border border-border bg-card p-5">
-      <div className="flex items-center gap-3">
-        <span className={`grid size-10 place-items-center rounded-2xl ${tone === "eco" ? "bg-eco/10 text-eco" : "bg-kin/10 text-kin"}`}>{icon}</span>
-        <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
-      </div>
-      <div className="mt-3 font-display text-3xl font-bold">{value}</div>
-      <div className="text-xs text-muted-foreground">{sub}</div>
-    </div>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="size-2.5 rounded-full" style={{ background: color }} /> {label}
-    </span>
-  );
-}
-
-function StatusPill({ status }: { status: Truck["status"] }) {
-  const map: Record<Truck["status"], string> = {
-    collecte: "bg-emerald-500/15 text-emerald-700",
-    en_route: "bg-sky-500/15 text-sky-700",
-    depot: "bg-indigo-500/15 text-indigo-700",
-    pause: "bg-slate-500/15 text-slate-700",
-  };
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${map[status]}`}>{status}</span>;
 }

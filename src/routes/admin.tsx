@@ -2,18 +2,32 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
-import { LEADERBOARD, REPORTS, REWARDS, COMMUNES, WASTE_CATEGORIES } from "@/lib/data";
+import { REWARDS, WASTE_CATEGORIES } from "@/lib/data";
 import { useLearning } from "@/lib/learning-store";
+import { useLiveReports, useHouseholds, COMMUNE_BUDGET, COMMUNES, URGENCY_META, STATUS_META, LiveStatus, useWasteTax } from "@/lib/eco-store";
+import { AUTH_USERS, useAccess } from "@/lib/access-store";
 import {
   Activity,
   Brain,
+  Building,
   Database,
   Gift,
   Settings,
   ShieldCheck,
+  TrendingUp,
+  User,
   Users,
+  UserCog,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend } from "recharts";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -32,7 +46,7 @@ export const Route = createFileRoute("/admin")({
 const TABS = [
   { id: "overview", label: "Vue d'ensemble", icon: Activity },
   { id: "ia", label: "Validation IA", icon: Brain },
-  { id: "users", label: "Citoyens", icon: Users },
+  { id: "users", label: "Utilisateurs & Rôles", icon: UserCog },
   { id: "reports", label: "Signalements", icon: Database },
   { id: "rewards", label: "Récompenses", icon: Gift },
   { id: "settings", label: "Paramètres", icon: Settings },
@@ -40,60 +54,36 @@ const TABS = [
 
 function AdminPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
+  const { items: reports } = useLiveReports();
+  const { households } = useHouseholds();
+  const totalUsers = households.length + Object.keys(AUTH_USERS).length;
+  const totalBudget = Object.values(COMMUNE_BUDGET).reduce((s, b) => s + b.mensuel, 0);
 
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
-      <div className="border-b border-emerald-900/30 bg-[linear-gradient(135deg,#0b1f3a_0%,#0e2a4d_45%,#0f3b2a_100%)] text-white">
+      <div className="border-b bg-card">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-200">
-            <ShieldCheck className="size-4" /> Portail institutionnel · Administrateur
+          <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-eco">
+            <UserCog className="size-4" />
+            Espace Administrateur
           </div>
-          <h1 className="mt-2 font-display text-4xl font-bold">Centre de contrôle EcoKin</h1>
-          <p className="mt-1 text-white/70">
-            Gestion globale de la plateforme · 24 communes de Kinshasa · {REPORTS.length} signalements
+          <h1 className="mt-2 font-display text-4xl font-bold">Centre de Contrôle Principal</h1>
+          <p className="mt-1 text-muted-foreground">
+            Gestion et supervision de l'ensemble des modules, utilisateurs et paramètres de la plateforme EcoKin Smart.
           </p>
         </div>
       </div>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[240px_1fr] lg:px-8">
-        <div className="rounded-[1.5rem] border border-emerald-900/30 bg-[linear-gradient(135deg,rgba(7,21,35,0.95),rgba(15,45,61,0.95),rgba(14,58,44,0.95))] p-5 text-white shadow-[0_20px_70px_-30px_rgba(16,185,129,0.45)] lg:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-200">Administration centrale</div>
-              <h2 className="mt-1 font-display text-2xl font-bold">Centre de contrôle de la plateforme</h2>
-            </div>
-            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-100">
-              Accès sécurisé · Contrôle total
-            </div>
-          </div>
-        </div>
-        <div className="space-y-4 lg:col-span-2">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: "Utilisateurs", value: "3 248", accent: "bg-eco/10 text-eco" },
-              { label: "Alertes", value: "24", accent: "bg-red-500/10 text-red-600" },
-              { label: "Notifications", value: "18", accent: "bg-sky-500/10 text-sky-600" },
-              { label: "Données centralisées", value: "100%", accent: "bg-amber-500/10 text-amber-700" },
-            ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-border bg-card p-5">
-                <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</div>
-                <div className="mt-3 font-display text-3xl font-bold">{item.value}</div>
-                <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${item.accent}`}>
-                  Administration centrale
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
         <aside className="space-y-1">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${tab === t.id
-                ? "bg-eco text-white"
-                : "text-muted-foreground hover:bg-secondary"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted/50"
                 }`}
             >
               <t.icon className="size-4" /> {t.label}
@@ -102,7 +92,7 @@ function AdminPage() {
         </aside>
 
         <div className="space-y-6">
-          {tab === "overview" && <Overview />}
+          {tab === "overview" && <Overview reports={reports} kpis={{ totalUsers, totalReports: reports.length, totalBudget }} />}
           {tab === "ia" && <IATab />}
           {tab === "users" && <UsersTab />}
           {tab === "reports" && <ReportsTab />}
@@ -116,26 +106,119 @@ function AdminPage() {
   );
 }
 
-function Overview() {
+function ReportsByCommuneChart({ data }: { data: { name: string, Signalements: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={data} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis
+          dataKey="name"
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+          interval={0}
+        />
+        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip
+          cursor={{ fill: "hsl(var(--accent))" }}
+          contentStyle={{
+            background: "hsl(var(--background))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "var(--radius)",
+            fontSize: "12px",
+          }}
+        />
+        <Bar dataKey="Signalements" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+const STATUS_CHART_COLORS: Record<LiveStatus, string> = {
+  en_attente: "#f59e0b", // amber
+  assignee: "#3b82f6", // blue
+  en_cours: "#8b5cf6", // violet
+  terminee: "#10b981", // green
+  rejete: "#ef4444", // red
+};
+
+function ReportsByStatusChart({ data }: { data: { name: string, value: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <PieChart>
+        <Pie
+          data={data}
+          dataKey="value"
+          nameKey="name"
+          cx="50%"
+          cy="50%"
+          outerRadius={80}
+          labelLine={false}
+          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+            const radius = innerRadius + (outerRadius - innerRadius) * 1.2;
+            const x = cx + radius * Math.cos(-midAngle * (Math.PI / 180));
+            const y = cy + radius * Math.sin(-midAngle * (Math.PI / 180));
+            return <text x={x} y={y} fill="currentColor" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs">{`${(percent * 100).toFixed(0)}%`}</text>;
+          }}
+        >
+          {data.map((entry) => (
+            <Cell key={`cell-${entry.name}`} fill={STATUS_CHART_COLORS[entry.name as LiveStatus] ?? '#8884d8'} />
+          ))}
+        </Pie>
+        <Tooltip />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+function Overview({ kpis, reports }: { kpis: { totalUsers: number; totalReports: number; totalBudget: number }, reports: ReturnType<typeof useLiveReports>['items'] }) {
+  const reportsByCommune = useMemo(() => {
+    const counts = reports.reduce((acc, r) => { acc[r.commune] = (acc[r.commune] || 0) + 1; return acc; }, {} as Record<string, number>);
+    return Object.entries(counts).map(([name, count]) => ({ name, Signalements: count })).sort((a, b) => b.Signalements - a.Signalements);
+  }, [reports]);
+
+  const reportsByStatus = useMemo(() => {
+    const counts = reports.reduce((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {} as Record<LiveStatus, number>);
+    return Object.entries(counts).map(([status, count]) => ({ name: STATUS_META[status as LiveStatus]?.label ?? status, value: count }));
+  }, [reports]);
+
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { l: "Citoyens inscrits", v: "3 248", d: "+184 ce mois" },
-          { l: "Signalements totaux", v: REPORTS.length.toString(), d: "+12% vs sem. dernière" },
-          { l: "Green Points distribués", v: "1.2 M", d: "≈ 4.8 M CDF" },
-          { l: "Récompenses échangées", v: "847", d: "+22% vs mois -1" },
-          { l: "Taux de validation IA", v: "92.4%", d: "Stable" },
-          { l: "Disponibilité plateforme", v: "99.97%", d: "30 derniers jours" },
+          { l: "Utilisateurs", v: kpis.totalUsers.toLocaleString("fr-FR"), d: "Tous rôles confondus" },
+          {
+            l: "Signalements totaux",
+            v: kpis.totalReports.toLocaleString("fr-FR"),
+            d: "Depuis le lancement",
+          },
+          { l: "Communes actives", v: COMMUNES.length.toString(), d: "Sur 24" },
+          {
+            l: "Budget engagé (mensuel)",
+            v: `${(kpis.totalBudget / 1e6).toFixed(1)} M`,
+            d: "CDF",
+          },
         ].map((k) => (
           <div key={k.l} className="rounded-2xl border border-border bg-card p-5">
             <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               {k.l}
             </div>
-            <div className="mt-2 font-display text-3xl font-bold">{k.v}</div>
-            <div className="mt-1 text-xs text-eco">{k.d}</div>
+            <div className="mt-2 font-display text-2xl font-bold">{k.v}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{k.d}</div>
           </div>
         ))}
+      </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="mb-4 font-display text-lg font-bold">Répartition par commune</h3>
+          <ReportsByCommuneChart data={reportsByCommune} />
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="mb-4 font-display text-lg font-bold">Répartition par statut</h3>
+          <ReportsByStatusChart data={reportsByStatus} />
+        </div>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6">
         <h3 className="mb-4 font-display text-lg font-bold">Journal système</h3>
@@ -158,66 +241,245 @@ function Overview() {
 }
 
 function UsersTab() {
+  const { households, registerHousehold, updateHousehold, removeHousehold } = useHouseholds();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [deletingUser, setDeletingUser] = useState<any | null>(null);
+
+  const allUsers = useMemo(() => {
+    const authorities = Object.entries(AUTH_USERS).map(([role, user]) => ({
+      id: role,
+      role: role as keyof typeof AUTH_USERS,
+      name: user.name,
+      status: "Actif",
+      isAuthority: true,
+    }));
+    const citizens = households.map((h) => ({ ...h, id: h.id, role: "citoyen", status: "Actif", isAuthority: false }));
+    return [...authorities, ...citizens];
+  }, [households]);
+
+  const handleEdit = (user: any) => {
+    setEditingUser(user);
+    setIsFormOpen(true);
+  };
+
+  const handleCreate = () => {
+    setEditingUser(null);
+    setIsFormOpen(true);
+  };
+
+  const handleSave = (data: any) => {
+    if (editingUser) {
+      updateHousehold(editingUser.id, data);
+      toast.success("Utilisateur mis à jour.");
+    } else {
+      registerHousehold(data);
+      toast.success("Utilisateur créé.");
+    }
+    setIsFormOpen(false);
+  };
+
+  const handleDelete = () => {
+    if (deletingUser) {
+      removeHousehold(deletingUser.id);
+      toast.success("Utilisateur supprimé.");
+      setDeletingUser(null);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
-      <h3 className="mb-4 font-display text-lg font-bold">Top citoyens</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-lg font-bold">
+          Gestion des utilisateurs et des rôles ({allUsers.length})
+        </h3>
+        <button onClick={handleCreate} className="rounded-md bg-eco px-3 py-1.5 text-xs font-bold text-white">
+          Créer un utilisateur
+        </button>
+      </div>
       <table className="w-full text-sm">
         <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
           <tr className="border-b border-border">
-            <th className="py-2">Rang</th>
+            <th className="py-2">Rôle</th>
             <th>Nom</th>
-            <th>Commune</th>
-            <th>Signalements</th>
-            <th>Points</th>
+            <th>Statut</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          {LEADERBOARD.map((l) => (
-            <tr key={l.rank} className="border-b border-border/60">
-              <td className="py-2 font-bold">#{l.rank}</td>
+          {allUsers.map((l) => (
+            <tr key={l.id} className="border-b border-border/60">
+              <td className="py-2 font-semibold capitalize">{l.role}</td>
               <td>{l.name}</td>
-              <td>{l.commune}</td>
-              <td>{l.reports}</td>
-              <td className="font-semibold text-eco">{l.points.toLocaleString()}</td>
               <td>
-                <button className="rounded-md border border-border px-2 py-1 text-xs">Éditer</button>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${l.status === "Actif" ? "bg-eco/15 text-eco" : "bg-slate-500/15 text-slate-600"
+                    }`}
+                >
+                  {l.status}
+                </span>
               </td>
+              {!l.isAuthority ? (
+                <td className="space-x-1">
+                  <button onClick={() => handleEdit(l)} className="rounded-md border border-border px-2 py-1 text-xs">Modifier</button>
+                  <button onClick={() => setDeletingUser(l)} className="rounded-md border border-border px-2 py-1 text-xs text-red-600">Supprimer</button>
+                </td>
+              ) : <td className="text-xs text-muted-foreground">Non modifiable</td>}
             </tr>
           ))}
         </tbody>
       </table>
+
+      <UserForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSave={handleSave}
+        user={editingUser}
+      />
+
+      <AlertDialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer l'utilisateur "{deletingUser?.name}" ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Supprimer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
+function UserForm({ isOpen, onClose, onSave, user }: { isOpen: boolean; onClose: () => void; onSave: (data: any) => void; user: any | null }) {
+  const [formData, setFormData] = useState({ name: "", commune: "", phone: "" });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({ name: user.name, commune: user.commune, phone: user.phone });
+    } else {
+      setFormData({ name: "", commune: "gombe", phone: "" });
+    }
+  }, [user, isOpen]);
+
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = () => {
+    onSave({ ...user, ...formData, kind: user?.kind || 'menage', occupants: user?.occupants || 1, binType: user?.binType || '120L' });
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{user ? "Modifier l'utilisateur" : "Créer un utilisateur"}</DialogTitle>
+          <DialogDescription>
+            Gérer les informations d'un compte citoyen.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nom complet</Label>
+            <Input id="name" value={formData.name} onChange={(e) => handleChange("name", e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="commune">Commune</Label>
+            <Select value={formData.commune} onValueChange={(v) => handleChange("commune", v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COMMUNES.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Téléphone</Label>
+            <Input id="phone" value={formData.phone} onChange={(e) => handleChange("phone", e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleSubmit}>Enregistrer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ReportsTab() {
+  const { items: reports, setStatus } = useLiveReports();
+  const { session } = useAccess();
+  const [filters, setFilters] = useState({ q: "", commune: "all", status: "all", urgency: "all" });
+
+  const filteredReports = useMemo(() => {
+    return reports.filter(r => {
+      if (filters.commune !== 'all' && r.commune !== filters.commune) return false;
+      if (filters.status !== 'all' && r.status !== filters.status) return false;
+      if (filters.urgency !== 'all' && r.urgency !== filters.urgency) return false;
+      if (filters.q && !`${r.id} ${r.description}`.toLowerCase().includes(filters.q.toLowerCase())) return false;
+      return true;
+    });
+  }, [reports, filters]);
+
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
-      <h3 className="mb-4 font-display text-lg font-bold">Modération des signalements</h3>
+      <h3 className="mb-4 font-display text-lg font-bold">Modération des signalements ({filteredReports.length} / {reports.length})</h3>
+      <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+        <Input placeholder="Rechercher ID, description..." value={filters.q} onChange={e => handleFilterChange('q', e.target.value)} />
+        <Select value={filters.commune} onValueChange={v => handleFilterChange('commune', v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les communes</SelectItem>
+            {COMMUNES.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filters.status} onValueChange={v => handleFilterChange('status', v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les statuts</SelectItem>
+            {Object.entries(STATUS_META).map(([key, meta]) => <SelectItem key={key} value={key}>{meta.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filters.urgency} onValueChange={v => handleFilterChange('urgency', v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les urgences</SelectItem>
+            {Object.entries(URGENCY_META).map(([key, meta]) => <SelectItem key={key} value={key}>{meta.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
             <tr className="border-b border-border">
               <th className="py-2">ID</th>
               <th>Commune</th>
-              <th>Type</th>
-              <th>Sévérité</th>
+              <th>Urgence</th>
               <th>Statut</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {REPORTS.slice(0, 20).map((r) => (
+            {filteredReports.slice(0, 50).map((r) => (
               <tr key={r.id} className="border-b border-border/60">
                 <td className="py-2 font-mono text-xs">{r.id}</td>
                 <td className="capitalize">{r.commune}</td>
-                <td className="capitalize">{r.type}</td>
-                <td className="capitalize">{r.severity}</td>
-                <td className="capitalize text-muted-foreground">{r.status.replace("_", " ")}</td>
+                <td><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${URGENCY_META[r.urgency]?.bg} ${URGENCY_META[r.urgency]?.color}`}>{URGENCY_META[r.urgency]?.label}</span></td>
+                <td><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[r.status]?.color}`}>{STATUS_META[r.status]?.label}</span></td>
                 <td className="space-x-1">
-                  <button className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco">Valider</button>
-                  <button className="rounded-md bg-flood/10 px-2 py-1 text-xs font-semibold text-flood">Rejeter</button>
+                  <button onClick={() => setStatus(r.id, 'terminee', session.name)} className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco">Valider</button>
+                  <button onClick={() => setStatus(r.id, 'rejete', session.name)} className="rounded-md bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-600">Rejeter</button>
                 </td>
               </tr>
             ))}
@@ -250,13 +512,161 @@ function RewardsTab() {
   );
 }
 
+function TaxSettings() {
+  const { rates, updateRates } = useWasteTax();
+  const [currentRates, setCurrentRates] = useState(rates);
+
+  useEffect(() => {
+    setCurrentRates(rates);
+  }, [rates]);
+
+  const handleSave = () => {
+    updateRates(currentRates);
+    toast.success("Tarifs de la taxe déchets mis à jour.");
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Gestion des tarifs de la taxe déchets</h3>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="rate-120L">Tarif Bac 120L (CDF/mois)</Label>
+            <Input
+              id="rate-120L"
+              type="number"
+              value={currentRates.bin["120L"]}
+              onChange={(e) => setCurrentRates(prev => ({ ...prev, bin: { ...prev.bin, "120L": Number(e.target.value) } }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="rate-240L">Tarif Bac 240L (CDF/mois)</Label>
+            <Input
+              id="rate-240L"
+              type="number"
+              value={currentRates.bin["240L"]}
+              onChange={(e) => setCurrentRates(prev => ({ ...prev, bin: { ...prev.bin, "240L": Number(e.target.value) } }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="rate-660L">Tarif Bac 660L (CDF/mois)</Label>
+            <Input
+              id="rate-660L"
+              type="number"
+              value={currentRates.bin["660L"]}
+              onChange={(e) => setCurrentRates(prev => ({ ...prev, bin: { ...prev.bin, "660L": Number(e.target.value) } }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="rate-pme">Coefficient PME</Label>
+            <Input id="rate-pme" type="number" step="0.1" value={currentRates.pmeMultiplier} onChange={(e) => setCurrentRates(prev => ({ ...prev, pmeMultiplier: Number(e.target.value) }))} />
+          </div>
+        </div>
+        <Button onClick={handleSave}>Enregistrer les tarifs</Button>
+      </div>
+    </div>
+  );
+}
+
+function RewardForm({ isOpen, onClose, onSave, reward }: { isOpen: boolean; onClose: () => void; onSave: (data: any) => void; reward: any | null }) {
+  const [formData, setFormData] = useState({ name: "", kind: "Crédit", cost: 1000 });
+
+  useEffect(() => {
+    if (reward) {
+      setFormData({ name: reward.name, kind: reward.kind, cost: reward.cost });
+    } else {
+      setFormData({ name: "", kind: "Crédit", cost: 1000 });
+    }
+  }, [reward, isOpen]);
+
+  const handleChange = (field: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = () => {
+    onSave({ ...reward, ...formData });
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{reward ? "Modifier la récompense" : "Créer une récompense"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Nom de la récompense</Label>
+            <Input id="name" value={formData.name} onChange={(e) => handleChange("name", e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="kind">Catégorie</Label>
+            <Input id="kind" value={formData.kind} onChange={(e) => handleChange("kind", e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cost">Coût (Green Points)</Label>
+            <Input id="cost" type="number" value={formData.cost} onChange={(e) => handleChange("cost", Number(e.target.value))} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleSubmit}>Enregistrer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RewardsSettings() {
+  // Note: In a real app, this would come from a global store like useRewards()
+  const [rewards, setRewards] = useState(REWARDS);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingReward, setEditingReward] = useState<any | null>(null);
+
+  const handleSave = (data: any) => {
+    if (editingReward) {
+      setRewards(rewards.map(r => r.id === data.id ? data : r));
+      toast.success("Récompense mise à jour.");
+    } else {
+      setRewards([...rewards, { ...data, id: `rew_${Date.now()}` }]);
+      toast.success("Récompense ajoutée.");
+    }
+    setIsFormOpen(false);
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-lg font-bold">Gestion des récompenses Green Points</h3>
+        <Button size="sm" onClick={() => { setEditingReward(null); setIsFormOpen(true); }}>Ajouter</Button>
+      </div>
+      <ul className="mt-4 divide-y divide-border">
+        {rewards.map((r) => (
+          <li key={r.id} className="flex items-center justify-between py-3">
+            <div>
+              <div className="font-semibold">{r.name}</div>
+              <div className="text-xs text-muted-foreground capitalize">{r.kind} · {r.cost} GP</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setEditingReward(r); setIsFormOpen(true); }}>Modifier</Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <RewardForm isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSave={handleSave} reward={editingReward} />
+    </div>
+  );
+}
+
 function SettingsTab() {
+  const { resetAllEcoKinData } = useLiveReports();
   const [confirming, setConfirming] = useState(false);
   const [done, setDone] = useState(false);
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6">
-        <h3 className="mb-1 font-display text-lg font-bold text-red-700">Réinitialisation complète de la plateforme</h3>
+      <TaxSettings />
+      <RewardsSettings />
+        <h3 className="mb-1 mt-6 font-display text-lg font-bold text-red-700">Zone dangereuse : Réinitialisation</h3>
         <p className="text-sm text-muted-foreground">
           Supprime tous les signalements, statistiques, ménages enregistrés, GPS flotte,
           notifications, journaux d'audit et sessions autorités. Les compteurs repartent à 0.
@@ -275,7 +685,6 @@ function SettingsTab() {
             <span className="text-sm font-semibold text-red-700">Cette action est irréversible.</span>
             <button
               onClick={async () => {
-                const { resetAllEcoKinData } = await import("@/lib/utils");
                 resetAllEcoKinData();
                 setDone(true);
                 setTimeout(() => window.location.reload(), 800);
@@ -323,7 +732,11 @@ function SettingsTab() {
 
 function IATab() {
   const { store, validate, correct, precisionPct } = useLearning();
-  const sample = REPORTS.slice(0, 8);
+  const { items: reports } = useLiveReports();
+  const pendingReports = useMemo(() => {
+    return reports.filter(r => r.status === 'en_attente').slice(0, 20);
+  }, [reports]);
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
@@ -345,56 +758,64 @@ function IATab() {
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="mb-1 font-display text-lg font-bold">Validation duale IA + commune</h3>
+        <h3 className="mb-1 font-display text-lg font-bold">Validation des signalements en attente ({pendingReports.length})</h3>
         <p className="mb-4 text-sm text-muted-foreground">
           Validez la classification automatique ou corrigez-la. Chaque correction améliore le modèle.
         </p>
-        <table className="w-full text-sm">
-          <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            <tr className="border-b border-border">
-              <th className="py-2">ID</th>
-              <th>Commune</th>
-              <th>Classification IA</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sample.map((r) => (
-              <tr key={r.id} className="border-b border-border/60">
-                <td className="py-2 font-mono text-xs">{r.id}</td>
-                <td className="capitalize">{r.commune}</td>
-                <td className="capitalize">{r.type}</td>
-                <td className="space-x-2">
-                  <button
-                    onClick={validate}
-                    className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco"
-                  >
-                    ✓ Valider
-                  </button>
-                  <select
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      correct({
-                        reportId: r.id,
-                        predicted: r.type,
-                        corrected: e.target.value,
-                        by: "Service communal",
-                        at: new Date().toISOString(),
-                      });
-                      e.currentTarget.selectedIndex = 0;
-                    }}
-                    className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-                  >
-                    <option value="">Corriger…</option>
-                    {WASTE_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </select>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="py-2">ID</th>
+                <th>Date</th>
+                <th>Commune</th>
+                <th>Classification IA</th>
+                <th>Urgence IA</th>
+                <th>Description</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pendingReports.map((r) => (
+                <tr key={r.id} className="border-b border-border/60">
+                  <td className="py-2 font-mono text-xs">{r.id}</td>
+                  <td className="whitespace-nowrap text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString('fr-FR')}</td>
+                  <td className="capitalize">{r.commune}</td>
+                  <td className="capitalize font-semibold">{r.category}</td>
+                  <td><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${URGENCY_META[r.urgency]?.bg} ${URGENCY_META[r.urgency]?.color}`}>{URGENCY_META[r.urgency]?.label}</span></td>
+                  <td className="max-w-xs truncate text-xs text-muted-foreground">{r.description || '–'}</td>
+                  <td className="space-x-2 whitespace-nowrap">
+                    <button
+                      onClick={validate}
+                      className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco"
+                    >
+                      ✓ Valider
+                    </button>
+                    <select
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        correct({
+                          reportId: r.id,
+                          predicted: r.category,
+                          corrected: e.target.value,
+                          by: "Service communal",
+                          at: new Date().toISOString(),
+                        });
+                        e.currentTarget.selectedIndex = 0;
+                      }}
+                      className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                    >
+                      <option value="">Corriger…</option>
+                      {WASTE_CATEGORIES.map((c) => (
+                        <option key={c.id} value={c.id}>{c.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {store.corrections.length > 0 && (

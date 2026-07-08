@@ -1,27 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useAccess } from "@/lib/access-store";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { ClientOnly } from "@/components/client-only";
-import { EcoMap } from "@/components/eco-map";
 import { AccessGate } from "@/components/access-gate";
-import {
-  COMMUNES,
-  COMMUNE_KPIS,
-  MONTHLY_TREND,
-  REPORTS,
-} from "@/lib/data";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { AlertTriangle, Download, Truck } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertTriangle, BarChart3, Building, CheckCircle2, Percent } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports } from "@/lib/eco-store";
+import { ClientOnly } from "remix-utils/client-only";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/autorites")({
   head: () => ({
@@ -29,256 +17,270 @@ export const Route = createFileRoute("/autorites")({
       { title: "Console Autorités — EcoKin Smart" },
       {
         name: "description",
-        content:
-          "Tableau de bord décisionnel pour les autorités : signalements, collecte, zones critiques et indicateurs de performance.",
+        content: "Tableau de bord décisionnel pour les autorités : signalements, collecte, zones critiques et indicateurs de performance.",
       },
     ],
   }),
   component: () => (
-    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Espace Autorités">
-      <AutoritesPage />
+    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Tableau de Bord Bourgmestre">
+      <BourgmestreDashboard />
     </AccessGate>
   ),
 });
 
-function AutoritesPage() {
+function KpiCard({ item }: { item: { title: string; value: string; icon: any; color: string } }) {
+  const Icon = item.icon;
   return (
-    <div className="min-h-screen bg-background">
-      <SiteNav />
-      <header className="border-b border-emerald-900/30 bg-[linear-gradient(135deg,#0b1f3a_0%,#0e2a4d_45%,#0f3b2a_100%)] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-200">
-            <AlertTriangle className="size-3.5" /> Portail institutionnel · Bourgmestre
-          </div>
-          <p className="mt-2 text-xs font-bold uppercase tracking-widest text-eco">Portail autorités</p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-            <h1 className="font-display text-4xl font-bold tracking-tight">
-              Tableau de bord décisionnel
-            </h1>
-            <button className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-4 py-2 text-sm font-bold hover:bg-white/10">
-              <Download className="size-4" /> Rapport mensuel PDF
-            </button>
-          </div>
-          <p className="mt-3 max-w-2xl text-white/70">
-            Visualisation en temps réel des signalements, indicateurs par commune et planification
-            des interventions prioritaires.
-          </p>
-        </div>
-      </header>
-
-      <section className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
-        <div className="rounded-[1.5rem] border border-emerald-900/30 bg-[linear-gradient(135deg,rgba(7,21,35,0.95),rgba(15,45,61,0.95),rgba(14,58,44,0.95))] p-5 text-white shadow-[0_20px_70px_-30px_rgba(16,185,129,0.45)]">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-200">Pilotage communal</div>
-              <h2 className="mt-1 font-display text-2xl font-bold">Tableau de bord du Bourgmestre</h2>
-            </div>
-            <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-100">
-              Accès sécurisé · Commune
-            </div>
-          </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: "Signalements citoyens", value: REPORTS.length.toString(), accent: "bg-eco/10 text-eco" },
-            { label: "Alertes", value: PRIORITY_ALERTS.length.toString(), accent: "bg-red-500/10 text-red-600" },
-            { label: "Notifications", value: `${Math.max(4, PRIORITY_ALERTS.length + 1)}`, accent: "bg-sky-500/10 text-sky-600" },
-            { label: "Interventions", value: INTERVENTIONS.length.toString(), accent: "bg-amber-500/10 text-amber-700" },
-          ].map((item) => (
-            <div key={item.label} className="rounded-2xl border border-border bg-card p-5">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{item.label}</div>
-              <div className="mt-3 font-display text-3xl font-bold">{item.value}</div>
-              <div className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${item.accent}`}>
-                Pilotage communal
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* KPI cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { l: "Signalements actifs", v: "482", d: "+12% vs hier", c: "text-flood" },
-            { l: "Tonnes collectées (mois)", v: "124.8", d: "+8% objectif", c: "text-eco" },
-            { l: "Taux de recyclage", v: "38.4%", d: "+3.2 pts", c: "text-urban" },
-            { l: "Risque inondation", v: "Modéré", d: "Zones basses élevé", c: "text-amber-500" },
-          ].map((k) => (
-            <div key={k.l} className="rounded-2xl border border-border bg-card p-5">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                {k.l}
-              </div>
-              <div className="mt-2 font-display text-3xl font-bold">{k.v}</div>
-              <div className={`mt-1 text-xs font-semibold ${k.c}`}>{k.d}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Map */}
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold">Carte opérationnelle — Kinshasa</h2>
-              <span className="text-xs font-bold uppercase tracking-widest text-eco">Live</span>
-            </div>
-            <ClientOnly
-              fallback={<div className="h-[420px] rounded-xl bg-secondary" />}
-            >
-              <EcoMap reports={REPORTS} height={420} />
-            </ClientOnly>
-          </div>
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border bg-card p-5">
-              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-bold">
-                <Truck className="size-5 text-urban" /> Équipes de collecte
-              </h3>
-              <ul className="space-y-3 text-sm">
-                {[
-                  { team: "RASKIN-A1", commune: "Matete", status: "En tournée", color: "bg-eco" },
-                  { team: "RASKIN-B2", commune: "Lemba", status: "Disponible", color: "bg-urban" },
-                  { team: "RASKIN-C3", commune: "Kisenso", status: "Intervention prio", color: "bg-flood" },
-                  { team: "RASKIN-D4", commune: "Matete", status: "Pause", color: "bg-amber-500" },
-                ].map((t) => (
-                  <li
-                    key={t.team}
-                    className="flex items-center justify-between rounded-xl border border-border p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`size-2.5 rounded-full ${t.color}`} />
-                      <div>
-                        <div className="font-semibold">{t.team}</div>
-                        <div className="text-xs text-muted-foreground">{t.commune}</div>
-                      </div>
-                    </div>
-                    <span className="text-xs font-semibold">{t.status}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-flood/30 bg-flood/5 p-5">
-              <h3 className="mb-2 flex items-center gap-2 font-display text-lg font-bold text-flood">
-                <AlertTriangle className="size-5" /> Alerte prioritaire IA
-              </h3>
-              <p className="text-sm text-foreground/80">
-                <b>Kisenso · Av. Mokali</b> — Accumulation critique de plastique sur 320 m. Risque
-                d'inondation prédit à 78 %. Intervention recommandée sous 24 h.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Charts */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="mb-4 font-display text-lg font-bold">Évolution mensuelle</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={MONTHLY_TREND}>
-                  <CartesianGrid stroke="rgba(0,0,0,0.06)" strokeDasharray="3 3" />
-                  <XAxis dataKey="mois" stroke="currentColor" fontSize={12} />
-                  <YAxis stroke="currentColor" fontSize={12} />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="signalements"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    dot={{ r: 4 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="collecte"
-                    stroke="#0ea5e9"
-                    strokeWidth={3}
-                    dot={{ r: 4 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-3 flex gap-4 text-xs">
-              <Dot color="#10b981" label="Signalements" />
-              <Dot color="#0ea5e9" label="Collecte (t)" />
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="mb-4 font-display text-lg font-bold">Performance par commune</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={COMMUNES.map((c) => ({
-                    name: c.name,
-                    Recyclage: COMMUNE_KPIS[c.id].recyclage,
-                    Risque: COMMUNE_KPIS[c.id].risque,
-                  }))}
-                >
-                  <CartesianGrid stroke="rgba(0,0,0,0.06)" strokeDasharray="3 3" />
-                  <XAxis dataKey="name" stroke="currentColor" fontSize={12} />
-                  <YAxis stroke="currentColor" fontSize={12} />
-                  <Tooltip />
-                  <Bar dataKey="Recyclage" fill="#10b981" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="Risque" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent reports table */}
-        <div className="rounded-2xl border border-border bg-card p-5">
-          <h3 className="mb-4 font-display text-lg font-bold">Derniers signalements</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                <tr className="border-b border-border">
-                  <th className="py-2">ID</th>
-                  <th>Commune</th>
-                  <th>Type</th>
-                  <th>Sévérité</th>
-                  <th>Volume</th>
-                  <th>Statut</th>
-                  <th>Citoyen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {REPORTS.slice(0, 12).map((r) => (
-                  <tr key={r.id} className="border-b border-border/60">
-                    <td className="py-2 font-mono text-xs">{r.id}</td>
-                    <td className="capitalize">{r.commune}</td>
-                    <td className="capitalize">{r.type}</td>
-                    <td>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${r.severity === "critique"
-                            ? "bg-flood/15 text-flood"
-                            : r.severity === "modere"
-                              ? "bg-amber-500/15 text-amber-700"
-                              : "bg-eco/15 text-eco"
-                          }`}
-                      >
-                        {r.severity}
-                      </span>
-                    </td>
-                    <td>{r.volumeM3} m³</td>
-                    <td className="capitalize text-muted-foreground">{r.status.replace("_", " ")}</td>
-                    <td>{r.author}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <SiteFooter />
-    </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+        <Icon className={`h-4 w-4 ${item.color}`} />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{item.value}</div>
+      </CardContent>
+    </Card>
   );
 }
 
-function Dot({ color, label }: { color: string; label: string }) {
+function BourgmestreMap({ commune, reports, collectionPoints }: any) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!commune) return;
+    let cancelled = false;
+    (async () => {
+      const L = (await import("leaflet")).default;
+      await import("leaflet/dist/leaflet.css");
+      if (cancelled || !containerRef.current) return;
+
+      const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom: true }).setView(commune.center, 14);
+      const bounds = L.latLngBounds(commune.center).pad(0.1);
+      map.setMaxBounds(bounds);
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        attribution: "© OpenStreetMap · © CARTO · EcoKin Smart",
+        maxZoom: 19,
+      }).addTo(map);
+
+      collectionPoints.forEach((cp: any) => {
+        L.marker([cp.lat, cp.lng], {
+          icon: L.divIcon({
+            className: "",
+            html: `<div style="background:#0ea5e9;color:#fff;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);font:700 11px/1 Inter,sans-serif;">♻</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          }),
+        })
+          .bindPopup(`<strong>${cp.name}</strong><br/>Type : ${cp.kind}`)
+          .addTo(map);
+      });
+
+      const reportsLayer = L.layerGroup().addTo(map);
+      reports.forEach((report: any) => {
+        if (!report.lat || !report.lng) return;
+        const meta = URGENCY_META[report.urgency];
+        const color = meta.color.replace("text-", "").replace("-700", "-500");
+        L.circleMarker([report.lat, report.lng], {
+          radius: report.urgency === "critique" ? 9 : report.urgency === "eleve" ? 7 : 5,
+          color: "#fff",
+          weight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.9,
+        })
+          .bindPopup(
+            `
+          <div style="min-width:180px;font-family:Inter,sans-serif">
+            <div style="font-weight:700;font-size:12px;">${report.id}</div>
+            <div style="font-size:11px;color:#475569;text-transform:capitalize;">${report.category}</div>
+            <div style="margin-top:4px">
+              <span style="background-color:${color};color:#fff;padding:2px 6px;border-radius:9999px;font-size:9px;font-weight:700;text-transform:uppercase;">
+                Urgence ${report.urgency}
+              </span>
+            </div>
+          </div>
+        `,
+          )
+          .addTo(reportsLayer);
+      });
+
+      mapRef.current = map;
+      setTimeout(() => map.invalidateSize(), 120);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [commune, reports, collectionPoints]);
+
+  if (!commune) return null;
+  return <div ref={containerRef} className="h-[400px] w-full overflow-hidden rounded-lg border bg-secondary" />;
+}
+
+function EvolutionChart({ data }: { data: any[] }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="size-2 rounded-full" style={{ background: color }} />
-      <span className="text-muted-foreground">{label}</span>
-    </span>
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+        <YAxis
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          allowDecimals={false}
+        />
+        <Tooltip
+          cursor={{ fill: "hsl(var(--accent))" }}
+          contentStyle={{
+            background: "hsl(var(--background))",
+            border: "1px solid hsl(var(--border))",
+            borderRadius: "var(--radius)",
+          }}
+        />
+        <Bar dataKey="créés" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="résolus" fill="hsl(var(--eco))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function BourgmestreCharts({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
+  const dailyData = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toISOString().slice(0, 10);
+      const name = i === 0 ? "Auj." : i === 1 ? "Hier" : d.toLocaleDateString("fr-FR", { weekday: "short" });
+      return {
+        name,
+        créés: reports.filter((r) => r.createdAt.startsWith(dayStr)).length,
+        résolus: reports.filter(
+          (r) => r.status === "terminee" && r.history.find((h) => h.label.startsWith("Statut →"))?.at.startsWith(dayStr),
+        ).length,
+      };
+    }).reverse();
+  }, [reports]);
+
+  const monthlyData = useMemo(() => {
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const name = d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+      return {
+        name,
+        créés: reports.filter((r) => r.createdAt.startsWith(monthStr)).length,
+        résolus: reports.filter(
+          (r) => r.status === "terminee" && r.history.find((h) => h.label.startsWith("Statut →"))?.at.startsWith(monthStr),
+        ).length,
+      };
+    }).reverse();
+  }, [reports]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BarChart3 className="size-5 text-eco" /> Évolution des performances
+        </CardTitle>
+        <CardDescription>Suivi des signalements créés et résolus sur différentes périodes.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="daily">
+          <TabsList>
+            <TabsTrigger value="daily">Quotidien (7j)</TabsTrigger>
+            <TabsTrigger value="monthly">Mensuel (6m)</TabsTrigger>
+          </TabsList>
+          <TabsContent value="daily" className="pt-4">
+            <EvolutionChart data={dailyData} />
+          </TabsContent>
+          <TabsContent value="monthly" className="pt-4">
+            <EvolutionChart data={monthlyData} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BourgmestreDashboard() {
+  const { session } = useAccess();
+  const { items: liveReports } = useLiveReports();
+
+  const commune = useMemo(() => COMMUNES.find((c) => c.id === session.commune), [session.commune]);
+  const communeName = commune?.name ?? session.commune ?? "Commune";
+
+  const communeReports = useMemo(
+    () => (session.commune ? liveReports.filter((r) => r.commune === session.commune) : []),
+    [liveReports, session.commune],
+  );
+
+  const communeCollectionPoints = useMemo(
+    () => (session.commune ? COLLECTION_POINTS.filter((p) => p.commune === session.commune) : []),
+    [session.commune],
+  );
+
+  const kpiData = useMemo(() => {
+    const en_attente = communeReports.filter((r) => r.status === "en_attente").length;
+    const resolus = communeReports.filter((r) => r.status === "terminee").length;
+    const total = communeReports.length;
+    const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
+    return [
+      { title: "Signalements (commune)", value: String(total), icon: AlertTriangle, color: "text-yellow-500" },
+      { title: "Signalements en attente", value: String(en_attente), icon: AlertTriangle, color: "text-orange-500" },
+      { title: "Signalements résolus", value: String(resolus), icon: CheckCircle2, color: "text-green-500" },
+      { title: "Taux de collecte", value: `${tauxCollecte}%`, icon: Percent, color: "text-indigo-500" },
+    ];
+  }, [communeReports]);
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <SiteNav />
+      <main className="flex-1">
+        <div className="border-b bg-card">
+          <div className="container py-8">
+            <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-eco">
+              <Building className="size-4" /> Espace Bourgmestre
+            </div>
+            <h1 className="mt-2 font-display text-4xl font-bold">Tableau de Bord · {communeName}</h1>
+            <p className="mt-1 text-muted-foreground">Vue d'ensemble des opérations et de la propreté de votre commune.</p>
+          </div>
+        </div>
+        <div className="container py-8">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {kpiData.map((item) => (
+              <KpiCard key={item.title} item={item} />
+            ))}
+          </div>
+          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Carte Opérationnelle · {communeName}</CardTitle>
+                <CardDescription>Visualisation des signalements et infrastructures de la commune.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ClientOnly fallback={<div className="h-[400px] animate-pulse rounded-lg bg-muted" />}>
+                  {() => (
+                    <BourgmestreMap
+                      commune={commune}
+                      reports={communeReports}
+                      collectionPoints={communeCollectionPoints}
+                    />
+                  )}
+                </ClientOnly>
+              </CardContent>
+            </Card>
+            <BourgmestreCharts reports={communeReports} />
+          </div>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }
