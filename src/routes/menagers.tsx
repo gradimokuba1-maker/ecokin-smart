@@ -158,7 +158,7 @@ function MenagersPage() {
               <History className="size-3.5" /> Historique
             </TabsTrigger>
             <TabsTrigger value="infrastructure" className="gap-1.5">
-              <MapPinned className="size-3.5" /> Infrastructure SIG
+              <MapPinned className="size-3.5" /> Cartographie dÃ©chets
             </TabsTrigger>
             <TabsTrigger value="tips" className="gap-1.5">
               <Recycle className="size-3.5" /> Conseils tri

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Trois modules pour gérer les déchets à Kinshasa : ménagers, dépôts sauvages et espace autorité.",
+          "Deux modules citoyens pour gérer les déchets à Kinshasa : ménagers et dépôts sauvages.",
       },
     ],
   }),
@@ -38,13 +38,6 @@ const MODULES: ModuleTile[] = [
     title: "Dépôt sauvage et tas de déchets",
     desc: "Signalez rapidement un dépôt sauvage et contribuez à la propreté de votre quartier.",
     accent: "from-sky-500 to-emerald-500",
-  },
-  {
-    to: "/autorite",
-    icon: ShieldCheck,
-    title: "Connexion autorité",
-    desc: "Accédez à l’espace de connexion réservé aux autorités et gestionnaires.",
-    accent: "from-slate-700 to-emerald-700",
   },
 ];
 
@@ -104,6 +97,14 @@ function Home() {
                 </div>
               </Link>
             ))}
+
+            <Link
+              to="/autorite"
+              className="inline-flex items-center gap-2 self-center rounded-full border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70 shadow-sm backdrop-blur transition-colors hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-100"
+            >
+              <ShieldCheck className="size-3.5" />
+              Accès réservé aux autorités
+            </Link>
           </div>
         </section>
 

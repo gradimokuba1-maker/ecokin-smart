@@ -7,7 +7,7 @@ export type Role = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
 
 const KEY = "ecokin_access_v1";
 
-export type AuthorityRole = Exclude<Role, "citoyen" | "agent">;
+export type AuthorityRole = Exclude<Role, "citoyen">;
 
 // Demo access codes — communicated to demo users.
 export const ACCESS_CODES: Record<Exclude<Role, "citoyen">, string> = {
@@ -18,6 +18,7 @@ export const ACCESS_CODES: Record<Exclude<Role, "citoyen">, string> = {
 };
 
 export const AUTH_USERS: Record<AuthorityRole, { identifier: string; password: string; label: string }> = {
+  agent: { identifier: "ECOKIN2026", password: "AGENT2026", label: "Agent" },
   bourgmestre: { identifier: "ECOKIN2026", password: "BOURG2026", label: "Bourgmestre" },
   gouverneur: { identifier: "ECOKIN2026", password: "GOUV2026", label: "Gouverneur" },
   admin: { identifier: "ECOKIN2026", password: "ADMIN2026", label: "Administrateur" },
@@ -31,6 +32,8 @@ export function getAuthorityDashboardPath(role: Role) {
       return "/autorites";
     case "admin":
       return "/admin";
+    case "agent":
+      return "/situation";
     default:
       return "/autorite";
   }

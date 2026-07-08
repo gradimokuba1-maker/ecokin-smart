@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useAccess, getAuthorityDashboardPath } from "@/lib/access-store";
-import { Building2, Lock, ShieldCheck, UserCog } from "lucide-react";
+import { Building2, Lock, ShieldCheck, UserCog, UserRound } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/autorite/connexion")({
@@ -21,7 +21,7 @@ export const Route = createFileRoute("/autorite/connexion")({
     component: AuthorityLoginPage,
 });
 
-type AuthorityRole = "gouverneur" | "bourgmestre" | "admin";
+type AuthorityRole = "gouverneur" | "bourgmestre" | "admin" | "agent";
 
 type AuthorityOption = {
     role: AuthorityRole;
@@ -33,6 +33,7 @@ const OPTIONS: AuthorityOption[] = [
     { role: "gouverneur", title: "Gouverneur", icon: ShieldCheck },
     { role: "bourgmestre", title: "Bourgmestre", icon: Building2 },
     { role: "admin", title: "Administrateur", icon: UserCog },
+    { role: "agent", title: "Agent", icon: UserRound },
 ];
 
 function AuthorityLoginPage() {
@@ -40,7 +41,7 @@ function AuthorityLoginPage() {
     const { login } = useAccess();
     const search = Route.useSearch();
     const [role, setRole] = useState<AuthorityRole>(
-        search.role === "gouverneur" || search.role === "bourgmestre" || search.role === "admin"
+        search.role === "gouverneur" || search.role === "bourgmestre" || search.role === "admin" || search.role === "agent"
             ? search.role
             : "gouverneur",
     );
