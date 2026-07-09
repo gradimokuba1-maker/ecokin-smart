@@ -4,6 +4,8 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeWastePhoto, type WasteAnalysis } from "@/lib/waste-ai.functions";
+import { analyzeWastePhotoAdvanced } from "@/lib/waste-ai/analysis.functions";
+import type { WasteAnalysisResult } from "@/lib/waste-ai/types";
 import { validateReportHash, commitReportHash } from "@/lib/report-submit.functions";
 import { useEcoUser } from "@/lib/user-store";
 import { priorityScore, proximityAlerts } from "@/lib/data";
@@ -12,7 +14,9 @@ import { pushLiveReport, urgencyFromSeverity } from "@/lib/live-reports";
 import { computePerceptualHash, findDuplicate, saveHash } from "@/lib/image-hash";
 import { ClientOnly } from "@/components/client-only";
 import { KinshasaMap } from "@/components/kinshasa-map";
-import { Camera, Crosshair, ImageIcon, Loader2, ShieldAlert, ShieldCheck, Sparkles, Trophy } from "lucide-react";
+import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
+import { WasteAnalysisResultCard } from "@/components/waste-ai/WasteAnalysisResult";
+import { Camera, Crosshair, ImageIcon, Loader2, ShieldAlert, ShieldCheck, Sparkles, Trophy, Zap, Scale, Box, BarChart3, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { CitizenGate } from "@/components/citizen-gate";
 
@@ -63,6 +67,7 @@ function SignalerPage() {
   const [duplicate, setDuplicate] = useState<{ similarity: number; at: string; source: "local" | "server" } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<WasteAnalysis | null>(null);
+  const [advancedResult, setAdvancedResult] = useState<WasteAnalysisResult | null>(null);
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);

@@ -27,6 +27,19 @@ export type LiveReport = {
   history: { at: string; label: string }[];
   photoBefore?: string;
   photoAfter?: string;
+  // Nouveaux champs analyse IA avancée
+  composition?: { material: string; percentage: number }[];
+  weightTons?: number;
+  weightConfidence?: number;
+  dimensions?: { lengthM: number; widthM: number; heightAvgM: number; surfaceM2: number; volumeM3: number; confidence: number };
+  priorityLevel?: "faible" | "moyen" | "eleve" | "critique";
+  analysisConfidence?: number;
+  cameraCapability?: "lidar" | "arcore" | "basic";
+  model3DAvailable?: boolean;
+  healthRisk?: "faible" | "modere" | "eleve";
+  floodRisk?: boolean;
+  interventionUrgent?: boolean;
+  photoUrl?: string;
 };
 
 const KEY = "ecokin_live_reports_v1";

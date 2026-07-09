@@ -71,14 +71,53 @@ export function InteractiveMap({ commune, reports = [], heightClassName = "h-[42
         if (!report.lat || !report.lng) return;
         const meta = URGENCY_META[report.urgency];
         const fillColor = report.urgency === "critique" ? "#ef4444" : report.urgency === "eleve" ? "#f97316" : "#10b981";
-        L.circleMarker([report.lat, report.lng], {
-          radius: report.urgency === "critique" ? 9 : 6,
-          color: "#fff",
-          weight: 1.5,
-          fillColor,
-          fillOpacity: 0.9,
+        const radius = report.urgency === "critique" ? 10 : report.urgency === "eleve" ? 8 : 6;
+        
+        // Icône avec couleur selon la sévérité
+        const iconHtml = `<div style="background:${fillColor};color:#fff;width:${radius*2}px;height:${radius*2}px;display:grid;place-items:center;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);font:800 9px/1 Inter,sans-serif;">!</div>`;
+        
+        L.marker([report.lat, report.lng], {
+          icon: L.divIcon({
+            className: "",
+            html: iconHtml,
+            iconSize: [radius*2, radius*2],
+            iconAnchor: [radius, radius],
+          }),
         })
-          .bindPopup(`<strong>${report.id}</strong><br/>${report.category}<br/>Urgence ${meta.label}`)
+          .bindPopup(`
+            <div style="min-width:220px;font-family:Inter,sans-serif;font-size:12px;">
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${report.id}</div>
+              <div style="display:flex;gap:4px;margin-bottom:6px;">
+                <span style="background:${fillColor};color:#fff;padding:2px 8px;border-radius:9999px;font-size:9px;font-weight:700;text-transform:uppercase;">
+                  ${meta.label}
+                </span>
+                <span style="background:#f1f5f9;padding:2px 8px;border-radius:9999px;font-size:9px;font-weight:600;text-transform:capitalize;">
+                  ${report.category}
+                </span>
+              </div>
+              <div style="border-top:1px solid #e2e8f0;padding-top:6px;margin-top:4px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;">
+                  ${report.commune ? `<div><span style="color:#64748b;">Commune :</span> <strong>${report.commune}</strong></div>` : ''}
+                  ${report.volumeM3 ? `<div><span style="color:#64748b;">Volume :</span> <strong>${report.volumeM3} m³</strong></div>` : ''}
+                  ${report.weightTons ? `<div><span style="color:#64748b;">Poids :</span> <strong>${report.weightTons} t</strong></div>` : ''}
+                  ${report.priorityScore ? `<div><span style="color:#64748b;">Priorité :</span> <strong>${report.priorityScore}/100</strong></div>` : ''}
+                </div>
+                ${report.composition && report.composition.length > 0 ? `
+                  <div style="margin-top:4px;font-size:10px;color:#64748b;">
+                    Composition : ${report.composition.map((c: any) => `${c.material} ${c.percentage}%`).join(' · ')}
+                  </div>
+                ` : ''}
+                ${report.dimensions ? `
+                  <div style="margin-top:2px;font-size:10px;color:#64748b;">
+                    ${report.dimensions.lengthM}m × ${report.dimensions.widthM}m × ${report.dimensions.heightAvgM}m
+                  </div>
+                ` : ''}
+              </div>
+              <div style="margin-top:6px;font-size:10px;color:#94a3b8;">
+                ${new Date(report.createdAt).toLocaleString('fr-FR')}
+              </div>
+            </div>
+          `)
           .addTo(map);
       });
 

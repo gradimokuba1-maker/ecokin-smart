@@ -390,18 +390,20 @@ function BourgmestreDashboard() {
         const resolus = communeReports.filter((r) => r.status === "terminee").length;
         const total = communeReports.length;
         const volume = communeReports.reduce((sum, report) => sum + (report.volumeM3 ?? 0), 0);
+        const poidsTotal = communeReports.reduce((sum, report) => sum + (report.weightTons ?? 0), 0);
+        const critiques = communeReports.filter((r) => r.priorityLevel === "critique" || r.urgency === "critique").length;
         const pmes = localStore.pmes.filter((item) => item.commune === session.commune).length;
         const teams = localStore.teams.filter((item) => item.commune === session.commune).length;
         const agents = localStore.agents.filter((item) => item.commune === session.commune).length;
         const activities = localStore.activities.filter((item) => item.commune === session.commune).length;
         const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
         return [
-            { title: "Déchets collectés", value: `${Math.round(volume)} m³`, icon: CheckCircle2, color: "text-green-500" },
-            { title: "Points de regroupement", value: String(communeCollectionPoints.filter((p) => p.kind === "regroupement").length), icon: AlertTriangle, color: "text-yellow-500" },
+            { title: "Volume total", value: `${Math.round(volume)} m³`, icon: CheckCircle2, color: "text-green-500" },
+            { title: "Poids estimé", value: `${poidsTotal.toFixed(1)} t`, icon: AlertTriangle, color: "text-yellow-500" },
+            { title: "Signalements critiques", value: String(critiques), icon: AlertTriangle, color: "text-red-500" },
             { title: "Équipes actives", value: String(teams), icon: Building, color: "text-blue-500" },
             { title: "PME partenaires", value: String(pmes), icon: Building, color: "text-eco" },
             { title: "Agents actifs", value: String(agents), icon: CheckCircle2, color: "text-indigo-500" },
-            { title: "Activités en cours", value: String(activities), icon: Percent, color: "text-orange-500" },
             { title: "Signalements en attente", value: String(en_attente), icon: AlertTriangle, color: "text-orange-500" },
             { title: "Taux de collecte", value: `${tauxCollecte}%`, icon: Percent, color: "text-indigo-500" },
         ];

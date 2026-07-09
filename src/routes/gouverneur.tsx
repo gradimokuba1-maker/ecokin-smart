@@ -538,8 +538,10 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
     const total = filteredReports.length;
     const resolus = filteredReports.filter((r) => r.status === "terminee").length;
     const volume = filteredReports.reduce((sum, r) => sum + (r.volumeM3 ?? 0), 0);
+    const poidsTotal = filteredReports.reduce((sum, r) => sum + (r.weightTons ?? 0), 0);
     const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
     const alertes = filteredReports.filter((r) => r.urgency === "critique" || r.urgency === "eleve").length;
+    const interventionUrgent = filteredReports.filter((r) => r.interventionUrgent).length;
 
     const communeCounts = filteredReports.reduce(
       (acc, r) => {
@@ -559,9 +561,14 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
         icon: Trash2,
         color: "text-blue-500",
       },
+      {
+        title: "Poids estimé (tonnes)",
+        value: `${poidsTotal.toFixed(1)} t`,
+        icon: Trash2,
+        color: "text-orange-500",
+      },
       { title: "Taux de collecte", value: `${tauxCollecte}%`, icon: Percent, color: "text-indigo-500" },
-      { title: "Taux de recyclage", value: "12%", icon: Recycle, color: "text-purple-500" }, // Placeholder
-      { title: "Performance", value: "+5% vs sem. préc.", icon: BarChart3, color: "text-pink-500" }, // Placeholder
+      { title: "Interventions urgentes", value: String(interventionUrgent), icon: AlertTriangle, color: "text-red-500" },
       { title: "Commune la + active", value: topCommune ? topCommune[0] : "N/A", icon: Trophy, color: "text-amber-500" },
       {
         title: "Alertes prioritaires",
