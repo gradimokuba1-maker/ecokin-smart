@@ -664,8 +664,8 @@ function SettingsTab() {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6">
-      <TaxSettings />
-      <RewardsSettings />
+        <TaxSettings />
+        <RewardsSettings />
         <h3 className="mb-1 mt-6 font-display text-lg font-bold text-red-700">Zone dangereuse : Réinitialisation</h3>
         <p className="text-sm text-muted-foreground">
           Supprime tous les signalements, statistiques, ménages enregistrés, GPS flotte,

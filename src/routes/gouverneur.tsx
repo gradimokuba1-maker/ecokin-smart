@@ -15,7 +15,6 @@ import {
   Trophy,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ClientOnly } from "remix-utils/client-only";
 import { DEFAULT_CITY } from "@/lib/cities";
 import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports, WASTE_CATEGORIES } from "@/lib/eco-store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,6 +55,22 @@ const categoryOptions = [
   { value: "all", label: "Tout type de déchet" },
   ...WASTE_CATEGORIES.map((c) => ({ value: c.id, label: c.label })),
 ];
+
+/**
+ * Renders children only on the client-side.
+ * @param {object} props
+ * @param {React.ReactNode} props.children The children to render on the client.
+ * @param {React.ReactNode} [props.fallback=null] The fallback to render on the server.
+ */
+function ClientOnly({ children, fallback = null }: { children: () => React.ReactNode; fallback?: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return fallback;
+  return <>{children()}</>;
+}
 
 function KpiCard({ item }: { item: ReturnType<typeof useKpiData>[number] }) {
   const Icon = item.icon;

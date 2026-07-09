@@ -10,18 +10,18 @@ import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports } from "@/lib
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-export const Route = createFileRoute("/autorites")({
+export const Route = createFileRoute("/bourgmestre")({
   head: () => ({
     meta: [
-      { title: "Console Autorités — EcoKin Smart" },
+      { title: "Tableau de Bord Bourgmestre — EcoKin Smart" },
       {
         name: "description",
-        content: "Tableau de bord décisionnel pour les autorités : signalements, collecte, zones critiques et indicateurs de performance.",
+        content: "Tableau de bord décisionnel pour le bourgmestre : signalements, collecte, zones critiques et indicateurs de performance de la commune.",
       },
     ],
   }),
   component: () => (
-    <AccessGate required={["bourgmestre", "gouverneur", "admin"]} title="Tableau de Bord Bourgmestre">
+    <AccessGate required={["bourgmestre"]} title="Tableau de Bord Bourgmestre">
       <BourgmestreDashboard />
     </AccessGate>
   ),
