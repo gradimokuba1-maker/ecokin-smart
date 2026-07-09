@@ -88,6 +88,27 @@ function KpiCard({ item }: { item: ReturnType<typeof useKpiData>[number] }) {
   );
 }
 
+// Map urgency levels to actual hex colors for Leaflet
+const URGENCY_HEX_COLORS: Record<string, string> = {
+  faible: "#10b981",
+  moyen: "#f59e0b",
+  eleve: "#f97316",
+  critique: "#ef4444",
+};
+
+// Map waste categories to distinct icons/emojis
+const CATEGORY_ICONS: Record<string, string> = {
+  plastique: "🧴",
+  organique: "🍃",
+  menager: "🗑",
+  electronique: "🔌",
+  medical: "⚕",
+  construction: "🧱",
+  metal: "⚙",
+  verre: "🍾",
+  mixte: "♻",
+};
+
 function GovernorMap({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -124,15 +145,31 @@ function GovernorMap({ reports }: { reports: ReturnType<typeof useLiveReports>["
       });
 
       COLLECTION_POINTS.forEach((cp) => {
+        const kindColors: Record<string, string> = {
+          regroupement: "#0ea5e9",
+          collecte: "#10b981",
+          transfert: "#8b5cf6",
+          valorisation: "#f59e0b",
+          traitement: "#ef4444",
+          tri: "#6366f1",
+          recyclage: "#14b8a6",
+        };
+        const bgColor = kindColors[cp.kind] || "#0ea5e9";
         L.marker([cp.lat, cp.lng], {
           icon: L.divIcon({
             className: "",
-            html: `<div style="background:#0ea5e9;color:#fff;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);font:700 11px/1 Inter,sans-serif;">♻</div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12],
+            html: `<div style="background:${bgColor};color:#fff;width:28px;height:28px;display:grid;place-items:center;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3);font:bold 13px/1 Inter,sans-serif;">♻</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
           }),
         })
-          .bindPopup(`<strong>${cp.name}</strong><br/>Type : ${cp.kind}`)
+          .bindPopup(
+            `<div style="min-width:200px;font-family:Inter,sans-serif">
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${cp.name}</div>
+              <div style="font-size:12px;color:#475569;text-transform:capitalize;">Type : ${cp.kind}</div>
+              <div style="font-size:12px;color:#475569;">Commune : ${COMMUNES.find(c => c.id === cp.commune)?.name || cp.commune}</div>
+            </div>`,
+          )
           .addTo(map);
       });
 
@@ -157,27 +194,52 @@ function GovernorMap({ reports }: { reports: ReturnType<typeof useLiveReports>["
       reportsLayerRef.current.clearLayers();
       reports.forEach((report) => {
         if (!report.lat || !report.lng) return;
-        const meta = URGENCY_META[report.urgency];
-        const color = meta.color.replace("text-", "").replace("-700", "-500");
+        const urgencyColor = URGENCY_HEX_COLORS[report.urgency] || "#6b7280";
+        const categoryIcon = CATEGORY_ICONS[report.category] || "📦";
+        const communeName = COMMUNES.find(c => c.id === report.commune)?.name || report.commune;
+        const statusLabel = report.status === "terminee" ? "Terminée" : report.status === "en_cours" ? "En cours" : report.status === "assignee" ? "Assignée" : "En attente";
+        const volume = report.volumeM3 ? `${report.volumeM3} m³` : "N/A";
+        const description = report.description ? report.description.substring(0, 100) : "Aucune description";
+
+        // Different icon per urgency level
+        const radius = report.urgency === "critique" ? 12 : report.urgency === "eleve" ? 10 : report.urgency === "moyen" ? 8 : 6;
+        const borderWidth = report.urgency === "critique" ? 3 : 2;
+
+        // Use circle markers with urgency-based styling
         L.circleMarker([report.lat, report.lng], {
-          radius: report.urgency === "critique" ? 9 : report.urgency === "eleve" ? 7 : 5,
-          color: "#fff",
-          weight: 1.5,
-          fillColor: color,
-          fillOpacity: 0.9,
+          radius,
+          color: urgencyColor,
+          weight: borderWidth,
+          fillColor: urgencyColor,
+          fillOpacity: 0.85,
         })
           .bindPopup(
             `
-          <div style="min-width:180px;font-family:Inter,sans-serif">
-            <div style="font-weight:700;font-size:12px;">${report.id}</div>
-            <div style="font-size:11px;color:#475569;text-transform:capitalize;">${report.category} · ${report.commune}</div>
-            <div style="margin-top:4px">
-              <span style="background-color:${color};color:#fff;padding:2px 6px;border-radius:9999px;font-size:9px;font-weight:700;text-transform:uppercase;">
-                Urgence ${report.urgency}
-              </span>
+            <div style="min-width:220px;font-family:Inter,sans-serif">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                <span style="font-size:18px;">${categoryIcon}</span>
+                <span style="font-weight:700;font-size:13px;">${report.id}</span>
+              </div>
+              <div style="font-size:11px;color:#475569;margin-bottom:4px;">
+                <strong>Catégorie :</strong> ${report.category} · <strong>Commune :</strong> ${communeName}
+              </div>
+              <div style="font-size:11px;color:#475569;margin-bottom:4px;">
+                <strong>Volume :</strong> ${volume} · <strong>Statut :</strong> ${statusLabel}
+              </div>
+              <div style="font-size:11px;color:#475569;margin-bottom:6px;">
+                <strong>Description :</strong> ${description}
+              </div>
+              <div style="font-size:11px;color:#475569;margin-bottom:6px;">
+                <strong>Date :</strong> ${new Date(report.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </div>
+              <div style="margin-top:4px">
+                <span style="background-color:${urgencyColor};color:#fff;padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:700;text-transform:uppercase;">
+                  Urgence ${report.urgency}
+                </span>
+              </div>
             </div>
-          </div>
-        `,
+          `,
+            { maxWidth: 300, minWidth: 220 },
           )
           .addTo(reportsLayerRef.current);
       });

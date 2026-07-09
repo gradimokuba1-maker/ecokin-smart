@@ -123,6 +123,9 @@ function ReportsByCommuneChart({ data }: { data: { name: string, Signalements: n
           tickLine={false}
           axisLine={false}
           interval={0}
+          angle={-45}
+          textAnchor="end"
+          height={60}
         />
         <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
         <Tooltip
@@ -181,7 +184,7 @@ function ReportsByStatusChart({ data }: { data: { name: string, value: number }[
 function Overview({ kpis, reports }: { kpis: { totalUsers: number; totalReports: number; totalBudget: number; totalHouseholds: number; totalTaxPaid: number }, reports: ReturnType<typeof useLiveReports>['items'] }) {
   const reportsByCommune = useMemo(() => {
     const counts = reports.reduce((acc, r) => { acc[r.commune] = (acc[r.commune] || 0) + 1; return acc; }, {} as Record<string, number>);
-    return Object.entries(counts).map(([name, count]) => ({ name, Signalements: count })).sort((a, b) => b.Signalements - a.Signalements);
+    return Object.entries(counts).map(([id, count]) => ({ name: COMMUNES.find(c => c.id === id)?.name || id, Signalements: count })).sort((a, b) => b.Signalements - a.Signalements);
   }, [reports]);
 
   const reportsByStatus = useMemo(() => {
@@ -277,7 +280,7 @@ function HouseholdsTab() {
 
   const byCommune = useMemo(() => {
     const counts = households.reduce((acc, h) => { acc[h.commune] = (acc[h.commune] || 0) + 1; return acc; }, {} as Record<string, number>);
-    return Object.entries(counts).map(([name, count]) => ({ name, Signalements: count })).sort((a, b) => b.Signalements - a.Signalements);
+    return Object.entries(counts).map(([id, count]) => ({ name: COMMUNES.find(c => c.id === id)?.name || id, Signalements: count })).sort((a, b) => b.Signalements - a.Signalements);
   }, [households]);
 
   return (
@@ -834,10 +837,36 @@ function SettingsTab() {
 
 function IATab() {
   const { store, validate, correct, precisionPct } = useLearning();
-  const { items: reports } = useLiveReports();
+  const { items: reports, setStatus } = useLiveReports();
+  const { session } = useAccess();
+  const [validatedIds, setValidatedIds] = useState<Set<string>>(new Set());
+
   const pendingReports = useMemo(() => {
-    return reports.filter(r => r.status === 'en_attente').slice(0, 20);
-  }, [reports]);
+    return reports.filter(r => r.status === 'en_attente' && !validatedIds.has(r.id)).slice(0, 20);
+  }, [reports, validatedIds]);
+
+  const handleValidate = (reportId: string) => {
+    // Validate the report: update status to "assignee" and record the validation
+    setStatus(reportId, 'assignee', session.name);
+    validate();
+    setValidatedIds(prev => new Set(prev).add(reportId));
+    toast.success(`Signalement ${reportId} validé et assigné.`);
+  };
+
+  const handleCorrect = (reportId: string, correctedValue: string) => {
+    if (!correctedValue) return;
+    // Apply correction and update report status
+    setStatus(reportId, 'assignee', session.name);
+    correct({
+      reportId,
+      predicted: reports.find(r => r.id === reportId)?.category || 'inconnu',
+      corrected: correctedValue,
+      by: session.name,
+      at: new Date().toISOString(),
+    });
+    setValidatedIds(prev => new Set(prev).add(reportId));
+    toast.success(`Signalement ${reportId} corrigé en "${correctedValue}" et assigné.`);
+  };
 
   return (
     <div className="space-y-4">
@@ -864,60 +893,63 @@ function IATab() {
         <p className="mb-4 text-sm text-muted-foreground">
           Validez la classification automatique ou corrigez-la. Chaque correction améliore le modèle.
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              <tr className="border-b border-border">
-                <th className="py-2">ID</th>
-                <th>Date</th>
-                <th>Commune</th>
-                <th>Classification IA</th>
-                <th>Urgence IA</th>
-                <th>Description</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingReports.map((r) => (
-                <tr key={r.id} className="border-b border-border/60">
-                  <td className="py-2 font-mono text-xs">{r.id}</td>
-                  <td className="whitespace-nowrap text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString('fr-FR')}</td>
-                  <td className="capitalize">{r.commune}</td>
-                  <td className="capitalize font-semibold">{r.category}</td>
-                  <td><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${URGENCY_META[r.urgency]?.bg} ${URGENCY_META[r.urgency]?.color}`}>{URGENCY_META[r.urgency]?.label}</span></td>
-                  <td className="max-w-xs truncate text-xs text-muted-foreground">{r.description || '–'}</td>
-                  <td className="space-x-2 whitespace-nowrap">
-                    <button
-                      onClick={validate}
-                      className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco"
-                    >
-                      ✓ Valider
-                    </button>
-                    <select
-                      onChange={(e) => {
-                        if (!e.target.value) return;
-                        correct({
-                          reportId: r.id,
-                          predicted: r.category,
-                          corrected: e.target.value,
-                          by: "Service communal",
-                          at: new Date().toISOString(),
-                        });
-                        e.currentTarget.selectedIndex = 0;
-                      }}
-                      className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-                    >
-                      <option value="">Corriger…</option>
-                      {WASTE_CATEGORIES.map((c) => (
-                        <option key={c.id} value={c.id}>{c.label}</option>
-                      ))}
-                    </select>
-                  </td>
+        {pendingReports.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="rounded-full bg-eco/10 p-4 mb-4">
+              <ShieldCheck className="size-8 text-eco" />
+            </div>
+            <p className="text-lg font-semibold text-muted-foreground">Aucun signalement en attente de validation</p>
+            <p className="text-sm text-muted-foreground mt-1">Tous les signalements ont été traités.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="py-2">ID</th>
+                  <th>Date</th>
+                  <th>Commune</th>
+                  <th>Classification IA</th>
+                  <th>Urgence IA</th>
+                  <th>Description</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {pendingReports.map((r) => (
+                  <tr key={r.id} className="border-b border-border/60">
+                    <td className="py-2 font-mono text-xs">{r.id}</td>
+                    <td className="whitespace-nowrap text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString('fr-FR')}</td>
+                    <td className="capitalize">{COMMUNES.find(c => c.id === r.commune)?.name || r.commune}</td>
+                    <td className="capitalize font-semibold">{r.category}</td>
+                    <td><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${URGENCY_META[r.urgency]?.bg} ${URGENCY_META[r.urgency]?.color}`}>{URGENCY_META[r.urgency]?.label}</span></td>
+                    <td className="max-w-xs truncate text-xs text-muted-foreground">{r.description || '–'}</td>
+                    <td className="space-x-2 whitespace-nowrap">
+                      <button
+                        onClick={() => handleValidate(r.id)}
+                        className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco hover:bg-eco/20 transition-colors"
+                      >
+                        ✓ Valider
+                      </button>
+                      <select
+                        onChange={(e) => {
+                          handleCorrect(r.id, e.target.value);
+                          e.currentTarget.selectedIndex = 0;
+                        }}
+                        className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                      >
+                        <option value="">Corriger…</option>
+                        {WASTE_CATEGORIES.map((c) => (
+                          <option key={c.id} value={c.id}>{c.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {store.corrections.length > 0 && (
