@@ -1,12 +1,14 @@
 // EcoKin Smart — SmartWasteCamera : Capture intelligente avec analyse 3D intégrée
 // Détection automatique des capacités du téléphone (LiDAR, ARCore, basique)
+// Demande groupée des permissions : caméra, GPS (précise), profondeur
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Camera, ImageIcon, Loader2, Smartphone, Tablet, AlertTriangle, CheckCircle2, RotateCcw, Layers } from "lucide-react";
+import { Camera, ImageIcon, Loader2, Smartphone, Tablet, AlertTriangle, CheckCircle2, RotateCcw, Layers, MapPin, Eye, Box, XCircle, Shield } from "lucide-react";
 import { toast } from "sonner";
-import { detectDeviceCapability, requestCameraPermission, requestGPSPermission, estimateVolumeFromImage, type DeviceCapability } from "@/lib/waste-ai/depth-analyzer";
+import { detectDeviceCapability, estimateVolumeFromImage, type DeviceCapability } from "@/lib/waste-ai/depth-analyzer";
 import { requestGPSPosition, buildLocationInfo, type GPSState } from "@/lib/waste-ai/gps-location";
 import type { CameraCapability, LocationInfo } from "@/lib/waste-ai/types";
+import { usePermissions, type PermissionStatus } from "@/lib/waste-ai/use-permissions";
 
 export type CaptureResult = {
   imageDataUrl: string;
@@ -37,6 +39,17 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
   const [multiStep, setMultiStep] = useState(0);
   const [showLiveView, setShowLiveView] = useState(false);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
+  const [showPermissionPanel, setShowPermissionPanel] = useState(false);
+
+  // Hook de permissions groupées
+  const {
+    permissions,
+    isRequesting: permissionsRequesting,
+    allGranted,
+    anyDenied,
+    requestAll,
+    resetPermissions,
+  } = usePermissions();
 
   // Détection des capacités au montage
   useEffect(() => {
@@ -53,7 +66,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     })();
   }, []);
 
-  // Demander le GPS automatiquement
+  // Demander le GPS automatiquement (en parallèle)
   useEffect(() => {
     (async () => {
       setGpsState({ status: "requesting" });
@@ -74,6 +87,34 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       }
     };
   }, [liveStream]);
+
+  /**
+   * Action principale "Prendre une photo"
+   * 1. Affiche le panneau des permissions
+   * 2. Demande toutes les permissions en séquence
+   * 3. Si tout est accordé, lance la caméra
+   */
+  const handleTakePhoto = useCallback(async () => {
+    setShowPermissionPanel(true);
+
+    // Lancer la demande groupée de permissions
+    const result = await requestAll();
+
+    if (result.camera) {
+      // Caméra accordée → lancer le flux vidéo
+      await startLiveView();
+    } else {
+      toast.error("Permission caméra refusée — impossible d'utiliser l'appareil photo");
+    }
+
+    if (!result.gps) {
+      toast.warning("GPS non disponible — la localisation sera manuelle");
+    }
+
+    if (result.depth) {
+      toast.success("Capteurs de profondeur disponibles — analyse 3D améliorée");
+    }
+  }, [requestAll]);
 
   const startLiveView = useCallback(async () => {
     try {
@@ -232,6 +273,47 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     );
   };
 
+  /**
+   * Rendu d'une ligne de permission avec son icône et son état
+   */
+  const PermissionRow = ({
+    icon,
+    label,
+    status,
+  }: {
+    icon: React.ReactNode;
+    label: string;
+    status: PermissionStatus;
+  }) => {
+    const statusConfig = {
+      idle: { color: "text-muted-foreground", bg: "bg-secondary/50", icon: null },
+      requesting: { color: "text-eco", bg: "bg-eco/10", icon: <Loader2 className="size-3 animate-spin" /> },
+      granted: { color: "text-emerald-600", bg: "bg-emerald-500/10", icon: <CheckCircle2 className="size-3" /> },
+      denied: { color: "text-red-600", bg: "bg-red-500/10", icon: <XCircle className="size-3" /> },
+      unavailable: { color: "text-amber-600", bg: "bg-amber-500/10", icon: <AlertTriangle className="size-3" /> },
+    };
+
+    const cfg = statusConfig[status];
+    const statusLabels: Record<PermissionStatus, string> = {
+      idle: "En attente",
+      requesting: "Demande en cours…",
+      granted: "Autorisé",
+      denied: "Refusé",
+      unavailable: "Non disponible",
+    };
+
+    return (
+      <div className={`flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold ${cfg.bg} ${cfg.color}`}>
+        <span className="shrink-0">{icon}</span>
+        <span className="flex-1">{label}</span>
+        <span className="inline-flex items-center gap-1">
+          {cfg.icon}
+          {statusLabels[status]}
+        </span>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-3">
       {/* Badges d'information */}
@@ -244,6 +326,68 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
           </span>
         )}
       </div>
+
+      {/* Panneau des permissions */}
+      {showPermissionPanel && (
+        <div className="rounded-2xl border border-eco/20 bg-card p-4 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-eco">
+              <Shield className="mr-1 inline size-3" />
+              Autorisations requises
+            </h4>
+            {!permissionsRequesting && (allGranted || anyDenied) && (
+              <button
+                onClick={() => setShowPermissionPanel(false)}
+                className="text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Masquer
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <PermissionRow
+              icon={<Camera className="size-3.5" />}
+              label="Accès à la caméra"
+              status={permissions.camera}
+            />
+            <PermissionRow
+              icon={<MapPin className="size-3.5" />}
+              label="Localisation GPS (précise)"
+              status={permissions.gps}
+            />
+            <PermissionRow
+              icon={<Box className="size-3.5" />}
+              label="Capteurs de profondeur (LiDAR/ARCore)"
+              status={permissions.depth}
+            />
+          </div>
+
+          {permissionsRequesting && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-eco/5 px-3 py-2 text-xs font-semibold text-eco">
+              <Loader2 className="size-3 animate-spin" />
+              Demande des autorisations en cours…
+            </div>
+          )}
+
+          {!permissionsRequesting && anyDenied && (
+            <div className="mt-3 rounded-xl border border-amber-300 bg-amber-500/10 p-3 text-xs text-amber-800">
+              <p className="font-semibold">⚠ Certaines autorisations ont été refusées</p>
+              <p className="mt-1">
+                Vous pouvez toujours prendre une photo, mais certaines fonctionnalités
+                (localisation automatique, analyse 3D) seront limitées.
+              </p>
+            </div>
+          )}
+
+          {!permissionsRequesting && allGranted && (
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
+              <CheckCircle2 className="size-3" />
+              Toutes les autorisations sont accordées
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Message pour mode multi-photos */}
       {captureMode === "multi" && multiStep === 0 && !preview && (
@@ -334,14 +478,23 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       {!showLiveView && !preview && (
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
-            onClick={startLiveView}
-            disabled={capturing || disabled}
+            onClick={handleTakePhoto}
+            disabled={capturing || disabled || permissionsRequesting}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-eco px-4 py-3 text-sm font-bold text-white hover:bg-eco/90 disabled:opacity-50"
           >
-            <Camera className="size-4" />
-            {captureMode === "multi" && multiStep > 0
-              ? `Prendre photo ${multiStep + 1}/3`
-              : "Prendre une photo"}
+            {permissionsRequesting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Autorisations…
+              </>
+            ) : (
+              <>
+                <Camera className="size-4" />
+                {captureMode === "multi" && multiStep > 0
+                  ? `Prendre photo ${multiStep + 1}/3`
+                  : "Prendre une photo"}
+              </>
+            )}
           </button>
           <button
             onClick={() => galleryRef.current?.click()}
