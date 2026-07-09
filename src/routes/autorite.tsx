@@ -14,8 +14,7 @@ export const Route = createFileRoute("/autorite")({
       },
     ],
   }),
-  component: AuthorityLayout,
-  index: { component: AuthorityIndex }
+  component: AuthorityIndex,
 });
 
 type AuthorityCard = {
