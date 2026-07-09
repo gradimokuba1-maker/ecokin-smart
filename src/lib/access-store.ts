@@ -104,7 +104,7 @@ export function useAccess() {
     if (password !== undefined) {
       const authUser = AUTH_USERS[role as AuthorityRole];
       const expectedIdentifier = authUser?.identifier.trim().toLowerCase();
-      if (!authUser || normalizedIdentifier !== expectedIdentifier || normalizedPassword !== authUser.password) {
+      if (!authUser || normalizedIdentifier !== expectedIdentifier || normalizedPassword !== authUser.password.trim()) {
         return false;
       }
     } else if (ACCESS_CODES[role] !== identifier.trim()) {
