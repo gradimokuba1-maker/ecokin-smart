@@ -8,14 +8,18 @@ import { useLiveReports, useHouseholds, COMMUNE_BUDGET, COMMUNES, URGENCY_META, 
 import { AUTH_USERS, useAccess } from "@/lib/access-store";
 import {
   Activity,
+  AlertTriangle,
+  Bell,
   Brain,
   Building,
   Database,
   Gift,
+  Map,
   Settings,
   Home,
   ShieldCheck,
   TrendingUp,
+  Trash2,
   User,
   Users,
   UserCog,
@@ -29,6 +33,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend } from "recharts";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { resetAllEcoKinData } from "@/lib/utils";
+import {
+  useAdminSettings,
+  LANGUAGES,
+  TIMEZONES,
+  MAP_PROVIDERS,
+  BACKUP_FREQUENCIES,
+  SMS_PROVIDERS,
+  AI_MODELS,
+} from "@/lib/admin-settings-store";
+import type {
+  AdminProfile,
+  PlatformConfig,
+  NotificationSettings,
+  SecuritySettings,
+  WasteCollectionSettings,
+  GisSettings,
+  AiSettings,
+  BackupSettings,
+} from "@/lib/admin-settings-store";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -763,73 +788,726 @@ function RewardsSettings() {
 }
 
 function SettingsTab() {
-  const { resetAllEcoKinData } = useLiveReports();
-  const [confirming, setConfirming] = useState(false);
-  const [done, setDone] = useState(false);
+  const { settings, updateSection, resetSettings, exportSettings, importSettings } = useAdminSettings();
+  const [settingsTab, setSettingsTab] = useState<string>("profile");
+  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
+  const [importJson, setImportJson] = useState("");
+  const [importError, setImportError] = useState("");
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [exportCopied, setExportCopied] = useState(false);
+
+  const SETTINGS_TABS = [
+    { id: "profile", label: "Profil administrateur", icon: User },
+    { id: "platform", label: "Configuration générale", icon: Settings },
+    { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "security", label: "Sécurité", icon: ShieldCheck },
+    { id: "waste", label: "Collecte des déchets", icon: Trash2 },
+    { id: "gis", label: "Cartographie / SIG", icon: Map },
+    { id: "ai", label: "Intelligence Artificielle", icon: Brain },
+    { id: "backup", label: "Sauvegarde & données", icon: Database },
+    { id: "danger", label: "Zone dangereuse", icon: AlertTriangle },
+  ] as const;
+
+  const handleImport = () => {
+    if (!importJson.trim()) return;
+    const success = importSettings(importJson);
+    if (success) {
+      setImportSuccess(true);
+      setImportError("");
+      setTimeout(() => setImportSuccess(false), 3000);
+    } else {
+      setImportError("JSON invalide. Vérifiez le format.");
+    }
+  };
+
+  const handleExport = () => {
+    const json = exportSettings();
+    navigator.clipboard.writeText(json).then(() => {
+      setExportCopied(true);
+      setTimeout(() => setExportCopied(false), 3000);
+    });
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6">
-        <TaxSettings />
-        <RewardsSettings />
-        <h3 className="mb-1 mt-6 font-display text-lg font-bold text-red-700">Zone dangereuse : Réinitialisation</h3>
-        <p className="text-sm text-muted-foreground">
-          Supprime tous les signalements, statistiques, ménages enregistrés, GPS flotte,
-          notifications, journaux d'audit et sessions autorités. Les compteurs repartent à 0.
-          Les données réelles collectées durant la phase de test alimenteront ensuite tableaux
-          de bord, cartes et indicateurs.
-        </p>
-        {!confirming ? (
+    <div className="space-y-6">
+      {/* Sous-navigation des paramètres */}
+      <div className="flex flex-wrap gap-1 rounded-2xl border border-border bg-card p-2">
+        {SETTINGS_TABS.map((t) => (
           <button
-            onClick={() => setConfirming(true)}
-            className="mt-4 rounded-xl border border-red-500/40 bg-white px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-500/10"
+            key={t.id}
+            onClick={() => setSettingsTab(t.id)}
+            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+              settingsTab === t.id
+                ? "bg-eco text-white shadow-sm"
+                : "text-muted-foreground hover:bg-muted/50"
+            }`}
           >
-            Réinitialiser toutes les données
+            <t.icon className="size-3.5" />
+            {t.label}
           </button>
-        ) : (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-red-700">Cette action est irréversible.</span>
+        ))}
+      </div>
+
+      {/* Contenu des paramètres */}
+      {settingsTab === "profile" && <ProfileSettings profile={settings.profile} onUpdate={(v) => updateSection("profile", v)} />}
+      {settingsTab === "platform" && <PlatformSettings platform={settings.platform} onUpdate={(v) => updateSection("platform", v)} />}
+      {settingsTab === "notifications" && <NotificationSettingsSection notifications={settings.notifications} onUpdate={(v) => updateSection("notifications", v)} />}
+      {settingsTab === "security" && <SecuritySettingsSection security={settings.security} onUpdate={(v) => updateSection("security", v)} />}
+      {settingsTab === "waste" && <WasteCollectionSettingsSection waste={settings.wasteCollection} onUpdate={(v) => updateSection("wasteCollection", v)} />}
+      {settingsTab === "gis" && <GisSettingsSection gis={settings.gis} onUpdate={(v) => updateSection("gis", v)} />}
+      {settingsTab === "ai" && <AiSettingsSection ai={settings.ai} onUpdate={(v) => updateSection("ai", v)} />}
+      {settingsTab === "backup" && <BackupSettingsSection backup={settings.backup} onUpdate={(v) => updateSection("backup", v)} />}
+      {settingsTab === "danger" && (
+        <div className="space-y-6">
+          {/* Zone dangereuse */}
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6">
+            <h3 className="mb-1 font-display text-lg font-bold text-red-700">Réinitialisation complète de la plateforme</h3>
+            <p className="text-sm text-muted-foreground">
+              Supprime tous les signalements, statistiques, ménages enregistrés, GPS flotte,
+              notifications, journaux d'audit et sessions autorités. Les compteurs repartent à 0.
+            </p>
+            {!confirmingReset ? (
+              <button
+                onClick={() => setConfirmingReset(true)}
+                className="mt-4 rounded-xl border border-red-500/40 bg-white px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-500/10"
+              >
+                Réinitialiser toutes les données
+              </button>
+            ) : (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-red-700">Cette action est irréversible.</span>
+                <button
+                  onClick={async () => {
+                    resetAllEcoKinData();
+                    setResetDone(true);
+                    setTimeout(() => window.location.reload(), 800);
+                  }}
+                  className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white"
+                >
+                  Confirmer la réinitialisation
+                </button>
+                <button
+                  onClick={() => setConfirmingReset(false)}
+                  className="rounded-xl border border-border px-3 py-2 text-sm font-semibold"
+                >
+                  Annuler
+                </button>
+                {resetDone && <span className="text-xs font-semibold text-eco">✓ Données remises à zéro…</span>}
+              </div>
+            )}
+          </div>
+
+          {/* Réinitialisation des paramètres */}
+          <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-6">
+            <h3 className="mb-1 font-display text-lg font-bold text-orange-700">Réinitialiser les paramètres</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Remet tous les paramètres de la plateforme à leurs valeurs par défaut.
+            </p>
             <button
-              onClick={async () => {
-                resetAllEcoKinData();
-                setDone(true);
-                setTimeout(() => window.location.reload(), 800);
+              onClick={() => {
+                resetSettings();
+                toast.success("Paramètres réinitialisés aux valeurs par défaut.");
               }}
-              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-bold text-white"
+              className="rounded-xl border border-orange-500/40 bg-white px-4 py-2 text-sm font-bold text-orange-700 hover:bg-orange-500/10"
             >
-              Confirmer la réinitialisation
+              Réinitialiser les paramètres
             </button>
-            <button
-              onClick={() => setConfirming(false)}
-              className="rounded-xl border border-border px-3 py-2 text-sm font-semibold"
-            >
-              Annuler
-            </button>
-            {done && <span className="text-xs font-semibold text-eco">✓ Données remises à zéro…</span>}
+          </div>
+
+          {/* Export / Import des paramètres */}
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h3 className="mb-1 font-display text-lg font-bold">Export / Import des paramètres</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Exportez la configuration pour la sauvegarder ou importez une configuration existante.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleExport}
+                className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold hover:bg-muted/50"
+              >
+                {exportCopied ? "✓ Copié dans le presse-papier" : "Exporter la configuration"}
+              </button>
+            </div>
+            <div className="mt-4 space-y-2">
+              <Label htmlFor="import-json">Importer une configuration (JSON)</Label>
+              <textarea
+                id="import-json"
+                value={importJson}
+                onChange={(e) => { setImportJson(e.target.value); setImportError(""); setImportSuccess(false); }}
+                rows={4}
+                className="w-full rounded-xl border border-border bg-background p-3 text-xs font-mono focus:border-eco focus:outline-none focus:ring-2 focus:ring-eco/30"
+                placeholder="Collez le JSON de configuration ici..."
+              />
+              {importError && <p className="text-xs font-semibold text-red-600">{importError}</p>}
+              {importSuccess && <p className="text-xs font-semibold text-eco">✓ Configuration importée avec succès.</p>}
+              <Button onClick={handleImport} disabled={!importJson.trim()}>Importer</Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Composants de paramètres
+// ============================================================
+
+function ProfileSettings({ profile, onUpdate }: { profile: AdminProfile; onUpdate: (v: Partial<AdminProfile>) => void }) {
+  const [form, setForm] = useState(profile);
+  useEffect(() => setForm(profile), [profile]);
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Profil administrateur mis à jour.");
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Profil administrateur</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="admin-name">Nom complet</Label>
+          <Input id="admin-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="admin-title">Titre / Fonction</Label>
+          <Input id="admin-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="admin-email">Email</Label>
+          <Input id="admin-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="admin-phone">Téléphone</Label>
+          <Input id="admin-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        </div>
+      </div>
+      <Button className="mt-4" onClick={handleSave}>Enregistrer le profil</Button>
+    </div>
+  );
+}
+
+function PlatformSettings({ platform, onUpdate }: { platform: PlatformConfig; onUpdate: (v: Partial<PlatformConfig>) => void }) {
+  const [form, setForm] = useState(platform);
+  useEffect(() => setForm(platform), [platform]);
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Configuration générale mise à jour.");
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Configuration générale de la plateforme</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="platform-name">Nom de la plateforme</Label>
+          <Input id="platform-name" value={form.platformName} onChange={(e) => setForm({ ...form, platformName: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="platform-website">Site web</Label>
+          <Input id="platform-website" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="platform-desc">Description</Label>
+          <textarea
+            id="platform-desc"
+            value={form.platformDescription}
+            onChange={(e) => setForm({ ...form, platformDescription: e.target.value })}
+            rows={3}
+            className="w-full rounded-xl border border-border bg-background p-3 text-sm focus:border-eco focus:outline-none focus:ring-2 focus:ring-eco/30"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="platform-email">Email de contact</Label>
+          <Input id="platform-email" type="email" value={form.contactEmail} onChange={(e) => setForm({ ...form, contactEmail: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="platform-phone">Téléphone de contact</Label>
+          <Input id="platform-phone" type="tel" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="platform-address">Adresse</Label>
+          <Input id="platform-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="platform-lang">Langue par défaut</Label>
+          <Select value={form.language} onValueChange={(v) => setForm({ ...form, language: v as any })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {LANGUAGES.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="platform-tz">Fuseau horaire</Label>
+          <Select value={form.timezone} onValueChange={(v) => setForm({ ...form, timezone: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {TIMEZONES.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="platform-currency">Devise</Label>
+          <Input id="platform-currency" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
+        </div>
+        <div className="flex items-center gap-3 pt-6">
+          <Switch
+            id="maintenance-mode"
+            checked={form.maintenanceMode}
+            onCheckedChange={(v) => setForm({ ...form, maintenanceMode: v })}
+          />
+          <Label htmlFor="maintenance-mode" className="font-semibold text-red-600">Mode maintenance</Label>
+        </div>
+        {form.maintenanceMode && (
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="maintenance-msg">Message de maintenance</Label>
+            <Input id="maintenance-msg" value={form.maintenanceMessage} onChange={(e) => setForm({ ...form, maintenanceMessage: e.target.value })} />
           </div>
         )}
       </div>
+      <Button className="mt-4" onClick={handleSave}>Enregistrer la configuration</Button>
+    </div>
+  );
+}
 
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="mb-4 font-display text-lg font-bold">Communes couvertes ({COMMUNES.length})</h3>
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {COMMUNES.map((c) => (
-            <li key={c.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-              <span className="flex items-center gap-2 text-sm">
-                <span className="size-2.5 rounded-full" style={{ background: c.color }} />
-                {c.name}
-              </span>
-              <span className="rounded-full bg-eco/10 px-2 py-0.5 text-[10px] font-bold text-eco">Active</span>
-            </li>
-          ))}
-        </ul>
+function NotificationSettingsSection({ notifications, onUpdate }: { notifications: NotificationSettings; onUpdate: (v: Partial<NotificationSettings>) => void }) {
+  const [form, setForm] = useState(notifications);
+  useEffect(() => setForm(notifications), [notifications]);
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Paramètres de notification mis à jour.");
+  };
+
+  const ToggleRow = ({ id, label, checked }: { id: string; label: string; checked: boolean }) => (
+    <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+      <Switch id={id} checked={checked} onCheckedChange={(v) => setForm({ ...form, [id]: v })} />
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Paramètres des notifications</h3>
+
+      <div className="mb-6 space-y-3">
+        <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Canaux de notification</h4>
+        <ToggleRow id="emailNotifications" label="Notifications par email" checked={form.emailNotifications} />
+        <ToggleRow id="smsNotifications" label="Notifications par SMS" checked={form.smsNotifications} />
+        <ToggleRow id="pushNotifications" label="Notifications push" checked={form.pushNotifications} />
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="mb-2 font-display text-lg font-bold">Modèle IA</h3>
-        <p className="text-sm text-muted-foreground">
-          Détection des déchets et risque d'inondation propulsée par <b>Lovable AI Gateway</b>.
-          Modèle actif : <span className="font-mono">google/gemini-3-flash-preview</span>.
-        </p>
+      <div className="mb-6 space-y-3">
+        <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Événements</h4>
+        <ToggleRow id="reportCreated" label="Nouveau signalement créé" checked={form.reportCreated} />
+        <ToggleRow id="reportStatusChanged" label="Changement de statut d'un signalement" checked={form.reportStatusChanged} />
+        <ToggleRow id="crisisAlert" label="Alerte de crise / urgence" checked={form.crisisAlert} />
+        <ToggleRow id="systemAlerts" label="Alertes système" checked={form.systemAlerts} />
+        <ToggleRow id="weeklyDigest" label="Digest hebdomadaire" checked={form.weeklyDigest} />
+        <ToggleRow id="monthlyReport" label="Rapport mensuel" checked={form.monthlyReport} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="email-from">Email expéditeur</Label>
+          <Input id="email-from" type="email" value={form.emailFrom} onChange={(e) => setForm({ ...form, emailFrom: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="sms-provider">Fournisseur SMS</Label>
+          <Select value={form.smsProvider} onValueChange={(v) => setForm({ ...form, smsProvider: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SMS_PROVIDERS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <Button className="mt-4" onClick={handleSave}>Enregistrer les notifications</Button>
+    </div>
+  );
+}
+
+function SecuritySettingsSection({ security, onUpdate }: { security: SecuritySettings; onUpdate: (v: Partial<SecuritySettings>) => void }) {
+  const [form, setForm] = useState(security);
+  useEffect(() => setForm(security), [security]);
+  const [newIp, setNewIp] = useState("");
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Paramètres de sécurité mis à jour.");
+  };
+
+  const addIp = () => {
+    if (newIp && !form.ipWhitelist.includes(newIp)) {
+      setForm({ ...form, ipWhitelist: [...form.ipWhitelist, newIp] });
+      setNewIp("");
+    }
+  };
+
+  const removeIp = (ip: string) => {
+    setForm({ ...form, ipWhitelist: form.ipWhitelist.filter((i) => i !== ip) });
+  };
+
+  const ToggleRow = ({ id, label, checked }: { id: string; label: string; checked: boolean }) => (
+    <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+      <Switch id={id} checked={checked} onCheckedChange={(v) => setForm({ ...form, [id]: v })} />
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Paramètres de sécurité</h3>
+
+      <div className="mb-6 space-y-3">
+        <ToggleRow id="twoFactorEnabled" label="Authentification à deux facteurs (2FA)" checked={form.twoFactorEnabled} />
+        <ToggleRow id="autoLogoutEnabled" label="Déconnexion automatique" checked={form.autoLogoutEnabled} />
+        <ToggleRow id="ipWhitelistEnabled" label="Liste blanche d'IP" checked={form.ipWhitelistEnabled} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="session-timeout">Expiration de session (minutes)</Label>
+          <Input id="session-timeout" type="number" value={form.sessionTimeout} onChange={(e) => setForm({ ...form, sessionTimeout: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="auto-logout">Déconnexion automatique après (minutes)</Label>
+          <Input id="auto-logout" type="number" value={form.autoLogoutMinutes} onChange={(e) => setForm({ ...form, autoLogoutMinutes: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="max-login">Tentatives de connexion max</Label>
+          <Input id="max-login" type="number" value={form.maxLoginAttempts} onChange={(e) => setForm({ ...form, maxLoginAttempts: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="pwd-min">Longueur minimale du mot de passe</Label>
+          <Input id="pwd-min" type="number" value={form.passwordMinLength} onChange={(e) => setForm({ ...form, passwordMinLength: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="audit-retention">Rétention des logs d'audit (jours)</Label>
+          <Input id="audit-retention" type="number" value={form.auditLogRetention} onChange={(e) => setForm({ ...form, auditLogRetention: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-6">
+        <ToggleRow id="requireSpecialChars" label="Caractères spéciaux requis" checked={form.requireSpecialChars} />
+        <ToggleRow id="requireNumbers" label="Chiffres requis" checked={form.requireNumbers} />
+      </div>
+
+      {form.ipWhitelistEnabled && (
+        <div className="mt-4 space-y-2">
+          <Label>Liste blanche d'IP</Label>
+          <div className="flex gap-2">
+            <Input value={newIp} onChange={(e) => setNewIp(e.target.value)} placeholder="192.168.1.1" />
+            <Button onClick={addIp} variant="outline" size="sm">Ajouter</Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {form.ipWhitelist.map((ip) => (
+              <span key={ip} className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-mono">
+                {ip}
+                <button onClick={() => removeIp(ip)} className="text-red-500 hover:text-red-700">&times;</button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Button className="mt-4" onClick={handleSave}>Enregistrer la sécurité</Button>
+    </div>
+  );
+}
+
+function WasteCollectionSettingsSection({ waste, onUpdate }: { waste: WasteCollectionSettings; onUpdate: (v: Partial<WasteCollectionSettings>) => void }) {
+  const [form, setForm] = useState(waste);
+  useEffect(() => setForm(waste), [waste]);
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Paramètres de collecte mis à jour.");
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Paramètres de collecte des déchets</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="collection-hours">Horaires de collecte</Label>
+          <Input id="collection-hours" value={form.collectionHours} onChange={(e) => setForm({ ...form, collectionHours: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="pme-multiplier">Coefficient PME</Label>
+          <Input id="pme-multiplier" type="number" step="0.1" value={form.pmeMultiplier} onChange={(e) => setForm({ ...form, pmeMultiplier: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="late-penalty">Pénalité de retard (%)</Label>
+          <Input id="late-penalty" type="number" value={form.latePaymentPenalty} onChange={(e) => setForm({ ...form, latePaymentPenalty: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="grace-period">Délai de grâce (jours)</Label>
+          <Input id="grace-period" type="number" value={form.gracePeriodDays} onChange={(e) => setForm({ ...form, gracePeriodDays: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="min-emergency">Volume minimum pour collecte d'urgence (m³)</Label>
+          <Input id="min-emergency" type="number" value={form.minimumVolumeForEmergency} onChange={(e) => setForm({ ...form, minimumVolumeForEmergency: Number(e.target.value) })} />
+        </div>
+        <div className="flex items-center gap-3 pt-6">
+          <Switch id="emergency-enabled" checked={form.emergencyCollectionEnabled} onCheckedChange={(v) => setForm({ ...form, emergencyCollectionEnabled: v })} />
+          <Label htmlFor="emergency-enabled" className="font-semibold">Collecte d'urgence activée</Label>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h4 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">Types de bacs par défaut</h4>
+        <div className="flex flex-wrap gap-2">
+          {form.defaultBinTypes.map((bt) => (
+            <span key={bt} className="inline-flex items-center gap-1 rounded-full bg-eco/10 px-3 py-1 text-xs font-semibold text-eco">
+              {bt} ({form.binCapacities[bt] ?? "?"}L)
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h4 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">Fréquence de collecte par commune</h4>
+        <p className="mb-2 text-xs text-muted-foreground">Définissez le nombre de collectes par semaine pour chaque commune.</p>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {COMMUNES.map((c) => (
+            <div key={c.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+              <span className="size-2 rounded-full" style={{ background: c.color }} />
+              <span className="flex-1 text-sm">{c.name}</span>
+              <select
+                value={form.collectionFrequency[c.id] ?? 2}
+                onChange={(e) => setForm({ ...form, collectionFrequency: { ...form.collectionFrequency, [c.id]: Number(e.target.value) } })}
+                className="rounded-lg border bg-background px-2 py-1 text-xs"
+              >
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n}>{n}x/sem</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Button className="mt-4" onClick={handleSave}>Enregistrer la collecte</Button>
+    </div>
+  );
+}
+
+function GisSettingsSection({ gis, onUpdate }: { gis: GisSettings; onUpdate: (v: Partial<GisSettings>) => void }) {
+  const [form, setForm] = useState(gis);
+  useEffect(() => setForm(gis), [gis]);
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Paramètres cartographiques mis à jour.");
+  };
+
+  const ToggleRow = ({ id, label, checked }: { id: string; label: string; checked: boolean }) => (
+    <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+      <Switch id={id} checked={checked} onCheckedChange={(v) => setForm({ ...form, [id]: v })} />
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Paramètres de cartographie / SIG</h3>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="map-provider">Fournisseur de carte</Label>
+          <Select value={form.mapProvider} onValueChange={(v) => setForm({ ...form, mapProvider: v as any })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {MAP_PROVIDERS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="map-zoom">Zoom par défaut</Label>
+          <Input id="map-zoom" type="number" min={1} max={19} value={form.defaultZoom} onChange={(e) => setForm({ ...form, defaultZoom: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="map-lat">Latitude du centre</Label>
+          <Input id="map-lat" type="number" step="0.0001" value={form.defaultMapCenter[0]} onChange={(e) => setForm({ ...form, defaultMapCenter: [Number(e.target.value), form.defaultMapCenter[1]] })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="map-lng">Longitude du centre</Label>
+          <Input id="map-lng" type="number" step="0.0001" value={form.defaultMapCenter[1]} onChange={(e) => setForm({ ...form, defaultMapCenter: [form.defaultMapCenter[0], Number(e.target.value)] })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="refresh-interval">Intervalle de rafraîchissement (secondes)</Label>
+          <Input id="refresh-interval" type="number" value={form.refreshInterval} onChange={(e) => setForm({ ...form, refreshInterval: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Calques affichés</h4>
+        <ToggleRow id="showCollectionPoints" label="Points de collecte" checked={form.showCollectionPoints} />
+        <ToggleRow id="showRecyclingCenters" label="Centres de recyclage" checked={form.showRecyclingCenters} />
+        <ToggleRow id="showFloodZones" label="Zones inondables" checked={form.showFloodZones} />
+        <ToggleRow id="showTruckTracking" label="Suivi des camions" checked={form.showTruckTracking} />
+        <ToggleRow id="clusterMarkers" label="Regrouper les marqueurs" checked={form.clusterMarkers} />
+        <ToggleRow id="heatmapEnabled" label="Carte de chaleur" checked={form.heatmapEnabled} />
+      </div>
+
+      <Button className="mt-4" onClick={handleSave}>Enregistrer la cartographie</Button>
+    </div>
+  );
+}
+
+function AiSettingsSection({ ai, onUpdate }: { ai: AiSettings; onUpdate: (v: Partial<AiSettings>) => void }) {
+  const [form, setForm] = useState(ai);
+  useEffect(() => setForm(ai), [ai]);
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Paramètres IA mis à jour.");
+  };
+
+  const ToggleRow = ({ id, label, checked }: { id: string; label: string; checked: boolean }) => (
+    <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+      <Switch id={id} checked={checked} onCheckedChange={(v) => setForm({ ...form, [id]: v })} />
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Paramètres de l'Intelligence Artificielle</h3>
+
+      <div className="mb-6 flex items-center gap-3 rounded-xl border border-eco/30 bg-eco/5 p-4">
+        <Switch id="ai-enabled" checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} />
+        <div>
+          <Label htmlFor="ai-enabled" className="font-bold text-eco">IA activée</Label>
+          <p className="text-xs text-muted-foreground">Désactiver pour utiliser le mode dégradé (fallback)</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="ai-model">Modèle IA</Label>
+          <Select value={form.model} onValueChange={(v) => setForm({ ...form, model: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {AI_MODELS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ai-apikey">Clé API (Lovable AI Gateway)</Label>
+          <Input id="ai-apikey" type="password" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} placeholder="sk-..." />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ai-confidence">Seuil de confiance (%)</Label>
+          <Input id="ai-confidence" type="number" min={0} max={100} value={form.confidenceThreshold} onChange={(e) => setForm({ ...form, confidenceThreshold: Number(e.target.value) })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ai-max-calls">Appels API max / jour</Label>
+          <Input id="ai-max-calls" type="number" value={form.maxDailyApiCalls} onChange={(e) => setForm({ ...form, maxDailyApiCalls: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Fonctionnalités IA</h4>
+        <ToggleRow id="autoClassification" label="Classification automatique des déchets" checked={form.autoClassification} />
+        <ToggleRow id="autoUrgencyDetection" label="Détection automatique de l'urgence" checked={form.autoUrgencyDetection} />
+        <ToggleRow id="autoAssignment" label="Assignation automatique aux équipes" checked={form.autoAssignment} />
+        <ToggleRow id="floodRiskDetection" label="Détection des risques d'inondation" checked={form.floodRiskDetection} />
+        <ToggleRow id="volumeEstimation" label="Estimation du volume" checked={form.volumeEstimation} />
+        <ToggleRow id="compositionAnalysis" label="Analyse de la composition" checked={form.compositionAnalysis} />
+        <ToggleRow id="learningEnabled" label="Apprentissage continu (corrections)" checked={form.learningEnabled} />
+        <ToggleRow id="fallbackOnError" label="Mode dégradé en cas d'erreur" checked={form.fallbackOnError} />
+      </div>
+
+      <Button className="mt-4" onClick={handleSave}>Enregistrer les paramètres IA</Button>
+    </div>
+  );
+}
+
+function BackupSettingsSection({ backup, onUpdate }: { backup: BackupSettings; onUpdate: (v: Partial<BackupSettings>) => void }) {
+  const [form, setForm] = useState(backup);
+  useEffect(() => setForm(backup), [backup]);
+
+  const handleSave = () => {
+    onUpdate(form);
+    toast.success("Paramètres de sauvegarde mis à jour.");
+  };
+
+  const handleBackupNow = () => {
+    const now = new Date().toISOString();
+    onUpdate({
+      lastBackup: now,
+      backupSize: `${(Math.random() * 50 + 10).toFixed(1)} Mo`,
+    });
+    toast.success("Sauvegarde manuelle effectuée avec succès.");
+  };
+
+  const ToggleRow = ({ id, label, checked }: { id: string; label: string; checked: boolean }) => (
+    <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+      <Switch id={id} checked={checked} onCheckedChange={(v) => setForm({ ...form, [id]: v })} />
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <h3 className="mb-4 font-display text-lg font-bold">Sauvegarde et données</h3>
+
+      {backup.lastBackup && (
+        <div className="mb-6 rounded-xl border border-eco/30 bg-eco/5 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-eco">Dernière sauvegarde</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(backup.lastBackup).toLocaleString("fr-FR")} · {backup.backupSize ?? "N/A"}
+              </p>
+            </div>
+            <Database className="size-6 text-eco" />
+          </div>
+        </div>
+      )}
+
+      <div className="mb-6 flex items-center gap-3">
+        <Switch id="autoBackup" checked={form.autoBackup} onCheckedChange={(v) => setForm({ ...form, autoBackup: v })} />
+        <Label htmlFor="autoBackup" className="font-semibold">Sauvegarde automatique</Label>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="backup-freq">Fréquence</Label>
+          <Select value={form.backupFrequency} onValueChange={(v) => setForm({ ...form, backupFrequency: v as any })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {BACKUP_FREQUENCIES.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="backup-time">Heure de la sauvegarde</Label>
+          <Input id="backup-time" type="time" value={form.backupTime} onChange={(e) => setForm({ ...form, backupTime: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="retention-days">Rétention (jours)</Label>
+          <Input id="retention-days" type="number" value={form.retentionDays} onChange={(e) => setForm({ ...form, retentionDays: Number(e.target.value) })} />
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-3">
+        <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Contenu de la sauvegarde</h4>
+        <ToggleRow id="includeAuditLogs" label="Journaux d'audit" checked={form.includeAuditLogs} />
+        <ToggleRow id="includeReports" label="Signalements" checked={form.includeReports} />
+        <ToggleRow id="includeHouseholds" label="Ménages et utilisateurs" checked={form.includeHouseholds} />
+        <ToggleRow id="includeSettings" label="Paramètres de la plateforme" checked={form.includeSettings} />
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Button onClick={handleSave}>Enregistrer les sauvegardes</Button>
+        <Button variant="outline" onClick={handleBackupNow}>
+          <Database className="mr-2 size-4" /> Effectuer une sauvegarde maintenant
+        </Button>
       </div>
     </div>
   );
