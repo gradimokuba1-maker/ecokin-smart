@@ -29,11 +29,11 @@ export function getAuthorityDashboardPath(role: Role) {
     case "gouverneur":
       return "/gouverneur";
     case "bourgmestre":
-      return "/autorites";
+      return "/bourgmestre";
     case "admin":
       return "/admin";
     case "agent":
-      return "/situation";
+      return "/agent";
     default:
       return "/autorite";
   }

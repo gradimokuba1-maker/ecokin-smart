@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ShieldCheck, Lock, User } from "lucide-react";
-import { useAccess, AUTH_USERS } from "@/lib/access-store";
+import { useAccess, AUTH_USERS, getAuthorityDashboardPath } from "@/lib/access-store";
 
 export const Route = createFileRoute("/autorite/connexion")({
     validateSearch: (search: Record<string, unknown>): { role: "gouverneur" | "bourgmestre" | "admin" | "agent" } => {
@@ -39,7 +39,7 @@ function AuthorityLoginPage() {
 
     useEffect(() => {
         if (session.role === role) {
-            navigate({ to: `/${role}`, replace: true });
+            navigate({ to: getAuthorityDashboardPath(role), replace: true });
         }
     }, [session.role, role, navigate]);
 
@@ -47,7 +47,7 @@ function AuthorityLoginPage() {
         e.preventDefault();
         if (login(role, identifier, password)) {
             setErr(null);
-            navigate({ to: `/${role}`, replace: true });
+            navigate({ to: getAuthorityDashboardPath(role), replace: true });
         } else {
             setErr("Identifiant ou mot de passe incorrect.");
         }
