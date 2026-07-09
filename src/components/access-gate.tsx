@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Lock, ShieldCheck } from "lucide-react";
 import { useAccess, type Role, ACCESS_CODES } from "@/lib/access-store";
+import { CommuneSelector } from "@/components/commune-selector";
 
 type Props = {
   required: Exclude<Role, "citoyen">[];
@@ -14,9 +15,11 @@ export function AccessGate({ required, title, children }: Props) {
   const [role, setRole] = useState<Exclude<Role, "citoyen">>(required[0]);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [commune, setCommune] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const needsCommune = role === "agent" || role === "bourgmestre";
 
-  if (required.includes(session.role as any) || session.role === "admin") {
+  if ((required.includes(session.role as any) || session.role === "admin") && (session.role !== "agent" && session.role !== "bourgmestre" || session.commune)) {
     return <>{children}</>;
   }
 
@@ -42,10 +45,14 @@ export function AccessGate({ required, title, children }: Props) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (login(role, identifier, password)) {
+              if (needsCommune && !commune) {
+                setErr("Veuillez choisir votre commune avant de continuer.");
+                return;
+              }
+              if (login(role, identifier, password, needsCommune ? commune : undefined)) {
                 setErr(null);
               } else {
-                setErr("Identifiant ou mot de passe incorrect.");
+                setErr("Identifiant, mot de passe ou commune incorrect.");
               }
             }}
             className="mt-5 space-y-3"
@@ -54,7 +61,10 @@ export function AccessGate({ required, title, children }: Props) {
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Rôle</label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as any)}
+                onChange={(e) => {
+                  setRole(e.target.value as any);
+                  setCommune("");
+                }}
                 className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
               >
                 {required.map((r) => (
@@ -84,6 +94,7 @@ export function AccessGate({ required, title, children }: Props) {
                 className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
               />
             </div>
+            {needsCommune && <CommuneSelector value={commune} onChange={setCommune} required />}
             {err && <p className="text-xs font-semibold text-red-600">{err}</p>}
             <button
               type="submit"

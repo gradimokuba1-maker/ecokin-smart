@@ -80,7 +80,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   admin: ["signaler", "export_data", "manage_alerts", "manage_activities", "manage_fleet", "moderate_reports", "reset_data"],
 };
 
-type Session = { role: Role; name: string };
+type Session = { role: Role; name: string; commune?: string };
 const DEFAULT: Session = { role: "citoyen", name: "Citoyen EcoKin" };
 
 function read(): Session {
@@ -97,9 +97,10 @@ export function useAccess() {
   const [session, setSession] = useState<Session>(DEFAULT);
   useEffect(() => setSession(read()), []);
 
-  const login = (role: Exclude<Role, "citoyen">, identifier: string, password?: string) => {
+  const login = (role: Exclude<Role, "citoyen">, identifier: string, password?: string, commune?: string) => {
     const normalizedIdentifier = identifier.trim().toLowerCase();
     const normalizedPassword = password?.trim() ?? "";
+    const normalizedCommune = commune?.trim();
 
     if (password !== undefined) {
       const authUser = AUTH_USERS[role as AuthorityRole];
@@ -111,12 +112,16 @@ export function useAccess() {
       return false;
     }
 
+    if ((role === "agent" || role === "bourgmestre") && !normalizedCommune) {
+      return false;
+    }
+
     const label =
       role === "admin" ? "Administrateur" :
         role === "gouverneur" ? "Cabinet du Gouverneur" :
           role === "bourgmestre" ? "Bourgmestre" :
             "Agent terrain";
-    const next: Session = { role, name: label };
+    const next: Session = { role, name: label, commune: normalizedCommune };
     localStorage.setItem(KEY, JSON.stringify(next));
     setSession(next);
     logAudit({ user: next.name, role, action: "login" });

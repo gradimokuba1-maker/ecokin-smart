@@ -7,9 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AlertTriangle, BarChart3, Building, CheckCircle2, FileDown, Percent } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports } from "@/lib/eco-store";
+import { useAuthorityLocalStore } from "@/lib/authority-local-store";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { InteractiveMap } from "@/components/interactive-map";
+import { WasteReports } from "@/components/waste-reports";
 
 export const Route = createFileRoute("/bourgmestre")({
     head: () => ({
@@ -238,35 +241,136 @@ function RecentReportsTable({ reports }: { reports: ReturnType<typeof useLiveRep
             </CardHeader>
             <CardContent>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                            <tr className="border-b">
-                                <th className="py-2">ID</th>
-                                <th>Catégorie</th>
-                                <th>Urgence</th>
-                                <th>Statut</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {recentReports.map((report) => (
-                                <tr key={report.id} className="border-b border-border/60">
-                                    <td className="py-2 font-mono text-xs">{report.id}</td>
-                                    <td className="capitalize">{report.category}</td>
-                                    <td><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${URGENCY_META[report.urgency]?.bg} ${URGENCY_META[report.urgency]?.color}`}>{URGENCY_META[report.urgency]?.label}</span></td>
-                                    <td><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${report.status === 'terminee' ? 'bg-eco/15 text-eco' : 'bg-slate-500/15 text-slate-600'}`}>{report.status}</span></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <WasteReports reports={recentReports} />
                 </div>
             </CardContent>
         </Card>
     );
 }
 
+function LocalManagement({ commune }: { commune: string }) {
+    const store = useAuthorityLocalStore();
+    const [pme, setPme] = useState({ name: "", manager: "", phone: "" });
+    const [team, setTeam] = useState({ name: "", pmeId: "" });
+    const [agent, setAgent] = useState({ name: "", phone: "", teamId: "" });
+    const [activity, setActivity] = useState({ label: "", teamId: "", agentId: "", status: "planifiee" as const });
+
+    const pmes = store.pmes.filter((item) => item.commune === commune);
+    const teams = store.teams.filter((item) => item.commune === commune);
+    const agents = store.agents.filter((item) => item.commune === commune);
+    const activities = store.activities.filter((item) => item.commune === commune);
+
+    return (
+        <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Gestion locale</CardTitle>
+                    <CardDescription>PME, équipes et agents actifs uniquement dans votre commune.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                    <form
+                        className="grid gap-2 sm:grid-cols-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            if (!pme.name.trim()) return;
+                            store.addPme({ ...pme, commune });
+                            setPme({ name: "", manager: "", phone: "" });
+                        }}
+                    >
+                        <input className="rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2" placeholder="PME de collecte" value={pme.name} onChange={(e) => setPme({ ...pme, name: e.target.value })} />
+                        <input className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Responsable" value={pme.manager} onChange={(e) => setPme({ ...pme, manager: e.target.value })} />
+                        <button className="rounded-lg bg-eco px-3 py-2 text-sm font-bold text-white">Enregistrer PME</button>
+                    </form>
+                    <form
+                        className="grid gap-2 sm:grid-cols-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            if (!team.name.trim()) return;
+                            store.addTeam({ ...team, commune, pmeId: team.pmeId || undefined });
+                            setTeam({ name: "", pmeId: "" });
+                        }}
+                    >
+                        <input className="rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2" placeholder="Équipe de collecte" value={team.name} onChange={(e) => setTeam({ ...team, name: e.target.value })} />
+                        <select className="rounded-lg border bg-background px-3 py-2 text-sm" value={team.pmeId} onChange={(e) => setTeam({ ...team, pmeId: e.target.value })}>
+                            <option value="">PME</option>
+                            {pmes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                        </select>
+                        <button className="rounded-lg bg-eco px-3 py-2 text-sm font-bold text-white">Créer équipe</button>
+                    </form>
+                    <form
+                        className="grid gap-2 sm:grid-cols-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            if (!agent.name.trim()) return;
+                            store.addAgent({ ...agent, commune, teamId: agent.teamId || undefined });
+                            setAgent({ name: "", phone: "", teamId: "" });
+                        }}
+                    >
+                        <input className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Nom agent" value={agent.name} onChange={(e) => setAgent({ ...agent, name: e.target.value })} />
+                        <input className="rounded-lg border bg-background px-3 py-2 text-sm" placeholder="Téléphone" value={agent.phone} onChange={(e) => setAgent({ ...agent, phone: e.target.value })} />
+                        <select className="rounded-lg border bg-background px-3 py-2 text-sm" value={agent.teamId} onChange={(e) => setAgent({ ...agent, teamId: e.target.value })}>
+                            <option value="">Équipe</option>
+                            {teams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                        </select>
+                        <button className="rounded-lg bg-eco px-3 py-2 text-sm font-bold text-white">Ajouter agent</button>
+                    </form>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Activités et effectifs</CardTitle>
+                    <CardDescription>Suivi des activités réalisées par équipe et par agent.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <form
+                        className="grid gap-2 sm:grid-cols-4"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            if (!activity.label.trim()) return;
+                            store.addActivity({ ...activity, commune, teamId: activity.teamId || undefined, agentId: activity.agentId || undefined });
+                            setActivity({ label: "", teamId: "", agentId: "", status: "planifiee" });
+                        }}
+                    >
+                        <input className="rounded-lg border bg-background px-3 py-2 text-sm sm:col-span-2" placeholder="Activité" value={activity.label} onChange={(e) => setActivity({ ...activity, label: e.target.value })} />
+                        <select className="rounded-lg border bg-background px-3 py-2 text-sm" value={activity.teamId} onChange={(e) => setActivity({ ...activity, teamId: e.target.value })}>
+                            <option value="">Équipe</option>
+                            {teams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                        </select>
+                        <button className="rounded-lg bg-eco px-3 py-2 text-sm font-bold text-white">Ajouter activité</button>
+                    </form>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">PME</div><div className="text-2xl font-bold">{pmes.length}</div></div>
+                        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">Équipes</div><div className="text-2xl font-bold">{teams.length}</div></div>
+                        <div className="rounded-xl border p-3"><div className="text-xs text-muted-foreground">Agents</div><div className="text-2xl font-bold">{agents.length}</div></div>
+                    </div>
+                    <div className="max-h-64 overflow-auto rounded-xl border">
+                        <table className="w-full text-sm">
+                            <tbody>
+                                {agents.map((item) => (
+                                    <tr key={item.id} className="border-b">
+                                        <td className="px-3 py-2 font-semibold">{item.name}</td>
+                                        <td className="px-3 py-2 font-mono text-xs">{item.uniqueNumber}</td>
+                                    </tr>
+                                ))}
+                                {activities.map((item) => (
+                                    <tr key={item.id} className="border-b bg-muted/30">
+                                        <td className="px-3 py-2">{item.label}</td>
+                                        <td className="px-3 py-2 text-xs capitalize">{item.status}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
 function BourgmestreDashboard() {
     const { session } = useAccess();
     const { items: liveReports } = useLiveReports();
+    const localStore = useAuthorityLocalStore();
 
     const commune = useMemo(() => COMMUNES.find((c) => c.id === session.commune), [session.commune]);
     const communeName = commune?.name ?? session.commune ?? "Commune";
@@ -285,14 +389,23 @@ function BourgmestreDashboard() {
         const en_attente = communeReports.filter((r) => r.status === "en_attente").length;
         const resolus = communeReports.filter((r) => r.status === "terminee").length;
         const total = communeReports.length;
+        const volume = communeReports.reduce((sum, report) => sum + (report.volumeM3 ?? 0), 0);
+        const pmes = localStore.pmes.filter((item) => item.commune === session.commune).length;
+        const teams = localStore.teams.filter((item) => item.commune === session.commune).length;
+        const agents = localStore.agents.filter((item) => item.commune === session.commune).length;
+        const activities = localStore.activities.filter((item) => item.commune === session.commune).length;
         const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
         return [
-            { title: "Signalements (commune)", value: String(total), icon: AlertTriangle, color: "text-yellow-500" },
+            { title: "Déchets collectés", value: `${Math.round(volume)} m³`, icon: CheckCircle2, color: "text-green-500" },
+            { title: "Points de regroupement", value: String(communeCollectionPoints.filter((p) => p.kind === "regroupement").length), icon: AlertTriangle, color: "text-yellow-500" },
+            { title: "Équipes actives", value: String(teams), icon: Building, color: "text-blue-500" },
+            { title: "PME partenaires", value: String(pmes), icon: Building, color: "text-eco" },
+            { title: "Agents actifs", value: String(agents), icon: CheckCircle2, color: "text-indigo-500" },
+            { title: "Activités en cours", value: String(activities), icon: Percent, color: "text-orange-500" },
             { title: "Signalements en attente", value: String(en_attente), icon: AlertTriangle, color: "text-orange-500" },
-            { title: "Signalements résolus", value: String(resolus), icon: CheckCircle2, color: "text-green-500" },
             { title: "Taux de collecte", value: `${tauxCollecte}%`, icon: Percent, color: "text-indigo-500" },
         ];
-    }, [communeReports]);
+    }, [communeReports, communeCollectionPoints, localStore, session.commune]);
 
     return (
         <>
@@ -333,11 +446,7 @@ function BourgmestreDashboard() {
                                 <CardContent>
                                     <ClientOnly fallback={<div className="h-[400px] animate-pulse rounded-lg bg-muted" />}>
                                         {() => (
-                                            <BourgmestreMap
-                                                commune={commune}
-                                                reports={communeReports}
-                                                collectionPoints={communeCollectionPoints}
-                                            />
+                                            <InteractiveMap commune={session.commune} reports={communeReports} />
                                         )}
                                     </ClientOnly>
                                 </CardContent>
@@ -345,6 +454,11 @@ function BourgmestreDashboard() {
                             <BourgmestreCharts reports={communeReports} />
                             <RecentReportsTable reports={communeReports} />
                         </div>
+                        {session.commune && (
+                            <div className="mt-8">
+                                <LocalManagement commune={session.commune} />
+                            </div>
+                        )}
                     </div>
                 </main>
                 <SiteFooter />

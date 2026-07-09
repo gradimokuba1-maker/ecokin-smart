@@ -1,17 +1,21 @@
 // Mock data for EcoKin Smart — Kinshasa (24 communes)
+import { KINSHASA_COMMUNES } from "./cities";
+
 export type Commune = {
-  id: "matete" | "lemba" | "kisenso";
+  id: string;
   name: string;
   center: [number, number];
   population: string;
   color: string;
 };
 
-export const COMMUNES: Commune[] = [
-  { id: "matete", name: "Matete", center: [-4.3833, 15.3333], population: "≈ 270 000", color: "#10b981" },
-  { id: "lemba", name: "Lemba", center: [-4.3786, 15.2978], population: "≈ 350 000", color: "#0ea5e9" },
-  { id: "kisenso", name: "Kisenso", center: [-4.4156, 15.3361], population: "≈ 450 000", color: "#f59e0b" },
-];
+const COMMUNE_COLORS = ["#10b981", "#0ea5e9", "#f59e0b", "#6366f1", "#ef4444", "#14b8a6", "#8b5cf6", "#84cc16"];
+
+export const COMMUNES: Commune[] = KINSHASA_COMMUNES.map((commune, index) => ({
+  ...commune,
+  population: "Données à consolider",
+  color: COMMUNE_COLORS[index % COMMUNE_COLORS.length],
+}));
 
 export type WasteType =
   | "plastique"
@@ -91,13 +95,73 @@ function seed(commune: Commune, count: number, baseId: number): Report[] {
 export const REPORTS: Report[] = [];
 void seed;
 
-export const COLLECTION_POINTS = [
-  { id: "cp1", name: "Centre de tri Matete", commune: "matete", lat: -4.382, lng: 15.331, kind: "tri" },
-  { id: "cp2", name: "Point de collecte Lemba-Terminus", commune: "lemba", lat: -4.379, lng: 15.295, kind: "collecte" },
-  { id: "cp3", name: "Recyclage Kisenso", commune: "kisenso", lat: -4.413, lng: 15.337, kind: "recyclage" },
-  { id: "cp4", name: "Dépôt Matete-Marché", commune: "matete", lat: -4.386, lng: 15.336, kind: "collecte" },
-  { id: "cp5", name: "Centre de tri Lemba-Université", commune: "lemba", lat: -4.376, lng: 15.300, kind: "tri" },
-];
+export type InfrastructureKind = "transfert" | "regroupement" | "valorisation" | "traitement" | "collecte" | "tri" | "recyclage";
+
+export const COLLECTION_POINTS: {
+  id: string;
+  name: string;
+  commune: string;
+  lat: number;
+  lng: number;
+  kind: InfrastructureKind;
+}[] = COMMUNES.flatMap((commune, index) => {
+  const [lat, lng] = commune.center;
+  const offset = 0.002 + (index % 4) * 0.0004;
+  return [
+    {
+      id: `cp-${commune.id}-regroupement`,
+      name: `Point de regroupement ${commune.name}`,
+      commune: commune.id,
+      lat: lat + offset,
+      lng: lng - offset,
+      kind: "regroupement",
+    },
+    {
+      id: `cp-${commune.id}-collecte`,
+      name: `Zone de collecte ${commune.name}`,
+      commune: commune.id,
+      lat: lat - offset,
+      lng: lng + offset,
+      kind: "collecte",
+    },
+    ...(index % 3 === 0
+      ? [
+          {
+            id: `cp-${commune.id}-transfert`,
+            name: `Centre de transfert ${commune.name}`,
+            commune: commune.id,
+            lat: lat + offset * 1.6,
+            lng: lng + offset,
+            kind: "transfert" as const,
+          },
+        ]
+      : []),
+    ...(index % 4 === 0
+      ? [
+          {
+            id: `cp-${commune.id}-valorisation`,
+            name: `Centre de valorisation ${commune.name}`,
+            commune: commune.id,
+            lat: lat - offset * 1.4,
+            lng: lng - offset,
+            kind: "valorisation" as const,
+          },
+        ]
+      : []),
+    ...(index % 5 === 0
+      ? [
+          {
+            id: `cp-${commune.id}-traitement`,
+            name: `Centre de traitement ${commune.name}`,
+            commune: commune.id,
+            lat: lat,
+            lng: lng + offset * 1.7,
+            kind: "traitement" as const,
+          },
+        ]
+      : []),
+  ];
+});
 
 // Classement citoyens — alimenté par les vrais signalements après réinitialisation.
 export const LEADERBOARD: { rank: number; name: string; commune: string; points: number; reports: number; badges: string[] }[] = [];

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
-import { AUTH_USERS, useAccess } from "@/lib/access-store";
+import { useAccess } from "@/lib/access-store";
 import { LiveReport, STATUS_META, URGENCY_META, useLiveReports } from "@/lib/eco-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Camera, Check, Crosshair, Loader2, MapPinned, Play, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClientOnly } from "@/components/client-only";
+import { InteractiveMap } from "@/components/interactive-map";
+import { InterventionValidation } from "@/components/intervention-validation";
 
 export const Route = createFileRoute("/agent")({
     head: () => ({
@@ -167,11 +169,9 @@ function AgentDashboard() {
         }
     }, []);
 
-    const agentTeam = useMemo(() => (AUTH_USERS.agent as any).team, []);
-
     const assignedReports = useMemo(() => {
-        return allReports.filter((r) => r.team === agentTeam);
-    }, [allReports, agentTeam]);
+        return allReports.filter((r) => !session.commune || r.commune === session.commune);
+    }, [allReports, session.commune]);
 
     const todoReports = useMemo(() => {
         return assignedReports.filter((r) => r.status === "assignee" || r.status === "en_cours");
@@ -193,7 +193,7 @@ function AgentDashboard() {
                                     <UserRound className="size-4" /> Espace Agent de terrain
                                 </div>
                                 <h1 className="mt-2 font-display text-4xl font-bold">Tableau de Bord Opérationnel</h1>
-                                <p className="mt-1 text-muted-foreground">Missions du jour, itinéraires et suivi des interventions.</p>
+                                <p className="mt-1 text-muted-foreground">Missions du jour, signalements et interventions de {session.commune ?? "votre commune"}.</p>
                             </div>
                             <div className="flex items-center gap-2 rounded-xl border bg-background p-2 text-xs">
                                 {geoStatus === "loading" && <><Loader2 className="size-3 animate-spin" /><span>GPS...</span></>}
@@ -229,24 +229,13 @@ function AgentDashboard() {
                                                     <p className="text-xs text-muted-foreground">{report.description}</p>
                                                 </CardContent>
                                                 <CardFooter className="flex flex-wrap gap-2">
-                                                    {report.status === 'assignee' && <Button size="sm" onClick={() => setStatus(report.id, 'en_cours', session.name)}><Play className="mr-1 size-3" /> Démarrer</Button>}
-                                                    {report.status === 'en_cours' && (
-                                                        <>
-                                                            <Button size="sm" variant="outline" onClick={() => setCapturing({ report, type: 'before' })}>
-                                                                <Camera className="mr-1 size-3" /> Avant {report.photoBefore && '✓'}
-                                                            </Button>
-                                                            <Button size="sm" variant="outline" onClick={() => setCapturing({ report, type: 'after' })}>
-                                                                <Camera className="mr-1 size-3" /> Après {report.photoAfter && '✓'}
-                                                            </Button>
-                                                            <Button size="sm" onClick={() => setStatus(report.id, 'terminee', session.name)} className="bg-eco text-white hover:bg-eco/90">
-                                                                <Check className="mr-1 size-3" /> Terminer
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    <div className="flex gap-2 items-center">
-                                                        {report.photoBefore && <img src={report.photoBefore} alt="Avant" className="h-8 w-8 rounded-md object-cover" />}
-                                                        {report.photoAfter && <img src={report.photoAfter} alt="Après" className="h-8 w-8 rounded-md object-cover" />}
-                                                    </div>
+                                                    <InterventionValidation
+                                                        report={report}
+                                                        onStart={() => setStatus(report.id, 'en_cours', session.name)}
+                                                        onCaptureBefore={() => setCapturing({ report, type: 'before' })}
+                                                        onCaptureAfter={() => setCapturing({ report, type: 'after' })}
+                                                        onComplete={() => setStatus(report.id, 'terminee', session.name)}
+                                                    />
                                                 </CardFooter>
                                             </Card>
                                         ))
@@ -258,7 +247,7 @@ function AgentDashboard() {
                                     </CardHeader>
                                     <CardContent>
                                         <ClientOnly fallback={<div className="h-[400px] animate-pulse rounded-lg bg-muted" />}>
-                                            <AgentMap reports={todoReports} userPosition={userPosition} />
+                                            <InteractiveMap commune={session.commune} reports={todoReports} />
                                         </ClientOnly>
                                     </CardContent>
                                 </Card>

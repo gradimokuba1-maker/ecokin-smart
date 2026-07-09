@@ -17,6 +17,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CITY } from "@/lib/cities";
 import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports, WASTE_CATEGORIES } from "@/lib/eco-store";
+import { useAuthorityLocalStore } from "@/lib/authority-local-store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -354,6 +355,7 @@ function ReportsByCategoryChart({ data }: { data: { name: string; value: number 
 }
 
 function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
+  const localStore = useAuthorityLocalStore();
   const reportsByCategory = useMemo(() => {
     const counts = reports.reduce(
       (acc, r) => {
@@ -390,8 +392,63 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
     return Object.entries(resolutionTimesByCommune).map(([commune, durations]) => ({ name: commune, "Temps moyen (h)": Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length) })).sort((a, b) => a["Temps moyen (h)"] - b["Temps moyen (h)"]);
   }, [reports]);
 
+  const communeRows = useMemo(() => {
+    return COMMUNES.map((commune) => {
+      const communeReports = reports.filter((report) => report.commune === commune.id);
+      const resolved = communeReports.filter((report) => report.status === "terminee").length;
+      const performance = communeReports.length > 0 ? Math.round((resolved / communeReports.length) * 100) : 0;
+      return {
+        commune,
+        volume: Math.round(communeReports.reduce((sum, report) => sum + (report.volumeM3 ?? 0), 0)),
+        agents: localStore.agents.filter((item) => item.commune === commune.id).length,
+        pmes: localStore.pmes.filter((item) => item.commune === commune.id).length,
+        teams: localStore.teams.filter((item) => item.commune === commune.id).length,
+        activities: localStore.activities.filter((item) => item.commune === commune.id && item.status !== "terminee").length,
+        performance,
+      };
+    });
+  }, [reports, localStore]);
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Indicateurs comparatifs par commune</CardTitle>
+          <CardDescription>Vision globale du Gouverneur sur les 24 communes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <tr className="border-b">
+                  <th className="py-2">Commune</th>
+                  <th>Déchets collectés</th>
+                  <th>Agents</th>
+                  <th>PME</th>
+                  <th>Équipes</th>
+                  <th>Activités</th>
+                  <th>Performance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {communeRows.map((row) => (
+                  <tr key={row.commune.id} className="border-b border-border/60">
+                    <td className="py-2 font-semibold">{row.commune.name}</td>
+                    <td>{row.volume} m³</td>
+                    <td>{row.agents}</td>
+                    <td>{row.pmes}</td>
+                    <td>{row.teams}</td>
+                    <td>{row.activities}</td>
+                    <td>
+                      <span className="rounded-full bg-eco/10 px-2 py-0.5 text-xs font-bold text-eco">{row.performance}%</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Répartition par Catégorie de Déchet</CardTitle>
