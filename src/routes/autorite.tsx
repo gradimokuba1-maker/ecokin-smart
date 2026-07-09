@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Building2, Lock, ShieldCheck, UserCog, UserRound } from "lucide-react";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/autorite")({
       },
     ],
   }),
-  component: AuthorityIndex,
+  component: AuthorityLayout,
 });
 
 type AuthorityCard = {
@@ -57,10 +57,13 @@ const ACCESS_TYPES: AuthorityCard[] = [
 ];
 
 function AuthorityLayout() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isIndex = pathname === "/autorite";
+
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
-      <Outlet />
+      {isIndex ? <AuthorityIndex /> : <Outlet />}
       <SiteFooter />
     </div>
   );

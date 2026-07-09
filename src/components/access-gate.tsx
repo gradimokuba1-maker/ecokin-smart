@@ -59,7 +59,7 @@ export function AccessGate({ required, title, children }: Props) {
               >
                 {required.map((r) => (
                   <option key={r} value={r}>
-                    {r === "gouverneur" ? "Gouverneur" : r === "bourgmestre" ? "Bourgmestre" : "Administrateur"}
+                    {r === "gouverneur" ? "Gouverneur" : r === "bourgmestre" ? "Bourgmestre" : r === "agent" ? "Agent" : "Administrateur"}
                   </option>
                 ))}
               </select>
@@ -94,7 +94,7 @@ export function AccessGate({ required, title, children }: Props) {
             <details className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
               <summary className="cursor-pointer font-semibold">Identifiants de démonstration</summary>
               <ul className="mt-2 space-y-0.5 font-mono">
-                {Object.entries(ACCESS_CODES).filter(([r]) => r !== "agent").map(([r, c]) => (
+                {Object.entries(ACCESS_CODES).map(([r, c]) => (
                   <li key={r}>{r} : {c}</li>
                 ))}
               </ul>
