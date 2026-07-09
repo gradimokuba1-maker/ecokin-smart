@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { logAudit } from "./audit-log";
 
 export type Urgency = "faible" | "moyen" | "eleve" | "critique";
-export type LiveStatus = "en_attente" | "assignee" | "en_cours" | "terminee";
+export type LiveStatus = "en_attente" | "assignee" | "en_cours" | "terminee" | "rejete";
 
 export type LiveReport = {
   id: string;
@@ -25,6 +25,8 @@ export type LiveReport = {
   team?: string;
   status: LiveStatus;
   history: { at: string; label: string }[];
+  photoBefore?: string;
+  photoAfter?: string;
 };
 
 const KEY = "ecokin_live_reports_v1";
@@ -73,6 +75,8 @@ export function pushLiveReport(input: Omit<LiveReport, "id" | "createdAt" | "ack
     ack: false,
     status: "en_attente",
     history: [{ at: new Date().toISOString(), label: "Signalement reçu" }],
+    photoBefore: undefined,
+    photoAfter: undefined,
   };
   // Auto-assign for high urgency reports
   if (item.urgency === "critique" || item.urgency === "eleve") {
@@ -95,7 +99,7 @@ export function pushLiveReport(input: Omit<LiveReport, "id" | "createdAt" | "ack
         body: `${item.urgency.toUpperCase()} — ${item.category} à ${item.commune}`,
         tag: item.id,
       });
-    } catch {}
+    } catch { }
   }
   return item;
 }
@@ -104,10 +108,10 @@ function update(id: string, patch: Partial<LiveReport>, logMsg?: string) {
   const list = read().map((r) =>
     r.id === id
       ? {
-          ...r,
-          ...patch,
-          history: logMsg ? [...r.history, { at: new Date().toISOString(), label: logMsg }] : r.history,
-        }
+        ...r,
+        ...patch,
+        history: logMsg ? [...r.history, { at: new Date().toISOString(), label: logMsg }] : r.history,
+      }
       : r,
   );
   write(list);
@@ -128,6 +132,12 @@ export function setLiveStatus(id: string, status: LiveStatus, by: string) {
   logAudit({ user: by, role: "autorité", action: "report_status", target: id, details: status });
 }
 
+export function setReportPhoto(id: string, type: 'before' | 'after', photoDataUrl: string, by: string) {
+  const patch = type === 'before' ? { photoBefore: photoDataUrl } : { photoAfter: photoDataUrl };
+  update(id, { ...patch }, `Photo ${type === 'before' ? 'avant' : 'après'} ajoutée par ${by}`);
+  logAudit({ user: by, role: "agent", action: "report_photo", target: id, details: `photo_${type}` });
+}
+
 export function useLiveReports() {
   const [items, setItems] = useState<LiveReport[]>([]);
   useEffect(() => {
@@ -140,7 +150,7 @@ export function useLiveReports() {
       window.removeEventListener("storage", h);
     };
   }, []);
-  return { items, ack: ackLiveReport, assign: assignLiveReport, setStatus: setLiveStatus };
+  return { items, ack: ackLiveReport, assign: assignLiveReport, setStatus: setLiveStatus, setPhoto: setReportPhoto };
 }
 
 export const TEAMS_LIST = TEAMS;
@@ -157,4 +167,5 @@ export const STATUS_META: Record<LiveStatus, { label: string; color: string }> =
   assignee: { label: "Assignée", color: "bg-blue-500/15 text-blue-700" },
   en_cours: { label: "En cours", color: "bg-amber-500/15 text-amber-700" },
   terminee: { label: "Terminée", color: "bg-emerald-500/15 text-emerald-700" },
+  rejete: { label: "Rejeté", color: "bg-red-500/15 text-red-700" },
 };

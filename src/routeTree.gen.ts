@@ -30,6 +30,7 @@ import { Route as AutoritesRouteImport } from './routes/autorites'
 import { Route as AutoriteRouteImport } from './routes/autorite'
 import { Route as AuditRouteImport } from './routes/audit'
 import { Route as AssistantIaRouteImport } from './routes/assistant-ia'
+import { Route as AgentRouteImport } from './routes/agent'
 import { Route as AdminLoginRouteImport } from './routes/admin-login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -140,6 +141,11 @@ const AssistantIaRoute = AssistantIaRouteImport.update({
   path: '/assistant-ia',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentRoute = AgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin-login',
   path: '/admin-login',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-login': typeof AdminLoginRoute
+  '/agent': typeof AgentRoute
   '/assistant-ia': typeof AssistantIaRoute
   '/audit': typeof AuditRoute
   '/autorite': typeof AutoriteRouteWithChildren
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-login': typeof AdminLoginRoute
+  '/agent': typeof AgentRoute
   '/assistant-ia': typeof AssistantIaRoute
   '/audit': typeof AuditRoute
   '/autorite': typeof AutoriteRouteWithChildren
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/admin-login': typeof AdminLoginRoute
+  '/agent': typeof AgentRoute
   '/assistant-ia': typeof AssistantIaRoute
   '/audit': typeof AuditRoute
   '/autorite': typeof AutoriteRouteWithChildren
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-login'
+    | '/agent'
     | '/assistant-ia'
     | '/audit'
     | '/autorite'
@@ -276,6 +286,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-login'
+    | '/agent'
     | '/assistant-ia'
     | '/audit'
     | '/autorite'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/admin-login'
+    | '/agent'
     | '/assistant-ia'
     | '/audit'
     | '/autorite'
@@ -331,6 +343,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AgentRoute: typeof AgentRoute
   AssistantIaRoute: typeof AssistantIaRoute
   AuditRoute: typeof AuditRoute
   AutoriteRoute: typeof AutoriteRouteWithChildren
@@ -503,6 +516,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssistantIaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agent': {
+      id: '/agent'
+      path: '/agent'
+      fullPath: '/agent'
+      preLoaderRoute: typeof AgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin-login': {
       id: '/admin-login'
       path: '/admin-login'
@@ -550,6 +570,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AgentRoute: AgentRoute,
   AssistantIaRoute: AssistantIaRoute,
   AuditRoute: AuditRoute,
   AutoriteRoute: AutoriteRouteWithChildren,

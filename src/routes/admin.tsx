@@ -13,6 +13,7 @@ import {
   Database,
   Gift,
   Settings,
+  Home,
   ShieldCheck,
   TrendingUp,
   User,
@@ -47,6 +48,7 @@ const TABS = [
   { id: "overview", label: "Vue d'ensemble", icon: Activity },
   { id: "ia", label: "Validation IA", icon: Brain },
   { id: "users", label: "Utilisateurs & Rôles", icon: UserCog },
+  { id: "households", label: "Ménages", icon: Home },
   { id: "reports", label: "Signalements", icon: Database },
   { id: "rewards", label: "Récompenses", icon: Gift },
   { id: "settings", label: "Paramètres", icon: Settings },
@@ -56,8 +58,10 @@ function AdminPage() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("overview");
   const { items: reports } = useLiveReports();
   const { households } = useHouseholds();
+  const { totalPaid } = useWasteTax();
   const totalUsers = households.length + Object.keys(AUTH_USERS).length;
   const totalBudget = Object.values(COMMUNE_BUDGET).reduce((s, b) => s + b.mensuel, 0);
+  const kpis = { totalUsers, totalReports: reports.length, totalBudget, totalHouseholds: households.length, totalTaxPaid: totalPaid };
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,9 +96,10 @@ function AdminPage() {
         </aside>
 
         <div className="space-y-6">
-          {tab === "overview" && <Overview reports={reports} kpis={{ totalUsers, totalReports: reports.length, totalBudget }} />}
+          {tab === "overview" && <Overview reports={reports} kpis={kpis} />}
           {tab === "ia" && <IATab />}
           {tab === "users" && <UsersTab />}
+          {tab === "households" && <HouseholdsTab />}
           {tab === "reports" && <ReportsTab />}
           {tab === "rewards" && <RewardsTab />}
           {tab === "settings" && <SettingsTab />}
@@ -173,7 +178,7 @@ function ReportsByStatusChart({ data }: { data: { name: string, value: number }[
   );
 }
 
-function Overview({ kpis, reports }: { kpis: { totalUsers: number; totalReports: number; totalBudget: number }, reports: ReturnType<typeof useLiveReports>['items'] }) {
+function Overview({ kpis, reports }: { kpis: { totalUsers: number; totalReports: number; totalBudget: number; totalHouseholds: number; totalTaxPaid: number }, reports: ReturnType<typeof useLiveReports>['items'] }) {
   const reportsByCommune = useMemo(() => {
     const counts = reports.reduce((acc, r) => { acc[r.commune] = (acc[r.commune] || 0) + 1; return acc; }, {} as Record<string, number>);
     return Object.entries(counts).map(([name, count]) => ({ name, Signalements: count })).sort((a, b) => b.Signalements - a.Signalements);
@@ -189,18 +194,10 @@ function Overview({ kpis, reports }: { kpis: { totalUsers: number; totalReports:
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { l: "Utilisateurs", v: kpis.totalUsers.toLocaleString("fr-FR"), d: "Tous rôles confondus" },
-          {
-            l: "Signalements totaux",
-            v: kpis.totalReports.toLocaleString("fr-FR"),
-            d: "Depuis le lancement",
-          },
-          { l: "Communes actives", v: COMMUNES.length.toString(), d: "Sur 24" },
-          {
-            l: "Budget engagé (mensuel)",
-            v: `${(kpis.totalBudget / 1e6).toFixed(1)} M`,
-            d: "CDF",
-          },
-        ].map((k) => (
+          { l: "Ménages & PME", v: kpis.totalHouseholds.toLocaleString("fr-FR"), d: "Comptes enregistrés" },
+          { l: "Signalements totaux", v: kpis.totalReports.toLocaleString("fr-FR"), d: "Depuis le lancement" },
+          { l: "Recettes taxe (CDF)", v: `${(kpis.totalTaxPaid / 1e6).toFixed(2)} M`, d: "Total perçu" },
+        ].map((k, i) => (
           <div key={k.l} className="rounded-2xl border border-border bg-card p-5">
             <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               {k.l}
@@ -237,6 +234,111 @@ function Overview({ kpis, reports }: { kpis: { totalUsers: number; totalReports:
         </ul>
       </div>
     </>
+  );
+}
+
+function HouseholdsByKindChart({ data }: { data: { name: string, value: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <PieChart>
+        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+          <Cell fill="hsl(var(--eco))" />
+          <Cell fill="hsl(var(--primary))" />
+        </Pie>
+        <Tooltip />
+        <Legend wrapperStyle={{ fontSize: "12px" }} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+function HouseholdsTab() {
+  const { households } = useHouseholds();
+  const [filters, setFilters] = useState({ q: "", commune: "all", kind: "all" });
+
+  const filteredHouseholds = useMemo(() => {
+    return households.filter(h => {
+      if (filters.commune !== 'all' && h.commune !== filters.commune) return false;
+      if (filters.kind !== 'all' && h.kind !== filters.kind) return false;
+      if (filters.q && !`${h.name} ${h.address} ${h.phone}`.toLowerCase().includes(filters.q.toLowerCase())) return false;
+      return true;
+    });
+  }, [households, filters]);
+
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const byKind = useMemo(() => {
+    const menages = households.filter(h => h.kind === 'menage').length;
+    const pme = households.filter(h => h.kind === 'pme').length;
+    return [{ name: 'Ménages', value: menages }, { name: 'PME', value: pme }];
+  }, [households]);
+
+  const byCommune = useMemo(() => {
+    const counts = households.reduce((acc, h) => { acc[h.commune] = (acc[h.commune] || 0) + 1; return acc; }, {} as Record<string, number>);
+    return Object.entries(counts).map(([name, count]) => ({ name, Signalements: count })).sort((a, b) => b.Signalements - a.Signalements);
+  }, [households]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="mb-4 font-display text-lg font-bold">Répartition par type</h3>
+          <HouseholdsByKindChart data={byKind} />
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <h3 className="mb-4 font-display text-lg font-bold">Répartition par commune</h3>
+          <ReportsByCommuneChart data={byCommune} />
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h3 className="mb-4 font-display text-lg font-bold">Gestion des ménages ({filteredHouseholds.length} / {households.length})</h3>
+        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Input placeholder="Rechercher nom, adresse, tél..." value={filters.q} onChange={e => handleFilterChange('q', e.target.value)} />
+          <Select value={filters.commune} onValueChange={v => handleFilterChange('commune', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les communes</SelectItem>
+              {COMMUNES.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filters.kind} onValueChange={v => handleFilterChange('kind', v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="menage">Ménage</SelectItem>
+              <SelectItem value="pme">PME</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="py-2">Nom</th>
+                <th>Type</th>
+                <th>Commune</th>
+                <th>Bac</th>
+                <th>Téléphone</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredHouseholds.slice(0, 100).map((h) => (
+                <tr key={h.id} className="border-b border-border/60">
+                  <td className="py-2 font-semibold">{h.name}</td>
+                  <td className="capitalize">{h.kind}</td>
+                  <td>{h.commune}</td>
+                  <td>{h.binType}</td>
+                  <td className="font-mono text-xs">{h.phone}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }
 
