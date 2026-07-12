@@ -7,10 +7,13 @@
 import type { WasteMaterial, CompositionEntry, Dimensions3D, WeightEstimate } from "./types";
 import { MATERIAL_DENSITIES, calculateWeightFromVolume } from "./types";
 import { detectWasteObjects, calculateCompositionFromDetections, type DetectionResult } from "./detection";
+import type { DetectedObject } from "./detection";
 import { segmentWasteAreas, type SegmentationResult, type SegmentMask } from "./segmentation";
 import { estimateWasteVolume, type DepthEstimate } from "./volume-estimator";
 
 export type QuantificationResult = {
+  /** Objets détectés, avec libellé métier, boîte et confiance. */
+  objects: DetectedObject[];
   // Catégories détectées
   categories: {
     main: WasteMaterial;
@@ -22,7 +25,7 @@ export type QuantificationResult = {
   volume: {
     m3: number;
     confidence: number;
-    method: "lidar" | "depth-api" | "perspective" | "reference" | "estimation";
+    method: "lidar" | "ai-depth" | "depth-api" | "perspective" | "reference" | "estimation";
     dimensions: Dimensions3D;
   };
 
@@ -65,6 +68,7 @@ export type QuantificationOptions = {
 
   // Options de densité
   densityOverrides?: Partial<Record<WasteMaterial, number>>;
+  onProgress?: (message: string) => void;
 };
 
 /**
@@ -81,6 +85,7 @@ export async function quantifyWaste(
   const detectionResult = await detectWasteObjects(imageDataUrl, {
     minConfidence: options?.detectionMinConfidence ?? 0.35,
     modelType: options?.detectionModelType ?? "yolo11",
+    onProgress: options?.onProgress,
   });
 
   // Calculer la composition à partir des détections
@@ -93,7 +98,7 @@ export async function quantifyWaste(
     confidence: obj.confidence,
   }));
 
-  const segmentationResult = await segmentWasteAreas(imageDataUrl, detectionHints);
+  const segmentationResult = await segmentWasteAreas(imageDataUrl, detectionHints, options?.onProgress);
 
   // Étape 3: ESTIMATION DE VOLUME
   const volumeResult = await estimateWasteVolume(imageDataUrl, segmentationResult.segments, {
@@ -138,6 +143,7 @@ export async function quantifyWaste(
   const processingTimeMs = Math.round(performance.now() - startTime);
 
   return {
+    objects: detectionResult.objects,
     categories: {
       main: mainCategory,
       secondary: secondaryCategory,
@@ -338,6 +344,7 @@ export async function quickQuantify(
     weight.confidence * 0.3;
 
   return {
+    objects: detectionResult.objects,
     categories: {
       main: mainCategory,
       secondary: secondaryCategory,

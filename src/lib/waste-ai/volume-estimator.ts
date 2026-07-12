@@ -9,7 +9,7 @@ import type { SegmentMask } from "./segmentation";
 import type { BoundingBox } from "./detection";
 
 export type DepthEstimate = {
-  method: "lidar" | "depth-api" | "perspective" | "reference" | "estimation";
+  method: "lidar" | "ai-depth" | "depth-api" | "perspective" | "reference" | "estimation";
   distanceM: number;         // distance estimée à la caméra
   fieldOfViewDeg: number;    // champ de vision estimé
   dimensions: Dimensions3D;
@@ -49,11 +49,20 @@ export async function estimateWasteVolume(
     depthData?: string;         // données de profondeur JSON (LiDAR/Depth API)
   }
 ): Promise<DepthEstimate> {
-  // Stratégie 1: Utiliser les données de profondeur si disponibles
+  let relativeDepthData: string | undefined;
+
+  // Stratégie 1: utiliser les données métriques du LiDAR si disponibles.
+  // Les cartes Depth Anything sont relatives; elles sont calibrées plus bas
+  // avec la géométrie de la scène, pas confondues avec des mètres.
   if (options?.depthData) {
     try {
-      const depthResult = calculateFromDepthData(options.depthData, segments);
-      if (depthResult.confidence > 0.3) return depthResult;
+      const depth = JSON.parse(options.depthData) as { metric?: boolean };
+      if (depth.metric !== false) {
+        const depthResult = calculateFromDepthData(options.depthData, segments);
+        if (depthResult.confidence > 0.3) return depthResult;
+      } else {
+        relativeDepthData = options.depthData;
+      }
     } catch {
       // Fallback
     }
@@ -73,6 +82,19 @@ export async function estimateWasteVolume(
 
   const fov = 2 * Math.atan(sensorWidth / (2 * focalLength));
   const fovDeg = Math.round(fov * 180 / Math.PI);
+
+  if (relativeDepthData) {
+    const calibrated = calibrateRelativeDepth(relativeDepthData, segments, dims, distanceM);
+    if (calibrated) {
+      return {
+        method: "ai-depth",
+        distanceM: Math.round(distanceM * 100) / 100,
+        fieldOfViewDeg: fovDeg,
+        dimensions: calibrated,
+        confidence: calibrated.confidence,
+      };
+    }
+  }
 
   return {
     method: options?.depthData ? "depth-api" : "perspective",
@@ -367,4 +389,38 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = dataUrl;
   });
+}
+
+/**
+ * Transforme le relief relatif de Depth Anything V2 en hauteur plausible.
+ * La distance et la largeur restent calibrées par la perspective : le modèle
+ * n'est jamais présenté comme une source de profondeur métrique brute.
+ */
+function calibrateRelativeDepth(
+  depthDataJson: string,
+  segments: SegmentMask[],
+  base: Dimensions3D,
+  distanceM: number,
+): Dimensions3D | null {
+  try {
+    const parsed = JSON.parse(depthDataJson) as { depthMap?: number[][] };
+    const values = (parsed.depthMap ?? []).flat().filter((value) => Number.isFinite(value) && value > 0);
+    if (values.length < 20) return null;
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+    const relativeRelief = Math.min(1, Math.sqrt(variance) / Math.max(mean, 0.001));
+    const segmentationFactor = Math.min(1, segments.reduce((sum, segment) => sum + segment.areaRatio, 0) * 3);
+    const heightAvgM = Math.max(0.1, Math.min(distanceM * 0.45, distanceM * (0.06 + relativeRelief * 0.32 + segmentationFactor * 0.12)));
+    const volumeM3 = base.surfaceM2 * heightAvgM;
+    const confidence = Math.min(0.78, Math.max(base.confidence, 0.48 + relativeRelief * 0.25));
+    return {
+      ...base,
+      heightAvgM: Math.round(heightAvgM * 10) / 10,
+      volumeM3: Math.round(volumeM3 * 100) / 100,
+      confidence: Math.round(confidence * 100) / 100,
+      uncertaintyPercent: Math.round((1 - confidence) * 100),
+    };
+  } catch {
+    return null;
+  }
 }

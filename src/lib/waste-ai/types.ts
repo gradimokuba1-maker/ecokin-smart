@@ -12,8 +12,29 @@ export type WasteMaterial =
   | "meuble"
   | "electronique"
   | "construction"
+  | "textile"
+  | "pneu"
+  | "menager"
   | "mixte"
   | "inconnu";
+
+/** Catégories visibles, plus précises que la famille de matériau. */
+export type WasteObjectType =
+  | "plastiques"
+  | "bouteilles_pet"
+  | "sacs_plastiques"
+  | "cartons"
+  | "papiers"
+  | "canettes"
+  | "metaux"
+  | "verre"
+  | "organiques"
+  | "pneus"
+  | "textiles"
+  | "electroniques"
+  | "gravats"
+  | "menagers"
+  | "autres";
 
 export type Severity = "faible" | "modere" | "critique";
 
@@ -98,6 +119,8 @@ export type WasteAnalysisResult = {
   floodRisk: boolean;
   healthRisk: RiskLevel;
   environmentalRisk: RiskLevel;
+  pollutionRisk: RiskLevel;
+  fireRisk: RiskLevel;
   obstructionRisk: RiskLevel;
 
   // Métadonnées
@@ -122,6 +145,9 @@ export const MATERIAL_DENSITIES: Record<WasteMaterial, number> = {
   meuble: 60,       // meubles/encombrants ~60-100 kg/m³
   electronique: 150, // DEEE ~150-250 kg/m³
   construction: 500, // gravats ~500-800 kg/m³
+  textile: 75,
+  pneu: 420,
+  menager: 180,
   mixte: 200,       // mélange ~200-300 kg/m³
   inconnu: 150,     // estimation par défaut
 };

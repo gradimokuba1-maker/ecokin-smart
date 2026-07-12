@@ -1,21 +1,31 @@
-// EcoKin Smart — Détection d'objets type YOLOv8/YOLO11
-// Identifie les déchets dans l'image avec bounding boxes, classes et scores de confiance
+/**
+ * Détection des déchets.
+ *
+ * Le premier passage utilise YOLO11 ONNX dans le navigateur. Un second passage
+ * de détection à vocabulaire ouvert complète les classes COCO de YOLO11 pour
+ * les catégories métier (sacs, cartons, textiles, gravats, etc.). Les poids
+ * ne sont téléchargés qu'au premier signalement et sont mis en cache par le
+ * navigateur et par les promesses de ce module.
+ */
 
-import type { WasteMaterial } from "./types";
+import type { WasteMaterial, WasteObjectType } from "./types";
 
 export type BoundingBox = {
-  x: number;      // centre x (ratio 0-1)
-  y: number;      // centre y (ratio 0-1)
-  width: number;  // largeur (ratio 0-1)
-  height: number; // hauteur (ratio 0-1)
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 export type DetectedObject = {
   classId: number;
+  /** Famille utilisée pour la composition et la densité. */
   label: WasteMaterial;
-  confidence: number; // 0-1
+  /** Libellé métier affiché à l’utilisateur. */
+  displayLabel: WasteObjectType;
+  confidence: number;
   bbox: BoundingBox;
-  area: number;       // surface relative dans l'image (0-1)
+  area: number;
 };
 
 export type DetectionResult = {
@@ -24,467 +34,271 @@ export type DetectionResult = {
   imageWidth: number;
   imageHeight: number;
   processingTimeMs: number;
-  modelUsed: "yolov8" | "yolo11" | "ai-gateway" | "fallback";
-  confidence: number; // confiance globale de la détection
+  modelUsed: "yolo11" | "zero-shot" | "ai-gateway" | "fallback";
+  confidence: number;
 };
 
-// Mapping des classes YOLO vers nos catégories de déchets
-// Basé sur un modèle personnalisé entraîné sur des déchets
-const YOLO_CLASS_MAP: Record<number, WasteMaterial> = {
-  0: "plastique",     // bouteille plastique, sac plastique
-  1: "plastique",     // emballage plastique
-  2: "carton",        // carton, boîte
-  3: "papier",        // papier, journal
-  4: "verre",         // bouteille verre, débris verre
-  5: "metal",         // canette, métal
-  6: "organique",     // déchets alimentaires
-  7: "dangereux",     // batterie, chimique
-  8: "meuble",        // meuble, matelas
-  9: "electronique",  // appareil électronique
-  10: "construction", // gravats, brique
-  11: "mixte",        // sac poubelle mélangé
-  12: "plastique",    // film plastique
-  13: "carton",       // emballage carton
-  14: "metal",        // ferraille
-  15: "organique",    // déchet vert
+type RawModelDetection = {
+  label: string;
+  score: number;
+  box: { xmin: number; ymin: number; xmax: number; ymax: number };
 };
 
-/**
- * Analyse l'image avec un modèle YOLO via l'API gateway
- * ou utilise une détection par traitement d'image côté client
- */
-export async function detectWasteObjects(
-  imageDataUrl: string,
-  options?: {
-    modelType?: "yolov8" | "yolo11";
-    minConfidence?: number;
-  }
-): Promise<DetectionResult> {
-  const startTime = performance.now();
-  const minConfidence = options?.minConfidence ?? 0.35;
-  const modelType = options?.modelType ?? "yolo11";
+type ObjectDetector = (
+  image: string,
+  options?: { threshold?: number },
+) => Promise<RawModelDetection[]>;
 
-  try {
-    // Tentative via l'API gateway Lovable avec un prompt spécialisé YOLO
-    const key = typeof process !== "undefined" ? process.env.LOVABLE_API_KEY : undefined;
-    if (key) {
-      const result = await detectViaAIGateway(imageDataUrl, key, modelType, minConfidence);
-      if (result.objects.length > 0) {
-        result.processingTimeMs = Math.round(performance.now() - startTime);
-        return result;
-      }
-    }
-  } catch {
-    // Fallback à la détection client
-  }
+type ZeroShotDetector = (
+  image: string,
+  labels: string[],
+  options?: { threshold?: number },
+) => Promise<RawModelDetection[]>;
 
-  // Détection côté client par analyse d'image
-  const result = await detectClientSide(imageDataUrl, minConfidence);
-  result.processingTimeMs = Math.round(performance.now() - startTime);
-  return result;
+type WasteClass = {
+  displayLabel: WasteObjectType;
+  material: WasteMaterial;
+  aliases: string[];
+};
+
+const WASTE_CLASSES: WasteClass[] = [
+  { displayLabel: "bouteilles_pet", material: "plastique", aliases: ["bottle", "plastic bottle", "PET bottle"] },
+  { displayLabel: "sacs_plastiques", material: "plastique", aliases: ["plastic bag", "bag", "garbage bag"] },
+  { displayLabel: "plastiques", material: "plastique", aliases: ["plastic", "cup", "packaging"] },
+  { displayLabel: "cartons", material: "carton", aliases: ["cardboard", "box", "carton"] },
+  { displayLabel: "papiers", material: "papier", aliases: ["paper", "book", "newspaper"] },
+  { displayLabel: "canettes", material: "metal", aliases: ["can", "tin can", "aluminum can"] },
+  { displayLabel: "metaux", material: "metal", aliases: ["metal", "scrap metal", "metal waste"] },
+  { displayLabel: "verre", material: "verre", aliases: ["glass", "wine glass", "glass bottle"] },
+  { displayLabel: "organiques", material: "organique", aliases: ["organic waste", "food waste", "vegetation"] },
+  { displayLabel: "pneus", material: "pneu", aliases: ["tire", "tyre"] },
+  { displayLabel: "textiles", material: "textile", aliases: ["textile", "clothes", "fabric"] },
+  { displayLabel: "electroniques", material: "electronique", aliases: ["electronic waste", "cell phone", "laptop", "tv"] },
+  { displayLabel: "gravats", material: "construction", aliases: ["rubble", "construction waste", "brick"] },
+  { displayLabel: "menagers", material: "menager", aliases: ["household waste", "garbage", "trash"] },
+  { displayLabel: "autres", material: "mixte", aliases: ["waste", "mixed waste"] },
+];
+
+let yoloPromise: Promise<ObjectDetector> | null = null;
+let zeroShotPromise: Promise<ZeroShotDetector> | null = null;
+
+function normalize(value: string) {
+  return value.trim().toLowerCase().replace(/[_-]/g, " ");
 }
 
-/**
- * Détection via l'API gateway avec un prompt spécialisé
- */
-async function detectViaAIGateway(
-  imageDataUrl: string,
-  apiKey: string,
-  modelType: string,
-  minConfidence: number
-): Promise<DetectionResult> {
-  const systemPrompt = `Tu es un modèle de détection d'objets YOLO spécialisé dans les déchets.
-Analyse l'image et retourne UNIQUEMENT un JSON valide avec la liste des objets détectés.
-
-Format de réponse:
-{
-  "objects": [
-    {
-      "classId": 0-15,
-      "label": "plastique|carton|papier|verre|metal|organique|dangereux|meuble|electronique|construction|mixte",
-      "confidence": 0.95,
-      "bbox": { "x": 0.5, "y": 0.5, "width": 0.3, "height": 0.4 }
-    }
-  ],
-  "imageWidth": 1920,
-  "imageHeight": 1080
+function classFromLabel(value: string): WasteClass {
+  const normalized = normalize(value);
+  return WASTE_CLASSES.find((entry) => entry.aliases.some((alias) => normalized.includes(normalize(alias))))
+    ?? WASTE_CLASSES[WASTE_CLASSES.length - 1];
 }
 
-RÈGLES:
-- classId: 0=plastique, 1=carton, 2=papier, 3=verre, 4=metal, 5=organique, 6=dangereux, 7=meuble, 8=electronique, 9=construction, 10=mixte
-- bbox: coordonnées normalisées (0-1), centre + dimensions
-- confidence: entre 0 et 1, minimum ${minConfidence}
-- Ne détecte QUE les déchets, pas les éléments du décor
-- Sois précis: ne détecte que ce qui est clairement visible`;
+function classIdFor(type: WasteObjectType) {
+  return Math.max(0, WASTE_CLASSES.findIndex((entry) => entry.displayLabel === type));
+}
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Lovable-API-Key": apiKey },
-    body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Détecte les objets déchets dans cette image au format YOLO." },
-            { type: "image_url", image_url: { url: imageDataUrl } },
-          ],
-        },
-      ],
-    }),
+function loadImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve({ width: image.width, height: image.height });
+    image.onerror = reject;
+    image.src = dataUrl;
   });
+}
 
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-
-  const json = await res.json();
-  const content = json?.choices?.[0]?.message?.content ?? "{}";
-  const parsed = JSON.parse(content);
-
-  const objects: DetectedObject[] = (parsed.objects ?? [])
-    .filter((o: any) => o.confidence >= minConfidence)
-    .map((o: any) => ({
-      classId: o.classId ?? 0,
-      label: (o.label ?? "inconnu") as WasteMaterial,
-      confidence: Math.min(1, Math.max(0, Number(o.confidence))),
-      bbox: {
-        x: Math.min(1, Math.max(0, Number(o.bbox?.x ?? 0.5))),
-        y: Math.min(1, Math.max(0, Number(o.bbox?.y ?? 0.5))),
-        width: Math.min(1, Math.max(0.01, Number(o.bbox?.width ?? 0.1))),
-        height: Math.min(1, Math.max(0.01, Number(o.bbox?.height ?? 0.1))),
-      },
-      area: 0, // calculé après
-    }));
-
-  // Calculer l'aire pour chaque objet
-  for (const obj of objects) {
-    obj.area = obj.bbox.width * obj.bbox.height;
-  }
+function toObject(raw: RawModelDetection, imageWidth: number, imageHeight: number): DetectedObject | null {
+  const mapped = classFromLabel(raw.label);
+  const score = Math.max(0, Math.min(1, Number(raw.score)));
+  const xmin = Math.max(0, Math.min(imageWidth, Number(raw.box.xmin)));
+  const ymin = Math.max(0, Math.min(imageHeight, Number(raw.box.ymin)));
+  const xmax = Math.max(xmin, Math.min(imageWidth, Number(raw.box.xmax)));
+  const ymax = Math.max(ymin, Math.min(imageHeight, Number(raw.box.ymax)));
+  const width = (xmax - xmin) / imageWidth;
+  const height = (ymax - ymin) / imageHeight;
+  if (!Number.isFinite(score) || width <= 0 || height <= 0) return null;
 
   return {
-    objects,
-    totalObjects: objects.length,
-    imageWidth: parsed.imageWidth ?? 1920,
-    imageHeight: parsed.imageHeight ?? 1080,
-    processingTimeMs: 0,
-    modelUsed: "ai-gateway",
-    confidence: objects.length > 0
-      ? objects.reduce((sum: number, o: DetectedObject) => sum + o.confidence, 0) / objects.length
-      : 0,
+    classId: classIdFor(mapped.displayLabel),
+    label: mapped.material,
+    displayLabel: mapped.displayLabel,
+    confidence: score,
+    bbox: {
+      x: xmin / imageWidth + width / 2,
+      y: ymin / imageHeight + height / 2,
+      width,
+      height,
+    },
+    area: width * height,
   };
 }
 
-/**
- * Détection côté client par analyse de l'image sur canvas
- * Utilise des techniques de traitement d'image pour identifier
- * les zones de déchets par analyse de texture, couleur et contraste
- */
-async function detectClientSide(
-  imageDataUrl: string,
-  minConfidence: number
-): Promise<DetectionResult> {
-  const img = await loadImage(imageDataUrl);
-  const canvas = document.createElement("canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(img, 0, 0);
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const pixels = imageData.data;
-
-  // Analyse par grille: diviser l'image en cellules et analyser chaque cellule
-  const gridSize = 7; // 7x7 grid comme YOLO
-  const cellW = canvas.width / gridSize;
-  const cellH = canvas.height / gridSize;
-
-  const objects: DetectedObject[] = [];
-
-  for (let gy = 0; gy < gridSize; gy++) {
-    for (let gx = 0; gx < gridSize; gx++) {
-      const startX = Math.floor(gx * cellW);
-      const startY = Math.floor(gy * cellH);
-      const endX = Math.floor((gx + 1) * cellW);
-      const endY = Math.floor((gy + 1) * cellH);
-
-      // Analyser la cellule
-      const cellAnalysis = analyzeCell(pixels, canvas.width, canvas.height, startX, startY, endX, endY);
-
-      if (cellAnalysis.isWaste && cellAnalysis.confidence >= minConfidence) {
-        const bbox: BoundingBox = {
-          x: ((gx + 0.5) * cellW) / canvas.width,
-          y: ((gy + 0.5) * cellH) / canvas.height,
-          width: cellW / canvas.width,
-          height: cellH / canvas.height,
-        };
-
-        objects.push({
-          classId: cellAnalysis.classId,
-          label: cellAnalysis.material,
-          confidence: cellAnalysis.confidence,
-          bbox,
-          area: bbox.width * bbox.height,
-        });
-      }
-    }
-  }
-
-  // Fusionner les objets adjacents (NMS simplifié)
-  const merged = mergeOverlappingObjects(objects, 0.3);
-
-  return {
-    objects: merged,
-    totalObjects: merged.length,
-    imageWidth: canvas.width,
-    imageHeight: canvas.height,
-    processingTimeMs: 0,
-    modelUsed: "fallback",
-    confidence: merged.length > 0
-      ? merged.reduce((sum: number, o: DetectedObject) => sum + o.confidence, 0) / merged.length
-      : 0,
-  };
-}
-
-/**
- * Analyse une cellule de l'image pour détecter si elle contient des déchets
- */
-function analyzeCell(
-  pixels: Uint8ClampedArray,
-  imgWidth: number,
-  imgHeight: number,
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number
-): { isWaste: boolean; confidence: number; material: WasteMaterial; classId: number } {
-  let totalPixels = 0;
-  let rSum = 0, gSum = 0, bSum = 0;
-  let darkPixels = 0;
-  let highContrastPixels = 0;
-  let brownPixels = 0;
-  let greenPixels = 0;
-  let bluePixels = 0;
-  let whitePixels = 0;
-  let grayPixels = 0;
-
-  for (let y = startY; y < endY; y++) {
-    for (let x = startX; x < endX; x++) {
-      const idx = (y * imgWidth + x) * 4;
-      const r = pixels[idx];
-      const g = pixels[idx + 1];
-      const b = pixels[idx + 2];
-
-      totalPixels++;
-      rSum += r;
-      gSum += g;
-      bSum += b;
-
-      const brightness = (r + g + b) / 3;
-      const isDark = brightness < 80;
-      if (isDark) darkPixels++;
-
-      // Détection de couleurs caractéristiques
-      const isBrown = r > 100 && g > 60 && g < 150 && b < 80;
-      const isGreen = g > r && g > b && g > 100;
-      const isBlue = b > r && b > g && b > 100;
-      const isWhite = brightness > 200;
-      const isGray = Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && brightness > 80 && brightness < 200;
-
-      if (isBrown) brownPixels++;
-      if (isGreen) greenPixels++;
-      if (isBlue) bluePixels++;
-      if (isWhite) whitePixels++;
-      if (isGray) grayPixels++;
-    }
-  }
-
-  if (totalPixels === 0) return { isWaste: false, confidence: 0, material: "inconnu", classId: 11 };
-
-  const darkRatio = darkPixels / totalPixels;
-  const brownRatio = brownPixels / totalPixels;
-  const greenRatio = greenPixels / totalPixels;
-  const blueRatio = bluePixels / totalPixels;
-  const whiteRatio = whitePixels / totalPixels;
-  const grayRatio = grayPixels / totalPixels;
-
-  const avgR = rSum / totalPixels;
-  const avgG = gSum / totalPixels;
-  const avgB = bSum / totalPixels;
-
-  // Logique de classification basée sur les caractéristiques visuelles
-  let isWaste = false;
-  let confidence = 0;
-  let material: WasteMaterial = "inconnu";
-  let classId = 11;
-
-  // Sacs plastiques noirs (très communs à Kinshasa)
-  if (darkRatio > 0.4 && avgR < 60 && avgG < 60 && avgB < 60) {
-    isWaste = true;
-    confidence = 0.5 + darkRatio * 0.3;
-    material = "plastique";
-    classId = 0;
-  }
-  // Déchets organiques / boue
-  else if (brownRatio > 0.3) {
-    isWaste = true;
-    confidence = 0.4 + brownRatio * 0.3;
-    material = "organique";
-    classId = 6;
-  }
-  // Déchets verts (végétation)
-  else if (greenRatio > 0.4) {
-    isWaste = true;
-    confidence = 0.3 + greenRatio * 0.2;
-    material = "organique";
-    classId = 6;
-  }
-  // Matériaux de construction (gris)
-  else if (grayRatio > 0.3 && avgR > 80 && avgR < 180) {
-    isWaste = true;
-    confidence = 0.3 + grayRatio * 0.2;
-    material = "construction";
-    classId = 10;
-  }
-  // Papier/carton (brun clair)
-  else if (brownRatio > 0.2 && avgR > 120 && avgG > 100) {
-    isWaste = true;
-    confidence = 0.3 + brownRatio * 0.2;
-    material = "carton";
-    classId = 2;
-  }
-  // Plastiques clairs / blancs
-  else if (whiteRatio > 0.3) {
-    isWaste = true;
-    confidence = 0.3 + whiteRatio * 0.2;
-    material = "plastique";
-    classId = 0;
-  }
-  // Métal (gris brillant)
-  else if (grayRatio > 0.2 && avgR > 100) {
-    isWaste = true;
-    confidence = 0.25 + grayRatio * 0.15;
-    material = "metal";
-    classId = 4;
-  }
-  // Zone mixte (plusieurs couleurs)
-  else if (darkRatio > 0.2 && (brownRatio > 0.1 || greenRatio > 0.1 || blueRatio > 0.1)) {
-    isWaste = true;
-    confidence = 0.3;
-    material = "mixte";
-    classId = 11;
-  }
-
-  return { isWaste, confidence: Math.min(confidence, 0.95), material, classId };
-}
-
-/**
- * Fusionne les objets qui se chevauchent (Non-Maximum Suppression simplifié)
- */
-function mergeOverlappingObjects(objects: DetectedObject[], iouThreshold: number): DetectedObject[] {
-  if (objects.length <= 1) return objects;
-
-  const sorted = [...objects].sort((a, b) => b.confidence - a.confidence);
-  const merged: DetectedObject[] = [];
-
-  for (const obj of sorted) {
-    let shouldMerge = false;
-    for (const existing of merged) {
-      const iou = calculateIoU(obj.bbox, existing.bbox);
-      if (iou > iouThreshold) {
-        shouldMerge = true;
-        // Améliorer la confiance si même classe
-        if (obj.label === existing.label && obj.confidence > existing.confidence) {
-          existing.confidence = obj.confidence;
-          existing.bbox = obj.bbox;
-        }
-        break;
-      }
-    }
-    if (!shouldMerge) {
-      merged.push(obj);
-    }
-  }
-
-  return merged;
-}
-
-/**
- * Calcule l'Intersection over Union entre deux bounding boxes
- */
-function calculateIoU(a: BoundingBox, b: BoundingBox): number {
+function iou(a: BoundingBox, b: BoundingBox) {
   const ax1 = a.x - a.width / 2;
   const ay1 = a.y - a.height / 2;
   const ax2 = a.x + a.width / 2;
   const ay2 = a.y + a.height / 2;
-
   const bx1 = b.x - b.width / 2;
   const by1 = b.y - b.height / 2;
   const bx2 = b.x + b.width / 2;
   const by2 = b.y + b.height / 2;
-
-  const xi1 = Math.max(ax1, bx1);
-  const yi1 = Math.max(ay1, by1);
-  const xi2 = Math.min(ax2, bx2);
-  const yi2 = Math.min(ay2, by2);
-
-  const intersection = Math.max(0, xi2 - xi1) * Math.max(0, yi2 - yi1);
-  const union = (ax2 - ax1) * (ay2 - ay1) + (bx2 - bx1) * (by2 - by1) - intersection;
-
+  const intersection = Math.max(0, Math.min(ax2, bx2) - Math.max(ax1, bx1)) * Math.max(0, Math.min(ay2, by2) - Math.max(ay1, by1));
+  const union = a.width * a.height + b.width * b.height - intersection;
   return union > 0 ? intersection / union : 0;
 }
 
-/**
- * Charge une image à partir d'une data URL
- */
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+/** Fusionne les boîtes équivalentes issues de YOLO11 et du détecteur ouvert. */
+function deduplicate(objects: DetectedObject[]) {
+  const kept: DetectedObject[] = [];
+  for (const candidate of [...objects].sort((a, b) => b.confidence - a.confidence)) {
+    const equivalent = kept.find((item) => item.displayLabel === candidate.displayLabel && iou(item.bbox, candidate.bbox) > 0.45);
+    if (!equivalent) kept.push(candidate);
+  }
+  return kept;
+}
+
+async function getYolo11(onProgress?: (message: string) => void) {
+  if (!yoloPromise) {
+    yoloPromise = import("@huggingface/transformers").then(async ({ pipeline }) => {
+      onProgress?.("Chargement de YOLO11…");
+      return (await pipeline("object-detection", "webnn/yolo11n", {
+        dtype: "q8",
+        progress_callback: () => onProgress?.("Préparation de YOLO11…"),
+      })) as unknown as ObjectDetector;
+    });
+  }
+  return yoloPromise;
+}
+
+async function getZeroShot(onProgress?: (message: string) => void) {
+  if (!zeroShotPromise) {
+    zeroShotPromise = import("@huggingface/transformers").then(async ({ pipeline }) => {
+      onProgress?.("Chargement du classifieur de déchets…");
+      return (await pipeline("zero-shot-object-detection", "Xenova/owlvit-base-patch32", {
+        dtype: "q8",
+        progress_callback: () => onProgress?.("Identification des catégories de déchets…"),
+      })) as unknown as ZeroShotDetector;
+    });
+  }
+  return zeroShotPromise;
+}
+
+async function detectWithModels(
+  imageDataUrl: string,
+  minimumConfidence: number,
+  onProgress?: (message: string) => void,
+): Promise<{ objects: DetectedObject[]; modelUsed: DetectionResult["modelUsed"]; imageWidth: number; imageHeight: number }> {
+  const { width, height } = await loadImageSize(imageDataUrl);
+  const yolo = await getYolo11(onProgress);
+  onProgress?.("Détection YOLO11 des objets…");
+  const yoloObjects = (await yolo(imageDataUrl, { threshold: minimumConfidence }))
+    .map((item) => toObject(item, width, height))
+    .filter((item): item is DetectedObject => item !== null);
+
+  // YOLO11 fournit la localisation rapide; OWL-ViT ajoute les catégories
+  // spécifiques aux déchets qui n'existent pas toutes dans COCO.
+  const zeroShot = await getZeroShot(onProgress);
+  const candidateLabels = Array.from(new Set(WASTE_CLASSES.flatMap((entry) => entry.aliases.slice(0, 2))));
+  const semanticObjects = (await zeroShot(imageDataUrl, candidateLabels, { threshold: minimumConfidence }))
+    .map((item) => toObject(item, width, height))
+    .filter((item): item is DetectedObject => item !== null);
+
+  return {
+    objects: deduplicate([...yoloObjects, ...semanticObjects]),
+    modelUsed: semanticObjects.length > 0 ? "zero-shot" : "yolo11",
+    imageWidth: width,
+    imageHeight: height,
+  };
+}
+
+/** Fallback local sans réseau/modèle, conservé pour les usages hors ligne. */
+async function detectFallback(imageDataUrl: string): Promise<DetectionResult> {
+  const { width, height } = await loadImageSize(imageDataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas 2D unavailable");
+  context.drawImage(await loadImage(dataUrlToImageSource(imageDataUrl)), 0, 0);
+  const pixels = context.getImageData(0, 0, width, height).data;
+  let dark = 0;
+  for (let index = 0; index < pixels.length; index += 4) {
+    if ((pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3 < 95) dark += 1;
+  }
+  const ratio = dark / (pixels.length / 4);
+  const object: DetectedObject = {
+    classId: classIdFor("menagers"),
+    label: "menager",
+    displayLabel: "menagers",
+    confidence: Math.min(0.55, 0.25 + ratio),
+    bbox: { x: 0.5, y: 0.58, width: 0.7, height: 0.45 },
+    area: 0.315,
+  };
+  return {
+    objects: ratio > 0.08 ? [object] : [],
+    totalObjects: ratio > 0.08 ? 1 : 0,
+    imageWidth: width,
+    imageHeight: height,
+    processingTimeMs: 0,
+    modelUsed: "fallback",
+    confidence: ratio > 0.08 ? object.confidence : 0,
+  };
+}
+
+function dataUrlToImageSource(dataUrl: string) {
+  return dataUrl;
+}
+
+function loadImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = dataUrl;
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = source;
   });
 }
 
 /**
- * Calcule la composition à partir des objets détectés
+ * Détecte les objets visibles avec YOLO11 et enrichit les libellés de déchets
+ * par un détecteur à vocabulaire ouvert. En cas d'échec, le signalement reste
+ * utilisable grâce au fallback local.
  */
-export function calculateCompositionFromDetections(
-  objects: DetectedObject[]
-): { material: WasteMaterial; percentage: number }[] {
-  if (objects.length === 0) {
-    return [{ material: "inconnu", percentage: 100 }];
+export async function detectWasteObjects(
+  imageDataUrl: string,
+  options?: { modelType?: "yolov8" | "yolo11"; minConfidence?: number; onProgress?: (message: string) => void },
+): Promise<DetectionResult> {
+  const startedAt = performance.now();
+  const minimumConfidence = options?.minConfidence ?? 0.35;
+  try {
+    const result = await detectWithModels(imageDataUrl, minimumConfidence, options?.onProgress);
+    const confidence = result.objects.length
+      ? result.objects.reduce((sum, item) => sum + item.confidence, 0) / result.objects.length
+      : 0;
+    return {
+      ...result,
+      totalObjects: result.objects.length,
+      confidence: Math.round(confidence * 100) / 100,
+      processingTimeMs: Math.round(performance.now() - startedAt),
+    };
+  } catch (error) {
+    console.warn("YOLO11 detection unavailable; using offline fallback", error);
+    const fallback = await detectFallback(imageDataUrl);
+    return { ...fallback, processingTimeMs: Math.round(performance.now() - startedAt) };
   }
+}
 
-  // Grouper par matériau et sommer les aires
-  const materialAreas = new Map<WasteMaterial, number>();
-  let totalArea = 0;
-
-  for (const obj of objects) {
-    const current = materialAreas.get(obj.label) ?? 0;
-    const weightedArea = obj.area * obj.confidence;
-    materialAreas.set(obj.label, current + weightedArea);
-    totalArea += weightedArea;
+/** Calcule la composition pondérée par aire et par confiance. */
+export function calculateCompositionFromDetections(objects: DetectedObject[]) {
+  if (objects.length === 0) return [{ material: "inconnu" as WasteMaterial, percentage: 100 }];
+  const totals = new Map<WasteMaterial, number>();
+  let total = 0;
+  for (const object of objects) {
+    const weightedArea = object.area * object.confidence;
+    totals.set(object.label, (totals.get(object.label) ?? 0) + weightedArea);
+    total += weightedArea;
   }
-
-  if (totalArea === 0) {
-    return [{ material: "inconnu", percentage: 100 }];
-  }
-
-  // Convertir en pourcentages
-  const composition = Array.from(materialAreas.entries())
-    .map(([material, area]) => ({
-      material,
-      percentage: Math.round((area / totalArea) * 100),
-    }))
+  if (total === 0) return [{ material: "inconnu" as WasteMaterial, percentage: 100 }];
+  const composition = Array.from(totals, ([material, area]) => ({ material, percentage: Math.round((area / total) * 100) }))
     .sort((a, b) => b.percentage - a.percentage);
-
-  // Normaliser à 100%
-  const totalPct = composition.reduce((sum, c) => sum + c.percentage, 0);
-  if (totalPct !== 100 && composition.length > 0) {
-    const diff = 100 - totalPct;
-    composition[0].percentage += diff;
-  }
-
-  return composition.filter((c) => c.percentage > 0);
+  const correction = 100 - composition.reduce((sum, item) => sum + item.percentage, 0);
+  if (composition[0]) composition[0].percentage += correction;
+  return composition;
 }
