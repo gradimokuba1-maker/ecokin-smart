@@ -1,627 +1,614 @@
-// EcoKin Smart — SmartWasteCamera : Capture intelligente avec analyse 3D intégrée
-// Détection automatique des capacités du téléphone (LiDAR, ARCore, basique)
-// Demande groupée des permissions : caméra, GPS (précise), profondeur
+// Capture intelligente : permissions explicites, GPS, profondeur native/WebXR
+// et estimation de profondeur IA pour les appareils sans capteur exploitable.
 
-import { useRef, useState, useEffect, useCallback } from "react";
-import { Camera, ImageIcon, Loader2, Smartphone, Tablet, AlertTriangle, CheckCircle2, RotateCcw, Layers, MapPin, Box, XCircle, Shield, Video } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  AlertTriangle,
+  Camera,
+  CheckCircle2,
+  Clock3,
+  Compass,
+  Crosshair,
+  ImageIcon,
+  Images,
+  Layers3,
+  Loader2,
+  MapPin,
+  Navigation,
+  RotateCcw,
+  Ruler,
+  ScanLine,
+  Sparkles,
+  Video,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { detectDeviceCapability, estimateVolumeFromImage, type DeviceCapability } from "@/lib/waste-ai/depth-analyzer";
-import { requestGPSPosition, buildLocationInfo, type GPSState } from "@/lib/waste-ai/gps-location";
+import {
+  acquireNativeDepth,
+  estimateDepthWithAI,
+  type DepthAcquisition,
+  type DepthSource,
+} from "@/lib/waste-ai/depth-acquisition";
+import { buildLocationInfo, requestGPSPosition, type GPSState } from "@/lib/waste-ai/gps-location";
 import type { CameraCapability, LocationInfo } from "@/lib/waste-ai/types";
-import { usePermissions, type PermissionStatus } from "@/lib/waste-ai/use-permissions";
 
 export type CaptureResult = {
   imageDataUrl: string;
   additionalImages: string[];
   cameraCapability: CameraCapability;
-  location: LocationInfo | null;
+  depthSource: DepthSource;
   depthData?: string;
+  location: LocationInfo | null;
   captureMode: "single" | "multi" | "video";
   capturedAt: string;
   videoDurationSeconds?: number;
+  videoBlob?: Blob;
+  videoPreviewUrl?: string;
+  imageQuality: "excellent" | "correct" | "faible";
 };
+
+type CaptureMode = CaptureResult["captureMode"];
+type PermissionStatus = "idle" | "requesting" | "granted" | "denied" | "unavailable";
+type ImageQuality = CaptureResult["imageQuality"];
 
 type Props = {
   onCapture: (result: CaptureResult) => void;
   disabled?: boolean;
 };
 
+const MAX_VIDEO_SECONDS = 12;
+const MULTI_PHOTO_COUNT = 3;
+
+function getPermissionStatus(error: unknown): PermissionStatus {
+  return error instanceof DOMException && error.name === "NotAllowedError" ? "denied" : "unavailable";
+}
+
+function qualityFromDimensions(width: number, height: number): ImageQuality {
+  const pixels = width * height;
+  if (pixels >= 1280 * 720) return "excellent";
+  if (pixels >= 960 * 540) return "correct";
+  return "faible";
+}
+
+function qualityLabel(quality: ImageQuality) {
+  if (quality === "excellent") return "Bonne qualité";
+  if (quality === "correct") return "Qualité correcte";
+  return "Qualité à améliorer";
+}
+
+function formatCaptureTime(value: string) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+  }).format(new Date(value));
+}
+
+function dataUrlFromCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext("2d");
+  if (!context) return null;
+  context.drawImage(video, 0, 0);
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
 export function SmartWasteCamera({ onCapture, disabled }: Props) {
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingFramesRef = useRef<string[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const recordingClockRef = useRef<number | null>(null);
+  const recordingSecondsRef = useRef(0);
+  const videoUrlRef = useRef<string | null>(null);
+  const nativeDepthRef = useRef<DepthAcquisition | null>(null);
 
-  const [deviceCap, setDeviceCap] = useState<DeviceCapability | null>(null);
+  const [captureMode, setCaptureMode] = useState<CaptureMode>("single");
+  const [permissions, setPermissions] = useState({
+    camera: "idle" as PermissionStatus,
+    gps: "idle" as PermissionStatus,
+    depth: "idle" as PermissionStatus,
+  });
   const [gpsState, setGpsState] = useState<GPSState>({ status: "idle" });
   const [location, setLocation] = useState<LocationInfo | null>(null);
-  const [capturing, setCapturing] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
-  const [captureMode, setCaptureMode] = useState<"single" | "multi" | "video">("single");
-  const [multiStep, setMultiStep] = useState(0);
+  const [depth, setDepth] = useState<DepthAcquisition | null>(null);
   const [showLiveView, setShowLiveView] = useState(false);
-  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
-  const [showPermissionPanel, setShowPermissionPanel] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState("");
+  const [preview, setPreview] = useState<string | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const recordingFramesRef = useRef<string[]>([]);
-  const recordingFrameTimerRef = useRef<number | null>(null);
-  const recordingClockRef = useRef<number | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [imageQuality, setImageQuality] = useState<ImageQuality>("correct");
+  const [capturedAt, setCapturedAt] = useState<string | null>(null);
 
-  // Hook de permissions groupées
-  const {
-    permissions,
-    isRequesting: permissionsRequesting,
-    allGranted,
-    anyDenied,
-    requestAll,
-    resetPermissions,
-  } = usePermissions();
-
-  // Détection des capacités au montage
-  useEffect(() => {
-    (async () => {
-      const cap = await detectDeviceCapability();
-      setDeviceCap(cap);
-      if (cap.cameraCapability === "lidar") {
-        setCaptureMode("single");
-      } else if (cap.cameraCapability === "arcore") {
-        setCaptureMode("single");
-      } else {
-        setCaptureMode("multi");
-      }
-    })();
+  const stopLiveView = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setShowLiveView(false);
   }, []);
 
-  // Demander le GPS automatiquement (en parallèle)
-  useEffect(() => {
-    (async () => {
-      setGpsState({ status: "requesting" });
-      const gps = await requestGPSPosition();
-      setGpsState(gps);
-      if (gps.status === "ok") {
-        const loc = buildLocationInfo(gps.lat, gps.lng, gps.accuracy, gps.altitudeM);
-        setLocation(loc);
-      }
-    })();
+  const clearRecordingTimers = useCallback(() => {
+    if (recordingTimerRef.current != null) window.clearInterval(recordingTimerRef.current);
+    if (recordingClockRef.current != null) window.clearInterval(recordingClockRef.current);
+    recordingTimerRef.current = null;
+    recordingClockRef.current = null;
   }, []);
 
-  // Nettoyage du flux vidéo
   useEffect(() => {
     return () => {
-      if (liveStream) {
-        liveStream.getTracks().forEach((t) => t.stop());
-      }
-      if (recordingFrameTimerRef.current) window.clearInterval(recordingFrameTimerRef.current);
-      if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
+      clearRecordingTimers();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
     };
-  }, [liveStream]);
+  }, [clearRecordingTimers]);
 
-  /**
-   * Action principale "Prendre une photo"
-   * 1. Affiche le panneau des permissions
-   * 2. Demande toutes les permissions en séquence
-   * 3. Si tout est accordé, lance la caméra
-   */
-  const handleTakePhoto = useCallback(async () => {
-    setShowPermissionPanel(true);
+  const requestLocation = useCallback(async () => {
+    setPermissions((current) => ({ ...current, gps: "requesting" }));
+    setGpsState({ status: "requesting" });
+    const position = await requestGPSPosition();
+    setGpsState(position);
 
-    // Lancer la demande groupée de permissions
-    const result = await requestAll();
-
-    if (result.camera) {
-      // Caméra accordée → lancer le flux vidéo
-      await startLiveView();
-    } else {
-      toast.error("Permission caméra refusée — impossible d'utiliser l'appareil photo");
+    if (position.status === "ok") {
+      const nextLocation = buildLocationInfo(
+        position.lat,
+        position.lng,
+        position.accuracy,
+        position.altitudeM,
+      );
+      setLocation(nextLocation);
+      setPermissions((current) => ({ ...current, gps: "granted" }));
+      return nextLocation;
     }
 
-    if (!result.gps) {
-      toast.warning("GPS non disponible — la localisation sera manuelle");
-    }
+    setPermissions((current) => ({
+      ...current,
+      gps: position.status === "denied" ? "denied" : "unavailable",
+    }));
+    return null;
+  }, []);
 
-    if (result.depth) {
-      toast.success("Capteurs de profondeur disponibles — analyse 3D améliorée");
-    }
-  }, [requestAll]);
-
-  const startLiveView = useCallback(async () => {
+  const openLiveCamera = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
         video: {
           facingMode: { ideal: "environment" },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
         },
       });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setLiveStream(stream);
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
       setShowLiveView(true);
-    } catch {
-      toast.error("Impossible d'accéder à la caméra");
+      return true;
+    } catch (error) {
+      setPermissions((current) => ({ ...current, camera: getPermissionStatus(error) }));
+      toast.error("Impossible d'ouvrir la caméra. Vérifiez les autorisations du navigateur.");
+      return false;
     }
   }, []);
 
-  const stopLiveView = useCallback(() => {
-    if (liveStream) {
-      liveStream.getTracks().forEach((t) => t.stop());
-      setLiveStream(null);
-    }
-    setShowLiveView(false);
-  }, [liveStream]);
+  const startCapture = useCallback(async () => {
+    if (disabled || isStarting || isProcessing) return;
+    if (showLiveView) return;
 
-  const captureFromLiveView = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-    handleImageCapture(dataUrl);
-    stopLiveView();
-  }, [stopLiveView]);
+    setIsStarting(true);
+    setPermissions((current) => ({ ...current, camera: "requesting", depth: "requesting" }));
 
-  const handleFile = useCallback(async (f: File | undefined) => {
-    if (!f) return;
-    if (f.size > 4 * 1024 * 1024) {
-      toast.error("Image trop volumineuse (max 4 Mo)");
+    try {
+      // La première requête ouvre la boîte de permission caméra. Le flux est
+      // ensuite libéré pour que WebXR puisse demander une profondeur native.
+      const permissionStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" } },
+      });
+      permissionStream.getTracks().forEach((track) => track.stop());
+      setPermissions((current) => ({ ...current, camera: "granted" }));
+    } catch (error) {
+      setPermissions((current) => ({ ...current, camera: getPermissionStatus(error) }));
+      toast.error("La capture nécessite l'autorisation de la caméra.");
+      setIsStarting(false);
       return;
     }
-    const dataUrl = await new Promise<string>((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result as string);
-      r.onerror = rej;
-      r.readAsDataURL(f);
-    });
-    handleImageCapture(dataUrl);
-  }, []);
 
-  const deliverCapture = useCallback((imageDataUrl: string, additionalImages: string[], mode: CaptureResult["captureMode"], videoDurationSeconds?: number) => {
+    const [nextLocation, nativeDepth] = await Promise.all([requestLocation(), acquireNativeDepth()]);
+    nativeDepthRef.current = nativeDepth;
+    setDepth(nativeDepth);
+    setPermissions((current) => ({
+      ...current,
+      depth: nativeDepth.source === "lidar" ? "granted" : "unavailable",
+    }));
+
+    if (!nextLocation) {
+      toast.warning("GPS indisponible : vous pourrez toujours ajuster le point sur la carte.");
+    }
+
+    if (nativeDepth.source === "lidar") {
+      toast.success("Capteur de profondeur natif détecté et activé.");
+    } else {
+      toast.message("Aucun LiDAR exploitable : le modèle IA de profondeur sera utilisé après la prise de vue.");
+    }
+
+    await openLiveCamera();
+    setIsStarting(false);
+  }, [disabled, isProcessing, isStarting, openLiveCamera, requestLocation, showLiveView]);
+
+  const deliverCapture = useCallback(async (
+    imageDataUrl: string,
+    additionalImages: string[],
+    mode: CaptureMode,
+    options?: { videoDurationSeconds?: number; videoBlob?: Blob; videoPreviewUrl?: string },
+  ) => {
+    const now = new Date().toISOString();
     setPreview(imageDataUrl);
-    setCapturing(true);
+    setCapturedAt(now);
+    setIsProcessing(true);
+
+    let depthResult = nativeDepthRef.current;
+    if (depthResult?.source !== "lidar" || !depthResult.depthData) {
+      setProcessingMessage("Estimation IA de la profondeur…");
+      depthResult = await estimateDepthWithAI(imageDataUrl, setProcessingMessage);
+      setDepth(depthResult);
+    }
+
+    setProcessingMessage("");
     onCapture({
       imageDataUrl,
       additionalImages,
-      cameraCapability: deviceCap?.cameraCapability ?? "basic",
+      cameraCapability: depthResult.source === "lidar" ? "lidar" : "basic",
+      depthSource: depthResult.source,
+      depthData: depthResult.depthData,
       location,
       captureMode: mode,
-      capturedAt: new Date().toISOString(),
-      videoDurationSeconds,
+      capturedAt: now,
+      videoDurationSeconds: options?.videoDurationSeconds,
+      videoBlob: options?.videoBlob,
+      videoPreviewUrl: options?.videoPreviewUrl,
+      imageQuality,
     });
-    setCapturing(false);
-  }, [deviceCap, location, onCapture]);
+    setIsProcessing(false);
 
-  const handleImageCapture = useCallback((dataUrl: string) => {
-    if (captureMode === "single") {
-      deliverCapture(dataUrl, [], "single");
-      toast.success("Photo capturée · Analyse IA en cours");
-      return;
-    }
-
-    if (captureMode === "video") return;
-
-    const newPhotos = [...additionalPhotos, dataUrl];
-    setAdditionalPhotos(newPhotos);
-    setMultiStep(newPhotos.length);
-
-    if (newPhotos.length >= 3) {
-      deliverCapture(newPhotos[0], newPhotos.slice(1), "multi");
-      setMultiStep(0);
-      setAdditionalPhotos([]);
-      toast.success("Photos capturées · Analyse IA multi-vues en cours");
+    if (depthResult.source === "unavailable") {
+      toast.warning("Photo acquise, mais l'estimation de profondeur n'a pas pu être chargée.");
     } else {
-      toast.success(`Photo ${newPhotos.length}/3 prise. Prenez la vue suivante.`);
+      toast.success("Capture intelligente prête pour l'analyse.");
     }
-  }, [additionalPhotos, captureMode, deliverCapture]);
+  }, [imageQuality, location, onCapture]);
 
-  const captureLiveFrame = useCallback(() => {
+  const captureStill = useCallback(async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || !video.videoWidth || !video.videoHeight) return null;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-    context.drawImage(video, 0, 0);
-    return canvas.toDataURL("image/jpeg", 0.82);
-  }, []);
-
-  const clearRecordingTimers = useCallback(() => {
-    if (recordingFrameTimerRef.current) window.clearInterval(recordingFrameTimerRef.current);
-    if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
-    recordingFrameTimerRef.current = null;
-    recordingClockRef.current = null;
-  }, []);
-
-  const finishVideoCapture = useCallback(() => {
-    clearRecordingTimers();
-    setRecording(false);
-    const frames = recordingFramesRef.current;
-    recordingFramesRef.current = [];
-    if (frames.length === 0) {
-      toast.error("La vidéo ne contient aucune image exploitable. Réessayez en gardant le dépôt dans le cadre.");
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
+      toast.error("La caméra n'est pas encore prête.");
       return;
     }
-    const duration = Math.max(1, recordingSeconds);
-    deliverCapture(frames[0], frames.slice(1, 5), "video", duration);
+
+    const frame = dataUrlFromCanvas(video, canvas);
+    if (!frame) return toast.error("Impossible de capturer cette image.");
+    setImageQuality(qualityFromDimensions(video.videoWidth, video.videoHeight));
+
+    if (captureMode === "multi") {
+      const nextPhotos = [...additionalPhotos, frame];
+      setAdditionalPhotos(nextPhotos);
+      if (nextPhotos.length < MULTI_PHOTO_COUNT) {
+        toast.success(`Vue ${nextPhotos.length}/${MULTI_PHOTO_COUNT} enregistrée. Déplacez-vous pour le prochain angle.`);
+        return;
+      }
+
+      stopLiveView();
+      await deliverCapture(nextPhotos[0], nextPhotos.slice(1), "multi");
+      setAdditionalPhotos([]);
+      return;
+    }
+
     stopLiveView();
-    toast.success(`${frames.length} vues extraites de la vidéo · Analyse IA en cours`);
+    await deliverCapture(frame, [], "single");
+  }, [additionalPhotos, captureMode, deliverCapture, stopLiveView]);
+
+  const finishVideo = useCallback(async () => {
+    clearRecordingTimers();
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    setRecording(false);
+
+    if (!video || !canvas) return;
+    const firstFrame = dataUrlFromCanvas(video, canvas) ?? recordingFramesRef.current[0];
+    const frames = recordingFramesRef.current;
+    recordingFramesRef.current = [];
+    if (!firstFrame) {
+      toast.error("La vidéo ne contient aucune image exploitable.");
+      return;
+    }
+
+    const chunks = (recorder as MediaRecorder & { __chunks?: Blob[] } | null)?.__chunks ?? [];
+    const blob = chunks.length > 0 ? new Blob(chunks, { type: recorder?.mimeType || "video/webm" }) : undefined;
+    if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
+    const url = blob ? URL.createObjectURL(blob) : undefined;
+    videoUrlRef.current = url ?? null;
+    setVideoPreviewUrl(url ?? null);
+    const duration = Math.max(1, recordingSecondsRef.current);
+
+    stopLiveView();
+    await deliverCapture(firstFrame, frames.slice(0, 5), "video", {
+      videoDurationSeconds: duration,
+      videoBlob: blob,
+      videoPreviewUrl: url,
+    });
   }, [clearRecordingTimers, deliverCapture, recordingSeconds, stopLiveView]);
 
   const startVideoRecording = useCallback(() => {
-    if (!liveStream || typeof MediaRecorder === "undefined") {
-      toast.error("L'enregistrement vidéo n'est pas pris en charge par ce navigateur.");
+    const stream = streamRef.current;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!stream || !video || !canvas || typeof MediaRecorder === "undefined") {
+      toast.error("L'enregistrement vidéo n'est pas disponible dans ce navigateur.");
       return;
     }
+
+    const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) =>
+      MediaRecorder.isTypeSupported(type),
+    );
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    (recorder as MediaRecorder & { __chunks?: Blob[] }).__chunks = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) (recorder as MediaRecorder & { __chunks?: Blob[] }).__chunks?.push(event.data);
+    };
+    recorder.onstop = () => void finishVideo();
+    recorderRef.current = recorder;
     recordingFramesRef.current = [];
-    const firstFrame = captureLiveFrame();
-    if (firstFrame) recordingFramesRef.current.push(firstFrame);
     setRecordingSeconds(0);
+    recordingSecondsRef.current = 0;
     setRecording(true);
+    recorder.start(500);
 
-    const recorder = new MediaRecorder(liveStream);
-    mediaRecorderRef.current = recorder;
-    recorder.onstop = finishVideoCapture;
-    recorder.start();
-
-    recordingFrameTimerRef.current = window.setInterval(() => {
-      const frame = captureLiveFrame();
+    recordingTimerRef.current = window.setInterval(() => {
+      const frame = dataUrlFromCanvas(video, canvas);
       if (frame && recordingFramesRef.current.length < 6) recordingFramesRef.current.push(frame);
     }, 1600);
 
-    let seconds = 0;
+    let elapsed = 0;
     recordingClockRef.current = window.setInterval(() => {
-      seconds += 1;
-      setRecordingSeconds(seconds);
-      if (seconds >= 12 && mediaRecorderRef.current?.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
+      elapsed += 1;
+      recordingSecondsRef.current = elapsed;
+      setRecordingSeconds(elapsed);
+      if (elapsed >= MAX_VIDEO_SECONDS && recorder.state === "recording") recorder.stop();
     }, 1000);
-  }, [captureLiveFrame, finishVideoCapture, liveStream]);
+  }, [finishVideo]);
 
   const stopVideoRecording = useCallback(() => {
-    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
   }, []);
 
-  const cancelVideoRecording = useCallback(() => {
-    clearRecordingTimers();
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.onstop = null;
-      mediaRecorderRef.current.stop();
+  const handleCaptureAction = useCallback(() => {
+    if (captureMode === "video") {
+      if (recording) stopVideoRecording();
+      else startVideoRecording();
+      return;
     }
-    mediaRecorderRef.current = null;
-    recordingFramesRef.current = [];
-    setRecording(false);
-    setRecordingSeconds(0);
-    stopLiveView();
-  }, [clearRecordingTimers, stopLiveView]);
+    void captureStill();
+  }, [captureMode, captureStill, recording, startVideoRecording, stopVideoRecording]);
+
+  const handleGallery = useCallback(async (file?: File) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image trop volumineuse (max 10 Mo).");
+      return;
+    }
+    const imageDataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    nativeDepthRef.current = null;
+    setDepth(null);
+    setImageQuality("correct");
+    await deliverCapture(imageDataUrl, [], "single");
+  }, [deliverCapture]);
 
   const resetCapture = useCallback(() => {
     setPreview(null);
+    setVideoPreviewUrl(null);
     setAdditionalPhotos([]);
-    setMultiStep(0);
-    setCapturing(false);
+    setCapturedAt(null);
+    setDepth(null);
+    nativeDepthRef.current = null;
+    if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
+    videoUrlRef.current = null;
   }, []);
 
-  const getDeviceBadge = () => {
-    if (!deviceCap) return null;
-    const cap = deviceCap.cameraCapability;
-    if (cap === "lidar") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-purple-700">
-          <Layers className="size-3" /> LiDAR
-        </span>
-      );
-    }
-    if (cap === "arcore") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-blue-700">
-          <Smartphone className="size-3" /> ARCore
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">
-        <Tablet className="size-3" /> Standard
-      </span>
-    );
-  };
-
-  const getGPSBadge = () => {
-    if (gpsState.status === "requesting") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-eco/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-eco">
-          <Loader2 className="size-3 animate-spin" /> GPS…
-        </span>
-      );
-    }
-    if (gpsState.status === "ok") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
-          <CheckCircle2 className="size-3" /> GPS ±{Math.round(gpsState.accuracy)}m
-        </span>
-      );
-    }
-    if (gpsState.status === "denied") {
-      return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-red-700">
-          <AlertTriangle className="size-3" /> GPS refusé
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-700">
-        <AlertTriangle className="size-3" /> GPS indisponible
-      </span>
-    );
-  };
-
-  /**
-   * Rendu d'une ligne de permission avec son icône et son état
-   */
-  const PermissionRow = ({
-    icon,
-    label,
-    status,
-  }: {
-    icon: React.ReactNode;
-    label: string;
-    status: PermissionStatus;
-  }) => {
-    const statusConfig = {
-      idle: { color: "text-muted-foreground", bg: "bg-secondary/50", icon: null },
-      requesting: { color: "text-eco", bg: "bg-eco/10", icon: <Loader2 className="size-3 animate-spin" /> },
-      granted: { color: "text-emerald-600", bg: "bg-emerald-500/10", icon: <CheckCircle2 className="size-3" /> },
-      denied: { color: "text-red-600", bg: "bg-red-500/10", icon: <XCircle className="size-3" /> },
-      unavailable: { color: "text-amber-600", bg: "bg-amber-500/10", icon: <AlertTriangle className="size-3" /> },
-    };
-
-    const cfg = statusConfig[status];
-    const statusLabels: Record<PermissionStatus, string> = {
-      idle: "En attente",
-      requesting: "Demande en cours…",
-      granted: "Autorisé",
-      denied: "Refusé",
-      unavailable: "Non disponible",
-    };
-
-    return (
-      <div className={`flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-semibold ${cfg.bg} ${cfg.color}`}>
-        <span className="shrink-0">{icon}</span>
-        <span className="flex-1">{label}</span>
-        <span className="inline-flex items-center gap-1">
-          {cfg.icon}
-          {statusLabels[status]}
-        </span>
-      </div>
-    );
-  };
+  const locationText = location
+    ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)} · alt. ${location.altitudeM ?? "—"} m`
+    : "Position GPS en attente";
+  const captureProgress = captureMode === "multi" ? additionalPhotos.length : preview ? 1 : 0;
 
   return (
-    <div className="space-y-3">
-      {/* Badges d'information */}
-      <div className="flex flex-wrap items-center gap-2">
-        {getDeviceBadge()}
-        {getGPSBadge()}
-        {location && (
-          <span className="text-[10px] font-mono text-muted-foreground">
-            {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
-          </span>
-        )}
-      </div>
-
-      {/* Panneau des permissions */}
-      {showPermissionPanel && (
-        <div className="rounded-2xl border border-eco/20 bg-card p-4 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-eco">
-              <Shield className="mr-1 inline size-3" />
-              Autorisations requises
-            </h4>
-            {!permissionsRequesting && (allGranted || anyDenied) && (
-              <button
-                onClick={() => setShowPermissionPanel(false)}
-                className="text-[10px] font-semibold text-muted-foreground hover:text-foreground"
-              >
-                Masquer
-              </button>
-            )}
+    <div className="space-y-4 rounded-3xl border border-eco/20 bg-gradient-to-br from-eco/5 via-card to-card p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-eco">
+            <Sparkles className="size-4" /> Acquisition intelligente
           </div>
-
-          <div className="space-y-2">
-            <PermissionRow
-              icon={<Camera className="size-3.5" />}
-              label="Accès à la caméra"
-              status={permissions.camera}
-            />
-            <PermissionRow
-              icon={<MapPin className="size-3.5" />}
-              label="Localisation GPS (précise)"
-              status={permissions.gps}
-            />
-            <PermissionRow
-              icon={<Box className="size-3.5" />}
-              label="Capteurs de profondeur (LiDAR/ARCore)"
-              status={permissions.depth}
-            />
-          </div>
-
-          {permissionsRequesting && (
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-eco/5 px-3 py-2 text-xs font-semibold text-eco">
-              <Loader2 className="size-3 animate-spin" />
-              Demande des autorisations en cours…
-            </div>
-          )}
-
-          {!permissionsRequesting && anyDenied && (
-            <div className="mt-3 rounded-xl border border-amber-300 bg-amber-500/10 p-3 text-xs text-amber-800">
-              <p className="font-semibold">⚠ Certaines autorisations ont été refusées</p>
-              <p className="mt-1">
-                Vous pouvez toujours prendre une photo, mais certaines fonctionnalités
-                (localisation automatique, analyse 3D) seront limitées.
-              </p>
-            </div>
-          )}
-
-          {!permissionsRequesting && allGranted && (
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-700">
-              <CheckCircle2 className="size-3" />
-              Toutes les autorisations sont accordées
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Message pour mode multi-photos */}
-      {captureMode === "multi" && multiStep === 0 && !preview && (
-        <div className="rounded-xl border border-amber-300 bg-amber-500/10 p-3 text-xs text-amber-800">
-          <p className="font-semibold">📸 Améliorez la précision</p>
-          <p className="mt-1">
-            Pour une meilleure estimation 3D, prenez 3 photos sous différents angles autour du dépôt.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Caméra, GPS, date, heure et profondeur sont acquis automatiquement.
           </p>
         </div>
-      )}
+        <DepthBadge depth={depth} />
+      </div>
 
-      {/* Indicateur de progression multi-photos */}
-      {captureMode === "multi" && multiStep > 0 && multiStep < 3 && (
-        <div className="flex items-center gap-2 rounded-xl bg-eco/5 px-3 py-2 text-xs font-semibold text-eco">
-          <Loader2 className="size-3 animate-spin" />
-          Photo {multiStep + 1}/3 — Prenez une vue différente du dépôt
+      <div className="grid gap-2 sm:grid-cols-3">
+        <StatusRow icon={<Camera className="size-4" />} label="Caméra" status={permissions.camera} />
+        <StatusRow icon={<MapPin className="size-4" />} label="GPS haute précision" status={permissions.gps} />
+        <StatusRow icon={<Layers3 className="size-4" />} label="Profondeur" status={permissions.depth} unavailableLabel="IA active" />
+      </div>
+
+      <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-3 text-xs sm:grid-cols-3">
+        <CaptureTip icon={<Ruler className="size-4" />} title="Distance idéale" text="Placez-vous à 2–4 m du dépôt." />
+        <CaptureTip icon={<Compass className="size-4" />} title="Angle conseillé" text="Cadrez le sol et le haut du tas, sans contre-jour." />
+        <CaptureTip icon={<ScanLine className="size-4" />} title="Qualité" text={showLiveView ? qualityLabel(imageQuality) : "La qualité sera vérifiée à la capture."} />
+      </div>
+
+      {!preview && !showLiveView && (
+        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-secondary/45 p-1">
+          <ModeButton active={captureMode === "single"} icon={<Camera className="size-4" />} label="1 photo" onClick={() => setCaptureMode("single")} />
+          <ModeButton active={captureMode === "multi"} icon={<Images className="size-4" />} label="3 angles" onClick={() => setCaptureMode("multi")} />
+          <ModeButton active={captureMode === "video"} icon={<Video className="size-4" />} label="Vidéo 12 s" onClick={() => setCaptureMode("video")} />
         </div>
       )}
 
-      {/* Zone de prévisualisation */}
-      <div className="relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-secondary/30">
+      <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-slate-950">
         {showLiveView ? (
           <>
             <video
               ref={videoRef}
               autoPlay
               playsInline
+              muted
+              onLoadedMetadata={(event) => {
+                setImageQuality(qualityFromDimensions(event.currentTarget.videoWidth, event.currentTarget.videoHeight));
+              }}
               className="size-full object-cover"
             />
-            <canvas ref={canvasRef} className="hidden" />
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-              <button
-                onClick={captureFromLiveView}
-                disabled={capturing || disabled}
-                className="inline-flex items-center gap-2 rounded-full bg-eco px-5 py-2 text-sm font-bold text-white shadow-lg hover:bg-eco/90 disabled:opacity-50"
-              >
-                <Camera className="size-4" />
-                Capturer
-              </button>
-              <button
-                onClick={stopLiveView}
-                className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2 text-sm font-bold text-white shadow-lg hover:bg-red-600"
-              >
-                Annuler
-              </button>
+            <div className="pointer-events-none absolute inset-4 rounded-xl border border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.12)]" />
+            <div className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur">
+              <Navigation className="mr-1 inline size-3" /> Gardez le dépôt dans le cadre
             </div>
+            {recording && (
+              <div className="absolute right-4 top-4 rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold text-white">
+                <span className="mr-1 inline-block size-2 animate-pulse rounded-full bg-white" /> REC {recordingSeconds}s / {MAX_VIDEO_SECONDS}s
+              </div>
+            )}
           </>
         ) : preview ? (
           <>
-            <img src={preview} alt="Aperçu" className="size-full object-cover" />
-            {capturing && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-eco shadow-lg">
-                  <Loader2 className="size-4 animate-spin" />
-                  Analyse IA…
+            <img src={preview} alt="Aperçu de la capture du dépôt" className="size-full object-cover" />
+            {videoPreviewUrl && <video src={videoPreviewUrl} controls className="absolute bottom-3 left-3 h-20 max-w-[45%] rounded-lg border border-white/40 bg-black" />}
+            {isProcessing && (
+              <div className="absolute inset-0 grid place-items-center bg-black/55 p-4 text-center text-white backdrop-blur-sm">
+                <div>
+                  <Loader2 className="mx-auto size-7 animate-spin text-eco" />
+                  <p className="mt-2 text-sm font-bold">{processingMessage || "Préparation de la capture…"}</p>
                 </div>
               </div>
             )}
-            {!capturing && (
-              <button
-                onClick={resetCapture}
-                className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"
-              >
+            {!isProcessing && (
+              <button type="button" onClick={resetCapture} className="absolute right-3 top-3 rounded-full bg-black/65 p-2 text-white hover:bg-black/80" aria-label="Reprendre une capture">
                 <RotateCcw className="size-4" />
               </button>
             )}
           </>
         ) : (
-          <div className="px-4 text-center text-sm text-muted-foreground">
-            <Camera className="mx-auto size-8 text-eco" />
-            <p className="mt-2 font-semibold">
-              {deviceCap?.cameraCapability === "lidar"
-                ? "Capture LiDAR prête"
-                : deviceCap?.cameraCapability === "arcore"
-                ? "Capture ARCore prête"
-                : "Capture intelligente prête"}
-            </p>
-            <p className="text-xs">
-              {captureMode === "single"
-                ? "Prenez une photo pour lancer l'analyse IA complète"
-                : "Prenez 3 photos sous différents angles"}
-            </p>
+          <div className="grid size-full place-items-center p-6 text-center text-slate-200">
+            <div>
+              <Camera className="mx-auto size-10 text-emerald-300" />
+              <p className="mt-3 text-sm font-bold">Prêt pour une capture guidée</p>
+              <p className="mt-1 max-w-sm text-xs text-slate-300">Choisissez une photo, trois angles ou une courte vidéo autour du dépôt.</p>
+            </div>
           </div>
         )}
+        <canvas ref={canvasRef} className="hidden" />
       </div>
 
-      {/* Boutons d'action */}
-      {!showLiveView && !preview && (
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button
-            onClick={handleTakePhoto}
-            disabled={capturing || disabled || permissionsRequesting}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-eco px-4 py-3 text-sm font-bold text-white hover:bg-eco/90 disabled:opacity-50"
-          >
-            {permissionsRequesting ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Autorisations…
-              </>
-            ) : (
-              <>
-                <Camera className="size-4" />
-                {captureMode === "multi" && multiStep > 0
-                  ? `Prendre photo ${multiStep + 1}/3`
+      {captureMode === "multi" && !preview && (
+        <div className="rounded-2xl border border-eco/20 bg-eco/5 p-3">
+          <div className="flex items-center justify-between text-xs font-bold text-eco">
+            <span>Progression des vues</span>
+            <span>{captureProgress}/{MULTI_PHOTO_COUNT}</span>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {Array.from({ length: MULTI_PHOTO_COUNT }).map((_, index) => (
+              <div key={index} className={`h-2 rounded-full ${index < captureProgress ? "bg-eco" : "bg-eco/15"}`} />
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Vue 1 de face, puis décalez-vous vers la gauche et la droite.</p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {showLiveView ? (
+          <>
+            <button
+              type="button"
+              onClick={handleCaptureAction}
+              disabled={isProcessing || disabled}
+              className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white ${recording ? "bg-red-600 hover:bg-red-700" : "bg-eco hover:bg-eco/90"} disabled:opacity-50`}
+            >
+              {captureMode === "video" ? <Video className="size-4" /> : <Camera className="size-4" />}
+              {captureMode === "video"
+                ? recording
+                  ? "Arrêter la vidéo"
+                  : "Démarrer la vidéo"
+                : captureMode === "multi"
+                  ? `Prendre la vue ${Math.min(additionalPhotos.length + 1, MULTI_PHOTO_COUNT)}/${MULTI_PHOTO_COUNT}`
                   : "Prendre une photo"}
-              </>
-            )}
-          </button>
-          <button
-            onClick={() => galleryRef.current?.click()}
-            disabled={capturing || disabled}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-eco/40 bg-eco/5 px-4 py-3 text-sm font-bold text-eco hover:bg-eco/10 disabled:opacity-50"
-          >
-            <ImageIcon className="size-4" />
-            Depuis la galerie
-          </button>
-        </div>
-      )}
+            </button>
+            <button type="button" onClick={stopLiveView} disabled={recording} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-sm font-bold text-foreground hover:bg-secondary disabled:opacity-50">
+              <X className="size-4" /> Annuler
+            </button>
+          </>
+        ) : !preview ? (
+          <>
+            <button type="button" onClick={() => void startCapture()} disabled={isStarting || isProcessing || disabled} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-eco px-4 py-3 text-sm font-bold text-white hover:bg-eco/90 disabled:opacity-50">
+              {isStarting ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
+              {isStarting ? "Autorisations et capteurs…" : "Prendre une photo"}
+            </button>
+            <button type="button" onClick={() => galleryRef.current?.click()} disabled={isStarting || isProcessing || disabled} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-eco/35 bg-eco/5 px-4 py-3 text-sm font-bold text-eco hover:bg-eco/10 disabled:opacity-50">
+              <ImageIcon className="size-4" /> Depuis la galerie
+            </button>
+          </>
+        ) : null}
+      </div>
 
-      {/* Inputs cachés */}
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0])}
-      />
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0])}
-      />
+      <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={(event) => void handleGallery(event.target.files?.[0])} />
 
-      {/* Message d'information sur le mode de capture */}
-      {deviceCap && !preview && !showLiveView && (
-        <div className="rounded-lg bg-secondary/30 p-2 text-center text-[10px] text-muted-foreground">
-          {deviceCap.cameraCapability === "lidar" && "📱 iPhone avec LiDAR détecté · Reconstruction 3D précise activée"}
-          {deviceCap.cameraCapability === "arcore" && "📱 Android ARCore détecté · Analyse de profondeur activée"}
-          {deviceCap.cameraCapability === "basic" && "📱 Mode standard · Estimation volumétrique par IA multi-vues"}
-        </div>
-      )}
+      <div className="grid gap-2 rounded-2xl border border-border/70 bg-background/70 p-3 text-xs text-muted-foreground sm:grid-cols-2">
+        <div className="flex items-center gap-2"><Crosshair className="size-4 shrink-0 text-eco" /><span className="font-mono">{locationText}</span></div>
+        <div className="flex items-center gap-2"><Clock3 className="size-4 shrink-0 text-eco" /><span>{capturedAt ? formatCaptureTime(capturedAt) : "Date et heure ajoutées à la prise de vue"}</span></div>
+      </div>
     </div>
   );
+}
+
+function ModeButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs font-bold transition-colors ${active ? "bg-card text-eco shadow-sm" : "text-muted-foreground hover:bg-card/70"}`}>
+      {icon} {label}
+    </button>
+  );
+}
+
+function StatusRow({ icon, label, status, unavailableLabel = "Indisponible" }: { icon: ReactNode; label: string; status: PermissionStatus; unavailableLabel?: string }) {
+  const styles: Record<PermissionStatus, string> = {
+    idle: "bg-secondary/50 text-muted-foreground",
+    requesting: "bg-eco/10 text-eco",
+    granted: "bg-emerald-500/10 text-emerald-700",
+    denied: "bg-red-500/10 text-red-700",
+    unavailable: "bg-amber-500/10 text-amber-700",
+  };
+  const labels: Record<PermissionStatus, string> = {
+    idle: "En attente",
+    requesting: "Vérification…",
+    granted: "Autorisé",
+    denied: "Refusé",
+    unavailable: unavailableLabel,
+  };
+  return <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${styles[status]}`}>{status === "requesting" ? <Loader2 className="size-4 animate-spin" /> : status === "granted" ? <CheckCircle2 className="size-4" /> : status === "denied" ? <AlertTriangle className="size-4" /> : icon}<span className="flex-1">{label}</span><span>{labels[status]}</span></div>;
+}
+
+function CaptureTip({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
+  return <div className="flex gap-2"><span className="mt-0.5 text-eco">{icon}</span><div><p className="font-bold text-foreground">{title}</p><p className="mt-0.5 text-muted-foreground">{text}</p></div></div>;
+}
+
+function DepthBadge({ depth }: { depth: DepthAcquisition | null }) {
+  if (!depth) return <span className="rounded-full bg-secondary px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Profondeur à vérifier</span>;
+  const isNative = depth.source === "lidar";
+  return <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isNative ? "bg-purple-500/10 text-purple-700" : "bg-blue-500/10 text-blue-700"}`}>{isNative ? <Layers3 className="size-3" /> : <Sparkles className="size-3" />}{depth.label}</span>;
 }

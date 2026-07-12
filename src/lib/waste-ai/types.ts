@@ -40,6 +40,7 @@ export type WeightEstimate = {
   weightKg: number;
   weightTons: number;
   confidence: number; // 0-1
+  uncertaintyPercent: number;
   densityUsed: number; // kg/m³
 };
 

@@ -1,11 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeWastePhoto, type WasteAnalysis } from "@/lib/waste-ai.functions";
-import { analyzeWastePhotoAdvanced } from "@/lib/waste-ai/analysis.functions";
-import type { WasteAnalysisResult } from "@/lib/waste-ai/types";
 import { validateReportHash, commitReportHash } from "@/lib/report-submit.functions";
 import { useEcoUser } from "@/lib/user-store";
 import { priorityScore, proximityAlerts } from "@/lib/data";
@@ -15,8 +13,7 @@ import { computePerceptualHash, findDuplicate, saveHash } from "@/lib/image-hash
 import { ClientOnly } from "@/components/client-only";
 import { KinshasaMap } from "@/components/kinshasa-map";
 import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
-import { WasteAnalysisResultCard } from "@/components/waste-ai/WasteAnalysisResult";
-import { Camera, Crosshair, ImageIcon, Loader2, ShieldAlert, ShieldCheck, Sparkles, Trophy, Zap, Scale, Box, BarChart3, TriangleAlert } from "lucide-react";
+import { Crosshair, Loader2, ShieldAlert, ShieldCheck, Sparkles, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { CitizenGate } from "@/components/citizen-gate";
 
@@ -67,12 +64,10 @@ function SignalerPage() {
   const [duplicate, setDuplicate] = useState<{ similarity: number; at: string; source: "local" | "server" } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<WasteAnalysis | null>(null);
-  const [advancedResult, setAdvancedResult] = useState<WasteAnalysisResult | null>(null);
+  const [capture, setCapture] = useState<CaptureResult | null>(null);
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -93,19 +88,23 @@ function SignalerPage() {
     );
   }, []);
 
-  async function handleFile(f: File | undefined) {
-    if (!f) return;
-    if (f.size > 4 * 1024 * 1024) return toast.error("Image trop volumineuse (max 4 Mo)");
-    const dataUrl: string = await new Promise((res, rej) => {
-      const r = new FileReader();
-      r.onload = () => res(r.result as string);
-      r.onerror = rej;
-      r.readAsDataURL(f);
-    });
+  async function handleSmartCapture(captureResult: CaptureResult) {
+    const { imageDataUrl: dataUrl, location } = captureResult;
+    const effectivePosition = location
+      ? { lat: location.lat, lng: location.lng, accuracy: location.accuracy, altitudeM: location.altitudeM }
+      : pos;
+
+    setCapture(captureResult);
     setImgPreview(dataUrl);
     setResult(null);
     setSubmitted(false);
     setDuplicate(null);
+
+    if (location) {
+      setGeo({ status: "ok", lat: location.lat, lng: location.lng, accuracy: location.accuracy });
+      setPos({ lat: location.lat, lng: location.lng });
+      setCommune(detectCityCommune(DEFAULT_CITY, location.lat, location.lng).id);
+    }
 
     let hash: string;
     try {
@@ -127,8 +126,8 @@ function SignalerPage() {
       const check = await validateHash({
         data: {
           hash,
-          lat: pos?.lat,
-          lng: pos?.lng,
+          lat: effectivePosition?.lat,
+          lng: effectivePosition?.lng,
           category: "unknown",
         },
       });
@@ -144,11 +143,13 @@ function SignalerPage() {
       console.warn("validateHash failed", e);
     }
 
-    // 3) Analyse IA
+    // 3) Analyse IA historique, conservée telle quelle. Les données de
+    // profondeur et les vues additionnelles restent attachées à la capture
+    // pour la prochaine phase de quantification.
     setAnalyzing(true);
     try {
-      const r = await analyze({ data: { imageDataUrl: dataUrl } });
-      setResult(r);
+      const legacyAnalysis = await analyze({ data: { imageDataUrl: dataUrl } });
+      setResult(legacyAnalysis);
       toast.success("Analyse IA terminée");
     } catch (e) {
       console.error(e);
@@ -179,6 +180,8 @@ function SignalerPage() {
       lng: pos.lng,
       volumeM3: result.volumeEstimateM3,
       priorityScore: score,
+      photoUrl: imgPreview ?? undefined,
+      cameraCapability: capture?.cameraCapability,
     });
     saveHash(imgHash, item.id);
     try {
@@ -282,29 +285,9 @@ function SignalerPage() {
 
           {/* Étape 2 · Photo */}
           <section>
-            <label className="text-sm font-bold">2 · Photo du dépôt</label>
-            <div className="mt-3 grid gap-4 sm:grid-cols-[1fr_auto]">
-              <div className="flex aspect-video items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-border bg-secondary/30">
-                {imgPreview ? (
-                  <img src={imgPreview} alt="Aperçu" className="size-full object-cover" />
-                ) : (
-                  <div className="px-4 text-center text-sm text-muted-foreground">
-                    <ImageIcon className="mx-auto size-6 text-eco" />
-                    <p className="mt-2 font-semibold">Choisissez une source ci-contre</p>
-                    <p className="text-xs">L'analyse IA se lance automatiquement</p>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-2 sm:w-52">
-                <button onClick={() => cameraRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-eco px-4 py-3 text-sm font-bold text-white hover:bg-eco/90">
-                  <Camera className="size-4" /> Prendre photo
-                </button>
-                <button onClick={() => galleryRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-eco/40 bg-eco/5 px-4 py-3 text-sm font-bold text-eco hover:bg-eco/10">
-                  <ImageIcon className="size-4" /> Depuis la galerie
-                </button>
-                <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
-                <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
-              </div>
+            <label className="text-sm font-bold">2 · Acquisition du dépôt</label>
+            <div className="mt-3">
+              <SmartWasteCamera onCapture={handleSmartCapture} disabled={analyzing || submitting} />
             </div>
 
             {analyzing && (
