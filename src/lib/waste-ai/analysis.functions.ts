@@ -70,6 +70,7 @@ function createFallback(input: Input): WasteAnalysisResult {
     surfaceM2: 1.5,
     volumeM3: 1.2,
     confidence: 0.4,
+    uncertaintyPercent: 60,
   };
   const weight = calculateWeightFromVolume(dimensions.volumeM3, composition);
   const location: LocationInfo = {
@@ -242,6 +243,7 @@ RÈGLES IMPORTANTES :
         surfaceM2,
         volumeM3,
         confidence: dimensionsConfidence,
+        uncertaintyPercent: Math.round((1 - dimensionsConfidence) * 100),
       };
 
       // Poids

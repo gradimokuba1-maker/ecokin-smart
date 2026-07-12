@@ -180,6 +180,7 @@ function calculateFromDepthData(
       surfaceM2: Math.round(overallLength * overallWidth * 10) / 10,
       volumeM3: Math.round(totalVolume * 100) / 100,
       confidence: combinedConfidence,
+      uncertaintyPercent: Math.round((1 - combinedConfidence) * 100),
     },
     confidence: combinedConfidence,
   };
@@ -255,6 +256,7 @@ function calculateDimensionsFromSegments(
       surfaceM2: 1.5,
       volumeM3: 0.75,
       confidence: 0.2,
+      uncertaintyPercent: 80,
     };
   }
 
@@ -307,6 +309,7 @@ function calculateDimensionsFromSegments(
     surfaceM2: Math.round(surfaceM2 * 10) / 10,
     volumeM3: Math.round(volumeM3 * 100) / 100,
     confidence: Math.round(confidence * 100) / 100,
+    uncertaintyPercent: Math.round((1 - confidence) * 100),
   };
 }
 

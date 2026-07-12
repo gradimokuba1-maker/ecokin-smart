@@ -20,7 +20,7 @@ export const loginAuthority = async ({ data }: { data: z.infer<typeof loginSchem
             success: true,
             user: {
                 role: role,
-                name: userAuth.name,
+                name: userAuth.label,
             },
         };
     }

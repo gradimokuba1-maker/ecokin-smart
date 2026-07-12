@@ -12,6 +12,7 @@ export type AuditAction =
   | "report_ack"
   | "report_assign"
   | "report_status"
+  | "report_photo"
   | "intervention_start"
   | "intervention_close"
   | "ai_correction"
@@ -86,6 +87,7 @@ export const ACTION_LABEL: Record<AuditAction, string> = {
   report_ack: "Acquittement alerte",
   report_assign: "Assignation équipe",
   report_status: "Changement de statut",
+  report_photo: "Photo d'intervention",
   intervention_start: "Démarrage intervention",
   intervention_close: "Clôture intervention",
   ai_correction: "Correction classification IA",

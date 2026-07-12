@@ -99,7 +99,7 @@ function BourgmestreMap({ commune, reports, collectionPoints }: any) {
             const reportsLayer = L.layerGroup().addTo(map);
             reports.forEach((report: any) => {
                 if (!report.lat || !report.lng) return;
-                const meta = URGENCY_META[report.urgency];
+                const meta = URGENCY_META[report.urgency as keyof typeof URGENCY_META] ?? URGENCY_META.faible;
                 const color = meta.color.replace("text-", "").replace("-700", "-500");
                 L.circleMarker([report.lat, report.lng], {
                     radius: report.urgency === "critique" ? 9 : report.urgency === "eleve" ? 7 : 5,

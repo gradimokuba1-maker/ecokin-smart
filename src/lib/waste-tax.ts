@@ -26,6 +26,7 @@ export type Payment = {
 };
 
 const K_PAY = "ecokin_waste_tax_v1";
+const K_RATES = "ecokin_waste_tax_rates_v1";
 const EVT = "ecokin:tax";
 
 const BASE_TARIFF: Record<BinType, number> = {
@@ -36,10 +37,43 @@ const BASE_TARIFF: Record<BinType, number> = {
 
 const KIND_COEF: Record<HouseholdKind, number> = { menage: 1, pme: 1.5 };
 
+export type WasteTaxRates = {
+  bin: Record<BinType, number>;
+  pmeMultiplier: number;
+};
+
+const DEFAULT_RATES: WasteTaxRates = {
+  bin: { ...BASE_TARIFF },
+  pmeMultiplier: KIND_COEF.pme,
+};
+
+function readRates(): WasteTaxRates {
+  if (typeof window === "undefined") return DEFAULT_RATES;
+  try {
+    const saved = JSON.parse(localStorage.getItem(K_RATES) ?? "{}") as Partial<WasteTaxRates>;
+    return {
+      bin: { ...DEFAULT_RATES.bin, ...saved.bin },
+      pmeMultiplier: Number.isFinite(saved.pmeMultiplier) && (saved.pmeMultiplier ?? 0) > 0
+        ? saved.pmeMultiplier!
+        : DEFAULT_RATES.pmeMultiplier,
+    };
+  } catch {
+    return DEFAULT_RATES;
+  }
+}
+
+function writeRates(rates: WasteTaxRates) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(K_RATES, JSON.stringify(rates));
+  window.dispatchEvent(new Event(EVT));
+}
+
 export function monthlyAmount(h: Pick<Household, "binType" | "kind" | "occupants">) {
-  const base = BASE_TARIFF[h.binType] ?? 5000;
+  const rates = readRates();
+  const base = rates.bin[h.binType] ?? BASE_TARIFF[h.binType] ?? 5000;
   const occCoef = 1 + Math.max(0, h.occupants - 4) * 0.05; // +5% par occupant au-delà de 4
-  return Math.round(base * KIND_COEF[h.kind] * occCoef);
+  const kindCoef = h.kind === "pme" ? rates.pmeMultiplier : KIND_COEF.menage;
+  return Math.round(base * kindCoef * occCoef);
 }
 
 function pad(n: number) {
@@ -85,8 +119,12 @@ function writePayments(list: Payment[]) {
 
 export function useWasteTax(household?: Household) {
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [rates, setRates] = useState<WasteTaxRates>(DEFAULT_RATES);
 
-  const refresh = useCallback(() => setPayments(readPayments()), []);
+  const refresh = useCallback(() => {
+    setPayments(readPayments());
+    setRates(readRates());
+  }, []);
   useEffect(() => {
     refresh();
     const h = () => refresh();
@@ -110,12 +148,27 @@ export function useWasteTax(household?: Household) {
   const totalDue = merged.filter((i) => i.status !== "paid").reduce((s, i) => s + i.amountCdf, 0);
   const totalPaid = householdPayments.reduce((s, p) => s + p.amountCdf, 0);
 
+  const updateRates = (nextRates: WasteTaxRates) => {
+    const normalized: WasteTaxRates = {
+      bin: {
+        "120L": Math.max(0, Number(nextRates.bin["120L"]) || 0),
+        "240L": Math.max(0, Number(nextRates.bin["240L"]) || 0),
+        "660L": Math.max(0, Number(nextRates.bin["660L"]) || 0),
+      },
+      pmeMultiplier: Math.max(0.1, Number(nextRates.pmeMultiplier) || DEFAULT_RATES.pmeMultiplier),
+    };
+    writeRates(normalized);
+    setRates(normalized);
+  };
+
   return {
     invoices: merged.sort((a, b) => (a.period < b.period ? 1 : -1)),
     payments: householdPayments.sort((a, b) => (a.paidAt < b.paidAt ? 1 : -1)),
     allPayments: payments,
     totalDue,
     totalPaid,
+    rates,
+    updateRates,
     pay(invoice: Invoice, method: PaymentMethod, provider: string, reference: string) {
       const next: Payment = {
         id: `PAY-${Date.now().toString(36).toUpperCase()}`,

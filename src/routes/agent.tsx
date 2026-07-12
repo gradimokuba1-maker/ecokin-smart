@@ -62,7 +62,11 @@ function AgentMap({ reports, userPosition }: { reports: LiveReport[]; userPositi
                     ...reports.filter(r => r.lat && r.lng).map(r => L.latLng(r.lat!, r.lng!))
                 ];
 
-                routingControlRef.current = (L.Routing as any).control({
+                const routing = (L as typeof L & {
+                    Routing?: { control: (options: { waypoints: unknown[]; routeWhileDragging: boolean; show: boolean }) => { addTo: (map: unknown) => unknown } };
+                }).Routing;
+                if (!routing) return;
+                routingControlRef.current = routing.control({
                     waypoints,
                     routeWhileDragging: true,
                     show: false, // Masque le panneau de texte de l'itinéraire

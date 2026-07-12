@@ -12,10 +12,10 @@ export const Route = createFileRoute("/autorite/connexion")({
             role: validRoles.includes(role as AuthorityRole) ? (role as AuthorityRole) : "agent",
         };
     },
-    head: ({ search }) => ({
+    head: () => ({
         meta: [
-            { title: `Connexion ${search.role} — EcoKin Smart` },
-            { name: "description", content: `Connexion sécurisée au tableau de bord ${search.role}.` },
+            { title: "Connexion autorité — EcoKin Smart" },
+            { name: "description", content: "Connexion sécurisée aux tableaux de bord EcoKin Smart." },
             { name: "robots", content: "noindex" },
         ],
     }),

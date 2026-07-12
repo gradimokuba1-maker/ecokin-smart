@@ -380,7 +380,7 @@ function UsersTab() {
     const authorities = Object.entries(AUTH_USERS).map(([role, user]) => ({
       id: role,
       role: role as keyof typeof AUTH_USERS,
-      name: user.name,
+       name: user.label,
       status: "Actif",
       isAuthority: true,
     }));

@@ -323,6 +323,7 @@ export async function quickQuantify(
     surfaceM2,
     volumeM3,
     confidence: 0.3 + detectionResult.confidence * 0.3,
+    uncertaintyPercent: Math.round((1 - (0.3 + detectionResult.confidence * 0.3)) * 100),
   };
 
   const weight = calculateWeightFromVolume(volumeM3, composition);
