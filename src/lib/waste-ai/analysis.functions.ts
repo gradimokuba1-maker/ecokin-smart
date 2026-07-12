@@ -21,11 +21,40 @@ const InputSchema = z.object({
   lat: z.number().optional(),
   lng: z.number().optional(),
   accuracy: z.number().optional(),
+  altitudeM: z.number().optional(),
+  capturedAt: z.string().datetime().optional(),
   cameraCapability: z.enum(["lidar", "arcore", "basic"]).optional(),
   depthData: z.string().optional(), // JSON stringified depth data if available
 });
 
 type Input = z.infer<typeof InputSchema>;
+
+const MATERIALS: readonly WasteMaterial[] = [
+  "plastique", "carton", "papier", "verre", "metal", "organique",
+  "dangereux", "meuble", "electronique", "construction", "mixte", "inconnu",
+];
+
+function toMaterial(value: unknown, fallback: WasteMaterial = "inconnu"): WasteMaterial {
+  return typeof value === "string" && MATERIALS.includes(value as WasteMaterial)
+    ? (value as WasteMaterial)
+    : fallback;
+}
+
+function toRisk(value: unknown): "faible" | "modere" | "eleve" {
+  return value === "faible" || value === "modere" || value === "eleve" ? value : "modere";
+}
+
+function detectedObjects(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 12).flatMap((object) => {
+    if (!object || typeof object !== "object") return [];
+    const item = object as Record<string, unknown>;
+    const label = typeof item.label === "string" ? item.label.trim().slice(0, 60) : "déchet non précisé";
+    const count = Math.max(1, Math.min(999, Math.round(Number(item.count) || 1)));
+    const confidence = Math.max(0, Math.min(1, Number(item.confidence) || 0));
+    return label ? [{ label, count, confidence }] : [];
+  });
+}
 
 // Fallback pour quand l'API IA est indisponible
 function createFallback(input: Input): WasteAnalysisResult {
@@ -48,6 +77,8 @@ function createFallback(input: Input): WasteAnalysisResult {
     lng: input.lng ?? 15.3139,
     accuracy: input.accuracy ?? 100,
     commune: "matete",
+    altitudeM: input.altitudeM,
+    capturedAt: input.capturedAt ?? now,
   };
   const priorityScore = 45;
   return {
@@ -70,6 +101,7 @@ function createFallback(input: Input): WasteAnalysisResult {
     cameraCapability: input.cameraCapability ?? "basic",
     analysisConfidence: 0.4,
     wasteAreaPercent: 60,
+    detectedObjects: [{ label: "dépôt mélangé", count: 1, confidence: 0.4 }],
     environmentDetected: ["sol", "route"],
     description: "Dépôt de déchets détecté. Analyse précise indisponible (mode dégradé).",
     recommendations: [
@@ -100,6 +132,10 @@ Analyse la photo et renvoie ce JSON EXACT :
   "composition": [
     {"material": "plastique", "percentage": 45},
     {"material": "carton", "percentage": 25}
+  ],
+  "detectedObjects": [
+    {"label": "bouteilles PET", "count": 12, "confidence": 0.91},
+    {"label": "sacs plastiques", "count": 4, "confidence": 0.82}
   ],
   "wasteAreaPercent": 65,
   "environmentDetected": ["route", "sol", "arbres"],
@@ -174,7 +210,7 @@ RÈGLES IMPORTANTES :
 
       // Construire la composition
       const composition: CompositionEntry[] = (p.composition ?? []).map((c: any) => ({
-        material: (c.material ?? "inconnu") as WasteMaterial,
+        material: toMaterial(c.material),
         percentage: Math.round(c.percentage ?? 0),
       }));
 
@@ -188,7 +224,7 @@ RÈGLES IMPORTANTES :
       }
 
       if (composition.length === 0) {
-        composition.push({ material: p.mainCategory ?? "mixte", percentage: 100 });
+        composition.push({ material: toMaterial(p.mainCategory, "mixte"), percentage: 100 });
       }
 
       // Dimensions 3D
@@ -216,6 +252,8 @@ RÈGLES IMPORTANTES :
         lat: data.lat ?? -4.3317,
         lng: data.lng ?? 15.3139,
         accuracy: data.accuracy ?? 50,
+        altitudeM: data.altitudeM,
+        capturedAt: data.capturedAt ?? now,
         commune: "matete", // sera mis à jour côté client
       };
 
@@ -226,8 +264,8 @@ RÈGLES IMPORTANTES :
       const healthScore = p.healthRisk === "eleve" ? 15 : p.healthRisk === "modere" ? 8 : 0;
       const priorityScore = Math.min(100, sevScore + floodScore + volumeScore + healthScore);
 
-      const mainCategory = (p.mainCategory ?? "mixte") as WasteMaterial;
-      const secondaryCategory = p.secondaryCategory ? (p.secondaryCategory as WasteMaterial) : undefined;
+      const mainCategory = toMaterial(p.mainCategory, "mixte");
+      const secondaryCategory = p.secondaryCategory ? toMaterial(p.secondaryCategory) : undefined;
 
       return {
         id,
@@ -238,6 +276,7 @@ RÈGLES IMPORTANTES :
         mainCategory,
         secondaryCategory,
         wasteAreaPercent: Math.min(100, Math.max(0, Number(p.wasteAreaPercent ?? 50))),
+        detectedObjects: detectedObjects(p.detectedObjects),
         environmentDetected: Array.isArray(p.environmentDetected) ? p.environmentDetected : ["sol"],
         dimensions,
         weight,
@@ -246,9 +285,9 @@ RÈGLES IMPORTANTES :
         priorityLevel: calculatePriorityLevel(priorityScore),
         interventionUrgent: Boolean(p.interventionUrgent),
         floodRisk: Boolean(p.floodRisk),
-        healthRisk: p.healthRisk ?? "modere",
-        environmentalRisk: p.environmentalRisk ?? "modere",
-        obstructionRisk: p.obstructionRisk ?? "faible",
+        healthRisk: toRisk(p.healthRisk),
+        environmentalRisk: toRisk(p.environmentalRisk),
+        obstructionRisk: toRisk(p.obstructionRisk),
         cameraCapability: data.cameraCapability ?? "basic",
         analysisConfidence: dimensionsConfidence,
         description: String(p.description ?? "Dépôt de déchets détecté."),

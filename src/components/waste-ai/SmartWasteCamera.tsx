@@ -3,7 +3,7 @@
 // Demande groupée des permissions : caméra, GPS (précise), profondeur
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { Camera, ImageIcon, Loader2, Smartphone, Tablet, AlertTriangle, CheckCircle2, RotateCcw, Layers, MapPin, Eye, Box, XCircle, Shield } from "lucide-react";
+import { Camera, ImageIcon, Loader2, Smartphone, Tablet, AlertTriangle, CheckCircle2, RotateCcw, Layers, MapPin, Box, XCircle, Shield, Video } from "lucide-react";
 import { toast } from "sonner";
 import { detectDeviceCapability, estimateVolumeFromImage, type DeviceCapability } from "@/lib/waste-ai/depth-analyzer";
 import { requestGPSPosition, buildLocationInfo, type GPSState } from "@/lib/waste-ai/gps-location";
@@ -16,6 +16,9 @@ export type CaptureResult = {
   cameraCapability: CameraCapability;
   location: LocationInfo | null;
   depthData?: string;
+  captureMode: "single" | "multi" | "video";
+  capturedAt: string;
+  videoDurationSeconds?: number;
 };
 
 type Props = {
@@ -35,11 +38,17 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
   const [capturing, setCapturing] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
-  const [captureMode, setCaptureMode] = useState<"single" | "multi">("single");
+  const [captureMode, setCaptureMode] = useState<"single" | "multi" | "video">("single");
   const [multiStep, setMultiStep] = useState(0);
   const [showLiveView, setShowLiveView] = useState(false);
   const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [showPermissionPanel, setShowPermissionPanel] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordingFramesRef = useRef<string[]>([]);
+  const recordingFrameTimerRef = useRef<number | null>(null);
+  const recordingClockRef = useRef<number | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // Hook de permissions groupées
   const {
@@ -73,7 +82,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       const gps = await requestGPSPosition();
       setGpsState(gps);
       if (gps.status === "ok") {
-        const loc = buildLocationInfo(gps.lat, gps.lng, gps.accuracy);
+        const loc = buildLocationInfo(gps.lat, gps.lng, gps.accuracy, gps.altitudeM);
         setLocation(loc);
       }
     })();
@@ -85,6 +94,8 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       if (liveStream) {
         liveStream.getTracks().forEach((t) => t.stop());
       }
+      if (recordingFrameTimerRef.current) window.clearInterval(recordingFrameTimerRef.current);
+      if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
     };
   }, [liveStream]);
 
@@ -172,46 +183,125 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     handleImageCapture(dataUrl);
   }, []);
 
+  const deliverCapture = useCallback((imageDataUrl: string, additionalImages: string[], mode: CaptureResult["captureMode"], videoDurationSeconds?: number) => {
+    setPreview(imageDataUrl);
+    setCapturing(true);
+    onCapture({
+      imageDataUrl,
+      additionalImages,
+      cameraCapability: deviceCap?.cameraCapability ?? "basic",
+      location,
+      captureMode: mode,
+      capturedAt: new Date().toISOString(),
+      videoDurationSeconds,
+    });
+    setCapturing(false);
+  }, [deviceCap, location, onCapture]);
+
   const handleImageCapture = useCallback((dataUrl: string) => {
     if (captureMode === "single") {
-      setPreview(dataUrl);
-      setCapturing(true);
-      // Pour single capture, envoyer immédiatement
-      const cap = deviceCap?.cameraCapability ?? "basic";
-      onCapture({
-        imageDataUrl: dataUrl,
-        additionalImages: [],
-        cameraCapability: cap,
-        location,
-      });
-      setCapturing(false);
+      deliverCapture(dataUrl, [], "single");
       toast.success("Photo capturée · Analyse IA en cours");
-    } else {
-      // Mode multi: demander plusieurs photos
-      const newPhotos = [...additionalPhotos, dataUrl];
-      setAdditionalPhotos(newPhotos);
-      setMultiStep(newPhotos.length);
-
-      if (newPhotos.length >= 3) {
-        // Assez de photos, envoyer pour analyse
-        setPreview(newPhotos[0]);
-        setCapturing(true);
-        const cap = deviceCap?.cameraCapability ?? "basic";
-        onCapture({
-          imageDataUrl: newPhotos[0],
-          additionalImages: newPhotos.slice(1),
-          cameraCapability: cap,
-          location,
-        });
-        setCapturing(false);
-        setMultiStep(0);
-        setAdditionalPhotos([]);
-        toast.success("Photos capturées · Analyse IA multi-vues en cours");
-      } else {
-        toast.success(`Photo ${newPhotos.length}/3 prise. Prenez la vue suivante.`);
-      }
+      return;
     }
-  }, [captureMode, deviceCap, location, additionalPhotos, onCapture]);
+
+    if (captureMode === "video") return;
+
+    const newPhotos = [...additionalPhotos, dataUrl];
+    setAdditionalPhotos(newPhotos);
+    setMultiStep(newPhotos.length);
+
+    if (newPhotos.length >= 3) {
+      deliverCapture(newPhotos[0], newPhotos.slice(1), "multi");
+      setMultiStep(0);
+      setAdditionalPhotos([]);
+      toast.success("Photos capturées · Analyse IA multi-vues en cours");
+    } else {
+      toast.success(`Photo ${newPhotos.length}/3 prise. Prenez la vue suivante.`);
+    }
+  }, [additionalPhotos, captureMode, deliverCapture]);
+
+  const captureLiveFrame = useCallback(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || !video.videoWidth || !video.videoHeight) return null;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(video, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.82);
+  }, []);
+
+  const clearRecordingTimers = useCallback(() => {
+    if (recordingFrameTimerRef.current) window.clearInterval(recordingFrameTimerRef.current);
+    if (recordingClockRef.current) window.clearInterval(recordingClockRef.current);
+    recordingFrameTimerRef.current = null;
+    recordingClockRef.current = null;
+  }, []);
+
+  const finishVideoCapture = useCallback(() => {
+    clearRecordingTimers();
+    setRecording(false);
+    const frames = recordingFramesRef.current;
+    recordingFramesRef.current = [];
+    if (frames.length === 0) {
+      toast.error("La vidéo ne contient aucune image exploitable. Réessayez en gardant le dépôt dans le cadre.");
+      return;
+    }
+    const duration = Math.max(1, recordingSeconds);
+    deliverCapture(frames[0], frames.slice(1, 5), "video", duration);
+    stopLiveView();
+    toast.success(`${frames.length} vues extraites de la vidéo · Analyse IA en cours`);
+  }, [clearRecordingTimers, deliverCapture, recordingSeconds, stopLiveView]);
+
+  const startVideoRecording = useCallback(() => {
+    if (!liveStream || typeof MediaRecorder === "undefined") {
+      toast.error("L'enregistrement vidéo n'est pas pris en charge par ce navigateur.");
+      return;
+    }
+    recordingFramesRef.current = [];
+    const firstFrame = captureLiveFrame();
+    if (firstFrame) recordingFramesRef.current.push(firstFrame);
+    setRecordingSeconds(0);
+    setRecording(true);
+
+    const recorder = new MediaRecorder(liveStream);
+    mediaRecorderRef.current = recorder;
+    recorder.onstop = finishVideoCapture;
+    recorder.start();
+
+    recordingFrameTimerRef.current = window.setInterval(() => {
+      const frame = captureLiveFrame();
+      if (frame && recordingFramesRef.current.length < 6) recordingFramesRef.current.push(frame);
+    }, 1600);
+
+    let seconds = 0;
+    recordingClockRef.current = window.setInterval(() => {
+      seconds += 1;
+      setRecordingSeconds(seconds);
+      if (seconds >= 12 && mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+    }, 1000);
+  }, [captureLiveFrame, finishVideoCapture, liveStream]);
+
+  const stopVideoRecording = useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+  }, []);
+
+  const cancelVideoRecording = useCallback(() => {
+    clearRecordingTimers();
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
+    recordingFramesRef.current = [];
+    setRecording(false);
+    setRecordingSeconds(0);
+    stopLiveView();
+  }, [clearRecordingTimers, stopLiveView]);
 
   const resetCapture = useCallback(() => {
     setPreview(null);

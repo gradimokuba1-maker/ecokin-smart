@@ -2,7 +2,7 @@
 // Composition, dimensions 3D, poids, priorité, risques
 
 import { type WasteAnalysisResult, type CompositionEntry, type WasteMaterial } from "@/lib/waste-ai/types";
-import { AlertTriangle, BarChart3, Box, Crosshair, Droplets, FlaskConical, Gauge, Scale, Shield, Shovel, Siren, Sparkles, TriangleAlert, Truck, Weight, Zap } from "lucide-react";
+import { BarChart3, Box, Crosshair, Gauge, Scale, Shield, Siren, Sparkles, TriangleAlert, Truck, Zap } from "lucide-react";
 
 type Props = {
   result: WasteAnalysisResult;
@@ -97,6 +97,19 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
         </div>
       </Section>
 
+      {result.detectedObjects.length > 0 && (
+        <Section icon={<Crosshair className="size-4" />} title="Détections">
+          <div className="space-y-2">
+            {result.detectedObjects.map((object, i) => (
+              <div key={`${object.label}-${i}`} className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2 text-xs">
+                <span className="capitalize">{object.label}</span>
+                <span className="font-semibold">{object.count} · {Math.round(object.confidence * 100)}%</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {/* Environnement détecté */}
       {result.environmentDetected.length > 0 && (
         <Section icon={<Crosshair className="size-4" />} title="Environnement">
@@ -149,7 +162,7 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
           </div>
           <div className="ml-auto">
             <span className="rounded-full bg-eco/10 px-2 py-1 text-[10px] font-bold text-eco">
-              ±{Math.round(result.weight.confidence * 100)}%
+              ±{result.weight.uncertaintyPercent}%
             </span>
           </div>
         </div>
@@ -174,6 +187,12 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
             <span className="text-muted-foreground">Précision :</span>
             <span className="ml-1 font-mono">±{result.location.accuracy}m</span>
           </div>
+          {result.location.altitudeM != null && (
+            <div>
+              <span className="text-muted-foreground">Altitude :</span>
+              <span className="ml-1 font-mono">{result.location.altitudeM} m</span>
+            </div>
+          )}
         </div>
         {result.location.quartier && (
           <div className="mt-1 text-[10px] text-muted-foreground">

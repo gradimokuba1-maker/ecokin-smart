@@ -7,7 +7,7 @@ import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 export type GPSState =
   | { status: "idle" }
   | { status: "requesting" }
-  | { status: "ok"; lat: number; lng: number; accuracy: number }
+  | { status: "ok"; lat: number; lng: number; accuracy: number; altitudeM?: number }
   | { status: "denied" }
   | { status: "unavailable" };
 
@@ -29,6 +29,7 @@ export function requestGPSPosition(): Promise<GPSState> {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
           accuracy: position.coords.accuracy,
+          altitudeM: position.coords.altitude ?? undefined,
         });
       },
       (error) => {
@@ -50,7 +51,8 @@ export function requestGPSPosition(): Promise<GPSState> {
 export function buildLocationInfo(
   lat: number,
   lng: number,
-  accuracy: number
+  accuracy: number,
+  altitudeM?: number,
 ): LocationInfo {
   const commune = detectCityCommune(DEFAULT_CITY, lat, lng);
 
@@ -59,6 +61,8 @@ export function buildLocationInfo(
     lng: Math.round(lng * 100000) / 100000,
     accuracy: Math.round(accuracy),
     commune: commune.id,
+    altitudeM: altitudeM == null ? undefined : Math.round(altitudeM),
+    capturedAt: new Date().toISOString(),
     quartier: estimateQuartier(lat, lng, commune.id),
     adresse: buildApproximateAddress(lat, lng, commune.name),
   };

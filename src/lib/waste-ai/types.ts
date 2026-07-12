@@ -33,6 +33,7 @@ export type Dimensions3D = {
   surfaceM2: number;
   volumeM3: number;
   confidence: number; // 0-1
+  uncertaintyPercent: number;
 };
 
 export type WeightEstimate = {
@@ -47,8 +48,16 @@ export type LocationInfo = {
   lng: number;
   accuracy: number;
   commune: string;
+  altitudeM?: number;
+  capturedAt?: string;
   quartier?: string;
   adresse?: string;
+};
+
+export type DetectedWasteObject = {
+  label: string;
+  count: number;
+  confidence: number;
 };
 
 export type WasteAnalysisResult = {
@@ -66,6 +75,7 @@ export type WasteAnalysisResult = {
   secondaryCategory?: WasteMaterial;
 
   // Segmentation
+  detectedObjects: DetectedWasteObject[];
   wasteAreaPercent: number; // % de l'image occupée par les déchets
   environmentDetected: string[]; // route, sol, bâtiments, arbres, etc.
 
@@ -146,6 +156,7 @@ export function calculateWeightFromVolume(
     weightKg: Math.round(weightKg * 10) / 10,
     weightTons: Math.round(weightTons * 100) / 100,
     confidence,
+    uncertaintyPercent: Math.round((1 - confidence) * 100),
     densityUsed: Math.round(weightedDensity),
   };
 }
