@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useServerFn } from "@tanstack/react-start";
@@ -228,7 +228,7 @@ function SignalerPage() {
     saveHash(imgHash, item.id);
     try {
       const commit = await commitHash({
-        data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: result.category ?? "unknown" as any },
+        data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: result.category ?? "unknown" },
       });
       if ("duplicate" in commit && commit.duplicate) {
         toast.error("Rejeté au commit : cette photo vient d'être signalée par un autre utilisateur.");

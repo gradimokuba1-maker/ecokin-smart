@@ -321,8 +321,8 @@ function RegisterTab({
     });
     setOk(true);
     setName(""); setQuartier(""); setAddress(""); setPhone("");
-    setErrors({});
     onCreated(created);
+    setErrors({});
     setTimeout(() => setOk(false), 2500);
   };
 

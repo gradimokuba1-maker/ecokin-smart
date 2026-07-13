@@ -211,8 +211,6 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     setIsStarting(true);
     setPermissions((current) => ({ ...current, camera: "requesting", depth: "requesting" }));
 
-    // **FIX**: Removed the pre-flight check. We now request the camera directly.
-    // **FIX**: Removed the rigid 'environment' constraint to allow front cameras on desktops.
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -378,7 +376,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       MediaRecorder.isTypeSupported(type),
     );
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-    recorderChunksRef.current = [];
+    recorderChunksRef.current = []; // Reset chunks
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) recorderChunksRef.current.push(event.data);
     };

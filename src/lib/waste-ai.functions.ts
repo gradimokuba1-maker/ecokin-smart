@@ -127,6 +127,8 @@ Rien d'autre que le JSON.`;
     }
   });
 
+export type WasteMaterial = "plastique" | "carton" | "papier" | "verre" | "metal" | "organique" | "dangereux" | "meuble" | "electronique" | "construction" | "mixte" | "inconnu";
+
 // --- ADVANCED ANALYSIS ---
 
 const AdvancedInputSchema = z.object({
