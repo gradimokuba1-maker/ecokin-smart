@@ -2,7 +2,7 @@
 // Aperçu du modèle 3D si disponible (LiDAR/ARCore) ou représentation volumétrique
 
 import { type WasteAnalysisResult } from "@/lib/waste-ai/types";
-import { Box, Eye, Maximize2, Minimize2 } from "lucide-react";
+import { Box, Maximize2, Minimize2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 type Props = {
@@ -13,7 +13,6 @@ type Props = {
 export function Waste3DViewer({ result, compact }: Props) {
   const [expanded, setExpanded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [rotation, setRotation] = useState(0);
 
   // Animation simple de rotation pour la visualisation 3D
   useEffect(() => {
@@ -22,13 +21,21 @@ export function Waste3DViewer({ result, compact }: Props) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // DPI scaling for better performance on high-res mobile screens
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+
     let animId: number;
     let angle = 0;
 
     const draw = () => {
       if (!ctx || !canvas) return;
-      const w = canvas.width;
-      const h = canvas.height;
+      // Use client rect dimensions for calculations
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
       ctx.clearRect(0, 0, w, h);
 
       // Fond
@@ -42,29 +49,29 @@ export function Waste3DViewer({ result, compact }: Props) {
       const dim = result.dimensions;
       const maxDim = Math.max(dim.lengthM, dim.widthM, dim.heightAvgM, 1);
       const scale = Math.min(w, h) * 0.3 / maxDim;
-      
+
       const l = dim.lengthM * scale;
       const wi = dim.widthM * scale;
       const he = dim.heightAvgM * scale;
 
-      angle += 0.01;
+      angle += 0.008; // Slower rotation is less CPU intensive
       const sinA = Math.sin(angle);
       const cosA = Math.cos(angle);
 
       // Dessiner un parallélépipède 3D simple (vue isométrique)
       const drawBox = () => {
         const depth = Math.min(l, wi) * 0.4;
-        
+
         // Points du parallélépipède
         const pts: [number, number, number][] = [
-          [-l/2, -he/2, -depth/2],  // 0: arrière-gauche-bas
-          [l/2, -he/2, -depth/2],   // 1: arrière-droit-bas
-          [l/2, -he/2, depth/2],    // 2: avant-droit-bas
-          [-l/2, -he/2, depth/2],   // 3: avant-gauche-bas
-          [-l/2, he/2, -depth/2],   // 4: arrière-gauche-haut
-          [l/2, he/2, -depth/2],    // 5: arrière-droit-haut
-          [l/2, he/2, depth/2],     // 6: avant-droit-haut
-          [-l/2, he/2, depth/2],    // 7: avant-gauche-haut
+          [-l / 2, -he / 2, -depth / 2],  // 0: arrière-gauche-bas
+          [l / 2, -he / 2, -depth / 2],   // 1: arrière-droit-bas
+          [l / 2, -he / 2, depth / 2],    // 2: avant-droit-bas
+          [-l / 2, -he / 2, depth / 2],   // 3: avant-gauche-bas
+          [-l / 2, he / 2, -depth / 2],   // 4: arrière-gauche-haut
+          [l / 2, he / 2, -depth / 2],    // 5: arrière-droit-haut
+          [l / 2, he / 2, depth / 2],     // 6: avant-droit-haut
+          [-l / 2, he / 2, depth / 2],    // 7: avant-gauche-haut
         ];
 
         // Projection isométrique simple
@@ -82,7 +89,7 @@ export function Waste3DViewer({ result, compact }: Props) {
         const mainColor = getCompositionColor(result.mainCategory);
 
         // Dessiner les faces (arrière-plan d'abord)
-        ctx.strokeStyle = mainColor;
+        ctx.strokeStyle = mainColor + "90"; // Slightly transparent stroke
         ctx.lineWidth = 2;
 
         // Face avant
@@ -119,9 +126,9 @@ export function Waste3DViewer({ result, compact }: Props) {
         ctx.stroke();
 
         // Arêtes visibles
-        ctx.strokeStyle = mainColor + "80";
+        ctx.strokeStyle = mainColor;
         ctx.lineWidth = 2;
-        for (const [i, j] of [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]) {
+        for (const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]]) {
           ctx.beginPath();
           ctx.moveTo(projected[i][0], projected[i][1]);
           ctx.lineTo(projected[j][0], projected[j][1]);
@@ -132,7 +139,7 @@ export function Waste3DViewer({ result, compact }: Props) {
         ctx.fillStyle = "hsl(var(--foreground))";
         ctx.font = "11px Inter, sans-serif";
         ctx.textAlign = "center";
-        
+
         const labelOffset = 20;
         // Longueur
         const lMid = [(projected[0][0] + projected[1][0]) / 2, (projected[0][1] + projected[1][1]) / 2 + labelOffset];
@@ -153,7 +160,7 @@ export function Waste3DViewer({ result, compact }: Props) {
 
     draw();
     return () => cancelAnimationFrame(animId);
-  }, [result, expanded]);
+  }, [result, expanded]); // Reruns when expanded changes size
 
   const getCompositionColor = (material: string): string => {
     const colors: Record<string, string> = {

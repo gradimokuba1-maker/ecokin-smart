@@ -98,6 +98,9 @@ function dataUrlFromCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
 }
 
 export function SmartWasteCamera({ onCapture, disabled }: Props) {
+  // Log pour vérifier la version du composant et aider au débogage du cache
+  console.log("SmartWasteCamera component version: 2.1.0");
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
