@@ -52,7 +52,7 @@ type PermissionStatus = "idle" | "requesting" | "granted" | "denied" | "unavaila
 type ImageQuality = CaptureResult["imageQuality"];
 
 type Props = {
-  onCapture: (result: CaptureResult) => void;
+  onCapture: (result: CaptureResult | null) => void;
   disabled?: boolean;
 };
 
@@ -60,7 +60,12 @@ const MAX_VIDEO_SECONDS = 12;
 const MULTI_PHOTO_COUNT = 3;
 
 function getPermissionStatus(error: unknown): PermissionStatus {
-  return error instanceof DOMException && error.name === "NotAllowedError" ? "denied" : "unavailable";
+  console.error("Camera permission error:", error);
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError") return "denied"; // User explicitly denied
+    if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") return "unavailable"; // No device found
+  }
+  return "unavailable"; // Other errors
 }
 
 function qualityFromDimensions(width: number, height: number): ImageQuality {
@@ -98,6 +103,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
   const galleryRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderChunksRef = useRef<Blob[]>([]);
   const recordingFramesRef = useRef<string[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
   const recordingClockRef = useRef<number | null>(null);
@@ -178,7 +184,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { ideal: "environment" },
+          facingMode: "environment",
           width: { ideal: 1920 },
           height: { ideal: 1080 },
         },
@@ -188,7 +194,11 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       setShowLiveView(true);
       return true;
     } catch (error) {
-      setPermissions((current) => ({ ...current, camera: getPermissionStatus(error) }));
+      const status = getPermissionStatus(error);
+      setPermissions((current) => ({ ...current, camera: status }));
+      if (status === 'denied') {
+        toast.error("Autorisation de la caméra refusée. Veuillez l'activer dans les paramètres de votre navigateur.");
+      }
       toast.error("Impossible d'ouvrir la caméra. Vérifiez les autorisations du navigateur.");
       return false;
     }
@@ -201,18 +211,29 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     setIsStarting(true);
     setPermissions((current) => ({ ...current, camera: "requesting", depth: "requesting" }));
 
+    // **FIX**: Removed the pre-flight check. We now request the camera directly.
+    // **FIX**: Removed the rigid 'environment' constraint to allow front cameras on desktops.
     try {
-      // La première requête ouvre la boîte de permission caméra. Le flux est
-      // ensuite libéré pour que WebXR puisse demander une profondeur native.
-      const permissionStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: "environment" } },
+        video: {
+          facingMode: "environment", // It will prefer the back camera but fallback to front if not available.
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
       });
-      permissionStream.getTracks().forEach((track) => track.stop());
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setShowLiveView(true);
       setPermissions((current) => ({ ...current, camera: "granted" }));
     } catch (error) {
-      setPermissions((current) => ({ ...current, camera: getPermissionStatus(error) }));
-      toast.error("La capture nécessite l'autorisation de la caméra.");
+      const status = getPermissionStatus(error);
+      setPermissions((current) => ({ ...current, camera: status }));
+      if (status === 'denied') {
+        toast.error("Autorisation de la caméra refusée. Veuillez l'activer dans les paramètres de votre navigateur.");
+      } else {
+        toast.error("Aucun appareil photo compatible n'a été trouvé sur cet appareil.");
+      }
       setIsStarting(false);
       return;
     }
@@ -235,7 +256,6 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       toast.message("Aucun LiDAR exploitable : le modèle IA de profondeur sera utilisé après la prise de vue.");
     }
 
-    await openLiveCamera();
     setIsStarting(false);
   }, [disabled, isProcessing, isStarting, openLiveCamera, requestLocation, showLiveView]);
 
@@ -286,6 +306,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     const canvas = canvasRef.current;
     if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
       toast.error("La caméra n'est pas encore prête.");
+      console.warn("captureStill called before camera was ready.", { video, canvas, videoWidth: video?.videoWidth });
       return;
     }
 
@@ -328,14 +349,14 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       return;
     }
 
-    const chunks = (recorder as MediaRecorder & { __chunks?: Blob[] } | null)?.__chunks ?? [];
+    const chunks = recorderChunksRef.current;
     const blob = chunks.length > 0 ? new Blob(chunks, { type: recorder?.mimeType || "video/webm" }) : undefined;
     if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
     const url = blob ? URL.createObjectURL(blob) : undefined;
     videoUrlRef.current = url ?? null;
     setVideoPreviewUrl(url ?? null);
     const duration = Math.max(1, recordingSecondsRef.current);
-
+    recorderChunksRef.current = [];
     stopLiveView();
     await deliverCapture(firstFrame, frames.slice(0, 5), "video", {
       videoDurationSeconds: duration,
@@ -357,9 +378,9 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       MediaRecorder.isTypeSupported(type),
     );
     const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-    (recorder as MediaRecorder & { __chunks?: Blob[] }).__chunks = [];
+    recorderChunksRef.current = [];
     recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) (recorder as MediaRecorder & { __chunks?: Blob[] }).__chunks?.push(event.data);
+      if (event.data.size > 0) recorderChunksRef.current.push(event.data);
     };
     recorder.onstop = () => void finishVideo();
     recorderRef.current = recorder;
@@ -423,6 +444,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     nativeDepthRef.current = null;
     if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
     videoUrlRef.current = null;
+    onCapture(null);
   }, []);
 
   const locationText = location

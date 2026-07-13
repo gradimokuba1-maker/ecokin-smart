@@ -46,6 +46,7 @@ import { useWasteTax, PAYMENT_PROVIDERS, formatCdf, type Invoice, type PaymentMe
 import { KINSHASA_COMMUNES } from "@/lib/cities";
 import { CitizenGate } from "@/components/citizen-gate";
 import { WasteInfrastructurePanel } from "@/components/waste-infrastructure-panel";
+import { toast } from "sonner";
 function pushNotification(n: { title: string; body: string; level?: string }) {
   if (typeof window === "undefined") return;
   try {
@@ -308,11 +309,6 @@ function RegisterTab({
       return;
     }
 
-    if (!name.trim() || !commune || !quartier.trim() || !address.trim() || !phone.trim()) {
-      alert("Merci de compléter tous les champs obligatoires.");
-      return;
-    }
-
     const created = store.registerHousehold({
       kind, name: name.trim(), commune, quartier: quartier.trim(),
       address: address.trim(), phone: phone.trim(),
@@ -494,7 +490,10 @@ function RequestTab({
   if (!household) return <NoHouseholdCard />;
 
   const submit = () => {
-    if (!reason.trim() || !preferredDate) return alert("Merci d'indiquer un motif et une date.");
+    if (!reason.trim() || !preferredDate) {
+      toast.error("Merci d'indiquer un motif et une date souhaitée.");
+      return;
+    }
     store.createRequest({ householdId: household.id, reason: reason.trim(), preferredDate });
     pushNotification({
       title: "Collecte exceptionnelle demandée",
