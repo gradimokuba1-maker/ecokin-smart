@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const InputSchema = z.object({
+const AnalyzeInputSchema = z.object({
   imageDataUrl: z.string().min(20),
 });
 
@@ -52,7 +52,7 @@ const FALLBACK: WasteAnalysis = {
 };
 
 export const analyzeWastePhoto = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => InputSchema.parse(data))
+  .inputValidator((data: unknown) => AnalyzeInputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysis> => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) return FALLBACK;
@@ -125,6 +125,107 @@ Rien d'autre que le JSON.`;
       console.error("AI analyze failed", err);
       return FALLBACK;
     }
+  });
+
+// --- ADVANCED ANALYSIS ---
+
+const AdvancedInputSchema = z.object({
+  imageDataUrl: z.string().min(20),
+  additionalImages: z.array(z.string()).optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  accuracy: z.number().optional(),
+  altitudeM: z.number().optional(),
+  capturedAt: z.string().datetime().optional(),
+  cameraCapability: z.enum(["lidar", "arcore", "basic"]).optional(),
+  depthData: z.string().optional(),
+});
+
+export type WasteAnalysisResult = {
+  mainCategory: WasteMaterial;
+  secondaryCategory?: WasteMaterial;
+  composition: { material: WasteMaterial; percentage: number }[];
+  detectedObjects: { label: string; count: number; confidence: number }[];
+  environmentDetected: string[];
+  wasteAreaPercent: number;
+  dimensions: {
+    lengthM: number;
+    widthM: number;
+    heightAvgM: number;
+    surfaceM2: number;
+    volumeM3: number;
+    confidence: number;
+  };
+  weight: {
+    weightKg: number;
+    weightTons: number;
+    densityUsed: number;
+    uncertaintyPercent: number;
+    confidence: number;
+  };
+  location: {
+    lat: number;
+    lng: number;
+    accuracy: number;
+    altitudeM?: number;
+    commune: string;
+    quartier?: string;
+  };
+  healthRisk: "faible" | "modere" | "eleve";
+  environmentalRisk: "faible" | "modere" | "eleve";
+  obstructionRisk: "faible" | "modere" | "eleve";
+  floodRisk: boolean;
+  interventionUrgent: boolean;
+  priorityScore: number;
+  priorityLevel: "faible" | "moyen" | "eleve" | "critique";
+  description: string;
+  recommendations: string[];
+  analysisConfidence: number;
+  model3DAvailable: boolean;
+  cameraCapability?: "lidar" | "arcore" | "basic";
+};
+
+const ADVANCED_FALLBACK: WasteAnalysisResult = {
+  mainCategory: "mixte",
+  composition: [{ material: "mixte", percentage: 100 }],
+  detectedObjects: [],
+  environmentDetected: ["route"],
+  wasteAreaPercent: 50,
+  dimensions: { lengthM: 2.1, widthM: 1.5, heightAvgM: 0.4, surfaceM2: 3.15, volumeM3: 1.26, confidence: 0.6 },
+  weight: { weightKg: 189, weightTons: 0.19, densityUsed: 150, uncertaintyPercent: 30, confidence: 0.55 },
+  location: { lat: -4.32, lng: 15.3, accuracy: 20, commune: "gombe" },
+  healthRisk: "modere",
+  environmentalRisk: "modere",
+  obstructionRisk: "eleve",
+  floodRisk: true,
+  interventionUrgent: false,
+  priorityScore: 75,
+  priorityLevel: "eleve",
+  description: "Analyse avancée simulée : Dépôt mixte avec risque d'obstruction de caniveau.",
+  recommendations: ["Intervention rapide recommandée", "Utiliser un camion benne standard"],
+  analysisConfidence: 0.75,
+  model3DAvailable: true,
+  cameraCapability: "basic",
+};
+
+export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => AdvancedInputSchema.parse(data))
+  .handler(async ({ data }): Promise<WasteAnalysisResult> => {
+    // This is a mock implementation. In a real scenario, this would call
+    // a sophisticated AI backend with all the provided data (image, depth, GPS).
+    // For now, we return a detailed, but static, fallback object.
+    const fallback = { ...ADVANCED_FALLBACK };
+    if (data.lat && data.lng) {
+      fallback.location.lat = data.lat;
+      fallback.location.lng = data.lng;
+      fallback.location.accuracy = data.accuracy ?? 20;
+      fallback.location.altitudeM = data.altitudeM;
+    }
+    if (data.cameraCapability) {
+      fallback.cameraCapability = data.cameraCapability;
+      fallback.model3DAvailable = data.cameraCapability === 'lidar' || !!data.depthData;
+    }
+    return Promise.resolve(fallback);
   });
 
 // -------------- Assistant IA décideurs (Q/R langage naturel) --------------

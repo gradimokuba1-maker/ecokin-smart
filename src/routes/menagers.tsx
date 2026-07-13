@@ -47,6 +47,7 @@ import { KINSHASA_COMMUNES } from "@/lib/cities";
 import { CitizenGate } from "@/components/citizen-gate";
 import { WasteInfrastructurePanel } from "@/components/waste-infrastructure-panel";
 import { toast } from "sonner";
+import { formatNumber } from "@/lib/utils";
 function pushNotification(n: { title: string; body: string; level?: string }) {
   if (typeof window === "undefined") return;
   try {
@@ -55,7 +56,6 @@ function pushNotification(n: { title: string; body: string; level?: string }) {
     }
   } catch { }
 }
-import { formatNumber } from "@/lib/utils";
 
 export const Route = createFileRoute("/menagers")({
   head: () => ({

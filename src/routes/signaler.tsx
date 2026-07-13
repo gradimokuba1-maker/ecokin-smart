@@ -228,7 +228,7 @@ function SignalerPage() {
     saveHash(imgHash, item.id);
     try {
       const commit = await commitHash({
-        data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: result.category },
+        data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: result.category ?? "unknown" as any },
       });
       if ("duplicate" in commit && commit.duplicate) {
         toast.error("Rejeté au commit : cette photo vient d'être signalée par un autre utilisateur.");
