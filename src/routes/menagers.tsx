@@ -101,7 +101,7 @@ function MenagersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SiteNav />
+      <SiteNav minimal />
       <header className="border-b border-border bg-gradient-to-br from-eco/10 via-background to-urban/10">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-eco">

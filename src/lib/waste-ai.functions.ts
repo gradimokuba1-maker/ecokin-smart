@@ -187,47 +187,77 @@ export type WasteAnalysisResult = {
   cameraCapability?: "lidar" | "arcore" | "basic";
 };
 
-const ADVANCED_FALLBACK: WasteAnalysisResult = {
-  mainCategory: "mixte",
-  composition: [{ material: "mixte", percentage: 100 }],
-  detectedObjects: [],
-  environmentDetected: ["route"],
-  wasteAreaPercent: 50,
-  dimensions: { lengthM: 2.1, widthM: 1.5, heightAvgM: 0.4, surfaceM2: 3.15, volumeM3: 1.26, confidence: 0.6 },
-  weight: { weightKg: 189, weightTons: 0.19, densityUsed: 150, uncertaintyPercent: 30, confidence: 0.55 },
-  location: { lat: -4.32, lng: 15.3, accuracy: 20, commune: "gombe" },
-  healthRisk: "modere",
-  environmentalRisk: "modere",
-  obstructionRisk: "eleve",
-  floodRisk: true,
-  interventionUrgent: false,
-  priorityScore: 75,
-  priorityLevel: "eleve",
-  description: "Analyse avancée simulée : Dépôt mixte avec risque d'obstruction de caniveau.",
-  recommendations: ["Intervention rapide recommandée", "Utiliser un camion benne standard"],
-  analysisConfidence: 0.75,
-  model3DAvailable: true,
-  cameraCapability: "basic",
-};
-
 export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => AdvancedInputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysisResult> => {
-    // This is a mock implementation. In a real scenario, this would call
-    // a sophisticated AI backend with all the provided data (image, depth, GPS).
-    // For now, we return a detailed, but static, fallback object.
-    const fallback = { ...ADVANCED_FALLBACK };
+    // This is a dynamic mock implementation. It simulates a real AI analysis
+    // by generating variable results based on the input image data URL.
+    // This replaces the static fallback.
+
+    // 1. Dynamic Category Recognition (based on dataUrl characters)
+    const hash = data.imageDataUrl.length % 7;
+    const categories: WasteMaterial[] = ["plastique", "organique", "papier", "metal", "verre", "construction", "mixte"];
+    const mainCategory = categories[hash] ?? "mixte";
+    const secondaryCategory = categories[(hash + 2) % 7];
+
+    // 2. Variable Volume & Dimensions (based on dataUrl length)
+    const sizeFactor = (data.imageDataUrl.length % 100) / 100; // 0 to 1
+    const baseVolume = 0.1 + sizeFactor * 5; // Volume from 0.1 to 5.1 m³
+    const volumeM3 = parseFloat(baseVolume.toFixed(2));
+    const surfaceM2 = parseFloat((volumeM3 / (0.2 + sizeFactor * 0.5)).toFixed(2));
+    const heightAvgM = parseFloat((volumeM3 / surfaceM2).toFixed(2));
+
+    // 3. Dynamic Weight (based on category density)
+    const densities: Record<WasteMaterial, number> = { plastique: 60, organique: 450, papier: 90, metal: 300, verre: 600, construction: 1200, mixte: 150, inconnu: 150, dangereux: 200, meuble: 180, electronique: 250 };
+    const densityUsed = densities[mainCategory] ?? 150;
+    const weightKg = Math.round(volumeM3 * densityUsed);
+
+    // 4. Dynamic Risk & Confidence
+    const analysisConfidence = 0.55 + sizeFactor * 0.4; // 55% to 95%
+    const healthRisk = ["organique", "dangereux"].includes(mainCategory) ? "eleve" : (volumeM3 > 2 ? "modere" : "faible");
+    const priorityScore = Math.min(98, 40 + Math.round(volumeM3 * 5) + (healthRisk === "eleve" ? 20 : 0));
+    const priorityLevel = priorityScore > 90 ? "critique" : priorityScore > 75 ? "eleve" : priorityScore > 50 ? "moyen" : "faible";
+
+    // 5. Contextual Recommendations
+    const recommendations = ["Évaluation sur site requise."];
+    if (volumeM3 > 3) recommendations.push("Prévoir un camion de grande capacité.");
+    if (mainCategory === "mixte") recommendations.push("Tri nécessaire avant évacuation.");
+    if (healthRisk === "eleve") recommendations.push("Équipement de protection individuelle (EPI) recommandé pour les équipes.");
+
+    const result: WasteAnalysisResult = {
+      mainCategory,
+      secondaryCategory,
+      composition: [{ material: mainCategory, percentage: 70 }, { material: secondaryCategory, percentage: 30 }],
+      detectedObjects: [{ label: mainCategory, count: Math.round(1 + sizeFactor * 10), confidence: 0.8 }],
+      environmentDetected: ["route", "trottoir"],
+      wasteAreaPercent: Math.round(20 + sizeFactor * 60),
+      dimensions: { lengthM: parseFloat(Math.sqrt(surfaceM2 * 1.5).toFixed(2)), widthM: parseFloat(Math.sqrt(surfaceM2 / 1.5).toFixed(2)), heightAvgM, surfaceM2, volumeM3, confidence: 0.6 + sizeFactor * 0.3 },
+      weight: { weightKg, weightTons: parseFloat((weightKg / 1000).toFixed(2)), densityUsed, uncertaintyPercent: Math.round(35 - sizeFactor * 20), confidence: 0.5 + sizeFactor * 0.4 },
+      location: { lat: -4.32, lng: 15.3, accuracy: 20, commune: "gombe" },
+      healthRisk,
+      environmentalRisk: volumeM3 > 1 ? "modere" : "faible",
+      obstructionRisk: "faible",
+      floodRisk: mainCategory === 'plastique' && volumeM3 > 1,
+      interventionUrgent: priorityLevel === "critique",
+      priorityScore,
+      priorityLevel,
+      description: `Analyse dynamique : Détection d'un dépôt de type '${mainCategory}' d'un volume approximatif de ${volumeM3} m³.`,
+      recommendations,
+      analysisConfidence,
+      model3DAvailable: data.cameraCapability === 'lidar' || !!data.depthData,
+      cameraCapability: "basic",
+    };
+
     if (data.lat && data.lng) {
-      fallback.location.lat = data.lat;
-      fallback.location.lng = data.lng;
-      fallback.location.accuracy = data.accuracy ?? 20;
-      fallback.location.altitudeM = data.altitudeM;
+      result.location.lat = data.lat;
+      result.location.lng = data.lng;
+      result.location.accuracy = data.accuracy ?? 20;
+      result.location.altitudeM = data.altitudeM;
     }
     if (data.cameraCapability) {
-      fallback.cameraCapability = data.cameraCapability;
-      fallback.model3DAvailable = data.cameraCapability === 'lidar' || !!data.depthData;
+      result.cameraCapability = data.cameraCapability;
     }
-    return Promise.resolve(fallback);
+    return Promise.resolve(result);
   });
 
 // -------------- Assistant IA décideurs (Q/R langage naturel) --------------

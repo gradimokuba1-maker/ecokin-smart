@@ -247,7 +247,7 @@ function SignalerPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <SiteNav />
+      <SiteNav minimal />
       <header className="border-b border-border bg-secondary/40">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <p className="text-xs font-bold uppercase tracking-widest text-eco">Signalement citoyen · 24 communes</p>
