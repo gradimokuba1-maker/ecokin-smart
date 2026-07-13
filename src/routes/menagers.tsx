@@ -158,7 +158,7 @@ function MenagersPage() {
               <History className="size-3.5" /> Historique
             </TabsTrigger>
             <TabsTrigger value="infrastructure" className="gap-1.5">
-              <MapPinned className="size-3.5" /> Cartographie dÃ©chets
+              <MapPinned className="size-3.5" /> Cartographie déchets
             </TabsTrigger>
             <TabsTrigger value="tips" className="gap-1.5">
               <Recycle className="size-3.5" /> Conseils tri
@@ -293,12 +293,26 @@ function RegisterTab({
   const [occupants, setOccupants] = useState(4);
   const [binType, setBinType] = useState<BinType>("120L");
   const [ok, setOk] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<"name" | "commune" | "quartier" | "address" | "phone", string>>>({});
 
   const submit = () => {
+    const newErrors: Partial<Record<"name" | "commune" | "quartier" | "address" | "phone", string>> = {};
+    if (!name.trim()) newErrors.name = "Le nom est requis.";
+    if (!commune) newErrors.commune = "La commune est requise.";
+    if (!quartier.trim()) newErrors.quartier = "Le quartier est requis.";
+    if (!address.trim()) newErrors.address = "L'adresse est requise.";
+    if (!phone.trim()) newErrors.phone = "Le téléphone est requis.";
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
     if (!name.trim() || !commune || !quartier.trim() || !address.trim() || !phone.trim()) {
       alert("Merci de compléter tous les champs obligatoires.");
       return;
     }
+
     const created = store.registerHousehold({
       kind, name: name.trim(), commune, quartier: quartier.trim(),
       address: address.trim(), phone: phone.trim(),
@@ -311,6 +325,7 @@ function RegisterTab({
     });
     setOk(true);
     setName(""); setQuartier(""); setAddress(""); setPhone("");
+    setErrors({});
     onCreated(created);
     setTimeout(() => setOk(false), 2500);
   };
@@ -336,30 +351,35 @@ function RegisterTab({
         </div>
         <div className="space-y-2">
           <Label>Nom {kind === "pme" ? "de l'entreprise" : "du chef de ménage"} *</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Kabongo Mwamba" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex. Kabongo Mwamba" className={errors.name ? "border-red-500" : ""} />
+          {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
         </div>
         <div className="space-y-2">
           <Label>Commune *</Label>
           <Select value={commune} onValueChange={setCommune}>
-            <SelectTrigger><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
+            <SelectTrigger className={errors.commune ? "border-red-500" : ""}><SelectValue placeholder="Sélectionner…" /></SelectTrigger>
             <SelectContent className="max-h-72">
               {KINSHASA_COMMUNES.map((c) => (
                 <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {errors.commune && <p className="text-xs text-red-600">{errors.commune}</p>}
         </div>
         <div className="space-y-2">
           <Label>Quartier *</Label>
-          <Input value={quartier} onChange={(e) => setQuartier(e.target.value)} placeholder="Ex. Salongo" />
+          <Input value={quartier} onChange={(e) => setQuartier(e.target.value)} placeholder="Ex. Salongo" className={errors.quartier ? "border-red-500" : ""} />
+          {errors.quartier && <p className="text-xs text-red-600">{errors.quartier}</p>}
         </div>
         <div className="space-y-2 md:col-span-2">
           <Label>Adresse *</Label>
-          <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="N° / Avenue" />
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="N° / Avenue" className={errors.address ? "border-red-500" : ""} />
+          {errors.address && <p className="text-xs text-red-600">{errors.address}</p>}
         </div>
         <div className="space-y-2">
           <Label>Téléphone *</Label>
-          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+243…" />
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+243…" className={errors.phone ? "border-red-500" : ""} />
+          {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
         </div>
         <div className="space-y-2">
           <Label>Nombre d'occupants</Label>
