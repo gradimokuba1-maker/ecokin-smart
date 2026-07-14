@@ -27,69 +27,6 @@ export const Route = createFileRoute("/agent")({
     ),
 });
 
-function AgentMap({ reports, userPosition }: { reports: LiveReport[]; userPosition: { lat: number; lng: number } | null }) {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const mapRef = useRef<any>(null);
-    const routingControlRef = useRef<any>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            if (cancelled || !containerRef.current) return;
-            const L = (await import("leaflet")).default;
-            await import("leaflet/dist/leaflet.css");
-            await Promise.all([
-                import("leaflet-routing-machine"),
-                import("./leaflet-routing-machine.css"),
-            ]);
-            if (!mapRef.current) {
-                const startPos: [number, number] = userPosition ? [userPosition.lat, userPosition.lng] : [-4.325, 15.3222];
-                const map = L.map(containerRef.current).setView(startPos, 15);
-                L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-                    attribution: "© OpenStreetMap · © CARTO",
-                }).addTo(map);
-                mapRef.current = map;
-            }
-            const map = mapRef.current;
-
-            if (routingControlRef.current) {
-                map.removeControl(routingControlRef.current);
-            }
-
-            if (userPosition && reports.length > 0) {
-                const waypoints = [
-                    L.latLng(userPosition.lat, userPosition.lng),
-                    ...reports.filter(r => r.lat && r.lng).map(r => L.latLng(r.lat!, r.lng!))
-                ];
-
-                const routing = (L as typeof L & {
-                    Routing?: { control: (options: { waypoints: unknown[]; routeWhileDragging: boolean; show: boolean }) => { addTo: (map: unknown) => unknown } };
-                }).Routing;
-                if (!routing) return;
-                routingControlRef.current = routing.control({
-                    waypoints,
-                    routeWhileDragging: true,
-                    show: false, // Masque le panneau de texte de l'itinéraire
-                }).addTo(map);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-            if (mapRef.current) {
-                mapRef.current.remove();
-                mapRef.current = null;
-            }
-            if (routingControlRef.current) {
-                routingControlRef.current.remove();
-                routingControlRef.current = null;
-            }
-        };
-    }, [reports, userPosition]);
-
-    return <div ref={containerRef} className="h-[400px] w-full overflow-hidden rounded-lg border bg-secondary" />;
-}
-
 function PhotoCapture({ report, type, onCapture, onClose }: { report: LiveReport, type: 'before' | 'after', onCapture: (dataUrl: string) => void, onClose: () => void }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);

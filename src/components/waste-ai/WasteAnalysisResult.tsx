@@ -1,7 +1,7 @@
 // EcoKin Smart — WasteAnalysisResult : Affichage détaillé des résultats d'analyse IA
 // Composition, dimensions 3D, poids, priorité, risques
 
-import { type WasteAnalysisResult, type CompositionEntry, type WasteMaterial } from "@/lib/waste-ai/types";
+import { type WasteAnalysisResult, type CompositionEntry, type WasteMaterial } from "@/lib/waste-ai.functions";
 import { BarChart3, Box, Crosshair, Gauge, Scale, Shield, Siren, Sparkles, TriangleAlert, Truck, Zap } from "lucide-react";
 
 type Props = {

@@ -16,6 +16,7 @@ import {
   Crosshair, Loader2, ShieldAlert, ShieldCheck, Sparkles, Trophy,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Waste3DViewer } from "@/components/waste-ai/Waste3DViewer";
 import { CitizenGate } from "@/components/citizen-gate";
 import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { WasteAnalysisResultCard } from "@/components/waste-ai/WasteAnalysisResult";
@@ -414,8 +415,6 @@ function SignalerPage() {
               </div>
             )}
           </div>
-
-          {advancedResult && <WasteAnalysisResultCard result={advancedResult} />}
 
           <div className="rounded-3xl border border-border bg-kin p-6 text-white">
             <div className="flex items-center gap-2">

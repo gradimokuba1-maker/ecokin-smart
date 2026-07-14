@@ -129,6 +129,7 @@ Rien d'autre que le JSON.`;
 
 export type WasteMaterial = "plastique" | "carton" | "papier" | "verre" | "metal" | "organique" | "dangereux" | "meuble" | "electronique" | "construction" | "mixte" | "inconnu";
 
+export type CompositionEntry = { material: WasteMaterial; percentage: number };
 // --- ADVANCED ANALYSIS ---
 
 const AdvancedInputSchema = z.object({
@@ -146,7 +147,7 @@ const AdvancedInputSchema = z.object({
 export type WasteAnalysisResult = {
   mainCategory: WasteMaterial;
   secondaryCategory?: WasteMaterial;
-  composition: { material: WasteMaterial; percentage: number }[];
+  composition: CompositionEntry[];
   detectedObjects: { label: string; count: number; confidence: number }[];
   environmentDetected: string[];
   wasteAreaPercent: number;
