@@ -384,36 +384,7 @@ function SignalerPage() {
                 Prenez une photo ou choisissez-en une dans la galerie : la classification, le
                 volume et les recommandations s'affichent automatiquement.
               </p>
-            ) : (
-              <div className="mt-4 space-y-3 font-mono text-xs">
-                <Row label="Catégorie" value={(result.category ?? result.type).toUpperCase()} />
-                <Row label="Confiance" value={`${Math.round(result.confidence * 100)}%`} />
-                <Row label="Sévérité" value={result.severity} color={sevColor(result.severity)} />
-                <Row label="Volume estimé" value={`${result.volumeEstimateM3.toFixed(1)} m³`} />
-                <Row label="Risque sanitaire" value={result.risqueSanitaire ?? "—"} />
-                <Row label="Risque inondation" value={result.floodRisk ? "OUI" : "non"} color={result.floodRisk ? "text-flood" : ""} />
-                <Row label="Intervention immédiate" value={result.interventionImmediate ? "OUI" : "non"} />
-                {pos && (
-                  <Row label="Score de priorité" value={priorityScore({ commune: commune as any, lat: pos.lat, lng: pos.lng, severity: result.severity }) + " / 100"} />
-                )}
-                <div className="rounded-lg bg-background p-3 font-sans text-xs text-foreground">{result.description}</div>
-                <ul className="ml-4 list-disc space-y-1 font-sans text-xs text-muted-foreground">
-                  {result.recommendations.map((r, i) => (
-                    <li key={i}>{r}</li>
-                  ))}
-                </ul>
-                {pos && proximityAlerts(pos.lat, pos.lng).length > 0 && (
-                  <div className="rounded-lg border border-red-200 bg-red-500/5 p-3 font-sans">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-600">⚠ Alertes proximité</div>
-                    <ul className="mt-1 ml-4 list-disc text-xs text-red-700">
-                      {proximityAlerts(pos.lat, pos.lng).map((a, i) => (
-                        <li key={i}>{a}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+            ) : advancedResult ? <WasteAnalysisResultCard result={advancedResult} /> : null}
           </div>
 
           <div className="rounded-3xl border border-border bg-kin p-6 text-white">

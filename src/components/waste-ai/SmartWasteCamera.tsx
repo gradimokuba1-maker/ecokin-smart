@@ -235,30 +235,10 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       } else {
         toast.error("Aucun appareil photo compatible n'a été trouvé sur cet appareil.");
       }
-      setIsStarting(false);
-      return;
-    }
-
-    const [nextLocation, nativeDepth] = await Promise.all([requestLocation(), acquireNativeDepth()]);
-    nativeDepthRef.current = nativeDepth;
-    setDepth(nativeDepth);
-    setPermissions((current) => ({
-      ...current,
-      depth: nativeDepth.source === "lidar" ? "granted" : "unavailable",
-    }));
-
-    if (!nextLocation) {
-      toast.warning("GPS indisponible : vous pourrez toujours ajuster le point sur la carte.");
-    }
-
-    if (nativeDepth.source === "lidar") {
-      toast.success("Capteur de profondeur natif détecté et activé.");
-    } else {
-      toast.message("Aucun LiDAR exploitable : le modèle IA de profondeur sera utilisé après la prise de vue.");
     }
 
     setIsStarting(false);
-  }, [disabled, isProcessing, isStarting, openLiveCamera, requestLocation, showLiveView]);
+  }, [disabled, isProcessing, isStarting, requestLocation, showLiveView]);
 
   const deliverCapture = useCallback(async (
     imageDataUrl: string,
