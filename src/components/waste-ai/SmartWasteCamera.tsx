@@ -25,11 +25,10 @@ import {
 import { toast } from "sonner";
 import {
   acquireNativeDepth,
-  estimateDepthWithAI,
   type DepthAcquisition,
   type DepthSource,
 } from "@/lib/waste-ai/depth-acquisition";
-import { buildLocationInfo, requestGPSPosition, type GPSState } from "@/lib/waste-ai/gps-location";
+import { buildLocationInfo, requestGPSPosition } from "@/lib/waste-ai/gps-location";
 import type { CameraCapability, LocationInfo } from "@/lib/waste-ai/types";
 
 export type CaptureResult = {
@@ -58,14 +57,188 @@ type Props = {
 
 const MAX_VIDEO_SECONDS = 12;
 const MULTI_PHOTO_COUNT = 3;
+const MAX_ANALYSIS_IMAGE_EDGE = 1600;
+const JPEG_QUALITY = 0.88;
+const REAR_CAMERA_LABEL = /back|rear|environment|arrière|arriere|world/i;
+
+function stopStream(stream: MediaStream | null | undefined) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
+function errorName(error: unknown) {
+  return error instanceof Error ? error.name : "";
+}
 
 function getPermissionStatus(error: unknown): PermissionStatus {
-  console.error("Camera permission error:", error);
-  if (error instanceof DOMException) {
-    if (error.name === "NotAllowedError") return "denied"; // User explicitly denied
-    if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") return "unavailable"; // No device found
+  const name = errorName(error);
+  if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") return "denied";
+  return "unavailable";
+}
+
+function cameraErrorMessage(error: unknown) {
+  const name = errorName(error);
+  if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
+    return "Autorisation de la caméra refusée. Activez-la dans les paramètres du navigateur, puis réessayez.";
   }
-  return "unavailable"; // Other errors
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+    return "Aucune caméra utilisable n’a été détectée. Vous pouvez néanmoins choisir une photo depuis la galerie.";
+  }
+  if (name === "NotReadableError" || name === "TrackStartError") {
+    return "La caméra est actuellement utilisée par une autre application. Fermez-la puis réessayez.";
+  }
+  return "Impossible d’ouvrir la caméra. Réessayez ou choisissez une photo depuis la galerie.";
+}
+
+function analysisDimensions(width: number, height: number) {
+  const longestEdge = Math.max(width, height);
+  if (longestEdge <= MAX_ANALYSIS_IMAGE_EDGE) return { width, height };
+  const scale = MAX_ANALYSIS_IMAGE_EDGE / longestEdge;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+function imageDataUrlFromSource(
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+  canvas: HTMLCanvasElement,
+) {
+  const dimensions = analysisDimensions(width, height);
+  canvas.width = dimensions.width;
+  canvas.height = dimensions.height;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) return null;
+  context.drawImage(source, 0, 0, dimensions.width, dimensions.height);
+  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+}
+
+function readImageFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Image unreadable"));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function prepareGalleryImage(file: File): Promise<{ imageDataUrl: string; quality: ImageQuality }> {
+  const image = await readImageFile(file);
+  const imageDataUrl = imageDataUrlFromSource(
+    image,
+    image.naturalWidth || image.width,
+    image.naturalHeight || image.height,
+    document.createElement("canvas"),
+  );
+  if (!imageDataUrl) throw new Error("Image encoding failed");
+  return {
+    imageDataUrl,
+    quality: qualityFromDimensions(image.naturalWidth || image.width, image.naturalHeight || image.height),
+  };
+}
+
+function isRearCamera(track: MediaStreamTrack, devices: MediaDeviceInfo[]) {
+  const settings = track.getSettings();
+  if (settings.facingMode === "environment") return true;
+  return devices.some((device) => device.deviceId === settings.deviceId && REAR_CAMERA_LABEL.test(device.label));
+}
+
+async function requestDeviceStream(mediaDevices: MediaDevices, devices: MediaDeviceInfo[]) {
+  let lastError: unknown;
+  for (const device of devices) {
+    try {
+      return await mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          deviceId: { exact: device.deviceId },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+      });
+    } catch (error) {
+      lastError = error;
+      if (getPermissionStatus(error) === "denied") throw error;
+    }
+  }
+  throw lastError ?? new DOMException("No camera stream", "NotFoundError");
+}
+
+/**
+ * Ouvre d'abord la caméra arrière avec des contraintes souples, puis explore
+ * les autres périphériques vidéo si le navigateur ne peut pas la satisfaire.
+ * Les contraintes `ideal` évitent de rejeter les Android dont les capacités
+ * déclarées sont incomplètes.
+ */
+async function requestPreferredCameraStream(): Promise<MediaStream> {
+  const mediaDevices = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+  if (!mediaDevices?.getUserMedia) throw new DOMException("Camera API unavailable", "NotSupportedError");
+
+  const attempts: MediaStreamConstraints[] = [
+    {
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+    },
+    {
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    },
+    { audio: false, video: true },
+  ];
+
+  let stream: MediaStream | null = null;
+  let lastError: unknown;
+  for (const constraints of attempts) {
+    try {
+      stream = await mediaDevices.getUserMedia(constraints);
+      break;
+    } catch (error) {
+      lastError = error;
+      if (getPermissionStatus(error) === "denied") throw error;
+    }
+  }
+
+  const devices = await mediaDevices.enumerateDevices()
+    .then((entries) => entries.filter((entry) => entry.kind === "videoinput"))
+    .catch(() => [] as MediaDeviceInfo[]) ?? [];
+  const rearDevices = devices.filter((device) => REAR_CAMERA_LABEL.test(device.label));
+
+  if (!stream) {
+    const candidates = rearDevices.length > 0 ? [...rearDevices, ...devices.filter((device) => !rearDevices.includes(device))] : devices;
+    if (candidates.length > 0) return requestDeviceStream(mediaDevices, candidates);
+    throw lastError ?? new DOMException("No camera device", "NotFoundError");
+  }
+
+  const track = stream.getVideoTracks()[0];
+  if (!track || rearDevices.length === 0 || isRearCamera(track, devices)) return stream;
+
+  // Certains Android ignorent facingMode. Une fois l'autorisation obtenue,
+  // les libellés sont disponibles : on bascule alors explicitement sur l'arrière.
+  stopStream(stream);
+  try {
+    return await requestDeviceStream(mediaDevices, rearDevices);
+  } catch (error) {
+    try {
+      return await mediaDevices.getUserMedia({ audio: false, video: true });
+    } catch {
+      throw error;
+    }
+  }
 }
 
 function qualityFromDimensions(width: number, height: number): ImageQuality {
@@ -89,18 +262,10 @@ function formatCaptureTime(value: string) {
 }
 
 function dataUrlFromCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const context = canvas.getContext("2d");
-  if (!context) return null;
-  context.drawImage(video, 0, 0);
-  return canvas.toDataURL("image/jpeg", 0.9);
+  return imageDataUrlFromSource(video, video.videoWidth, video.videoHeight, canvas);
 }
 
 export function SmartWasteCamera({ onCapture, disabled }: Props) {
-  // Log pour vérifier la version du composant et aider au débogage du cache
-  console.log("SmartWasteCamera component version: 2.1.0");
-
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -120,13 +285,12 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     gps: "idle" as PermissionStatus,
     depth: "idle" as PermissionStatus,
   });
-  const [gpsState, setGpsState] = useState<GPSState>({ status: "idle" });
   const [location, setLocation] = useState<LocationInfo | null>(null);
   const [depth, setDepth] = useState<DepthAcquisition | null>(null);
   const [showLiveView, setShowLiveView] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingMessage, setProcessingMessage] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
@@ -136,9 +300,10 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
 
   const stopLiveView = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    stopStream(streamRef.current);
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    setIsCameraReady(false);
     setShowLiveView(false);
   }, []);
 
@@ -152,16 +317,21 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
   useEffect(() => {
     return () => {
       clearRecordingTimers();
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      stopStream(streamRef.current);
       if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
     };
   }, [clearRecordingTimers]);
 
+  useEffect(() => {
+    if (!showLiveView || !videoRef.current || !streamRef.current) return;
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    void video.play().catch(() => undefined);
+  }, [showLiveView]);
+
   const requestLocation = useCallback(async () => {
     setPermissions((current) => ({ ...current, gps: "requesting" }));
-    setGpsState({ status: "requesting" });
     const position = await requestGPSPosition();
-    setGpsState(position);
 
     if (position.status === "ok") {
       const nextLocation = buildLocationInfo(
@@ -182,83 +352,70 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     return null;
   }, []);
 
-  const openLiveCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
-      setShowLiveView(true);
-      return true;
-    } catch (error) {
-      const status = getPermissionStatus(error);
-      setPermissions((current) => ({ ...current, camera: status }));
-      if (status === 'denied') {
-        toast.error("Autorisation de la caméra refusée. Veuillez l'activer dans les paramètres de votre navigateur.");
-      }
-      toast.error("Impossible d'ouvrir la caméra. Vérifiez les autorisations du navigateur.");
-      return false;
-    }
-  }, []);
-
   const startCapture = useCallback(async () => {
     if (disabled || isStarting || isProcessing) return;
     if (showLiveView) return;
 
     setIsStarting(true);
-    setPermissions((current) => ({ ...current, camera: "requesting", depth: "requesting" }));
+    setPermissions((current) => ({ ...current, camera: "requesting", depth: "requesting", gps: "requesting" }));
+    setIsCameraReady(false);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: "environment", // It will prefer the back camera but fallback to front if not available.
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
+      const stream = await requestPreferredCameraStream();
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       setShowLiveView(true);
       setPermissions((current) => ({ ...current, camera: "granted" }));
+
+      // La caméra ne dépend jamais du GPS ou du LiDAR : ce sont des
+      // enrichissements asynchrones qui ne bloquent pas la prise de vue.
+      void requestLocation().then((nextLocation) => {
+        if (!nextLocation) toast.warning("GPS indisponible : vous pourrez toujours ajuster le point sur la carte.");
+      }).catch(() => {
+        setPermissions((current) => ({ ...current, gps: "unavailable" }));
+      });
+
+      void acquireNativeDepth().then((nativeDepth) => {
+        nativeDepthRef.current = nativeDepth;
+        setDepth(nativeDepth);
+        setPermissions((current) => ({
+          ...current,
+          depth: nativeDepth.source === "lidar" ? "granted" : "unavailable",
+        }));
+        if (nativeDepth.source === "lidar") {
+          toast.success("Capteur de profondeur natif activé.");
+        }
+      }).catch(() => {
+        setPermissions((current) => ({ ...current, depth: "unavailable" }));
+      });
     } catch (error) {
       const status = getPermissionStatus(error);
       setPermissions((current) => ({ ...current, camera: status }));
-      if (status === 'denied') {
-        toast.error("Autorisation de la caméra refusée. Veuillez l'activer dans les paramètres de votre navigateur.");
-      } else {
-        toast.error("Aucun appareil photo compatible n'a été trouvé sur cet appareil.");
-      }
+      toast.error(cameraErrorMessage(error));
+    } finally {
+      setIsStarting(false);
     }
-
-    setIsStarting(false);
   }, [disabled, isProcessing, isStarting, requestLocation, showLiveView]);
 
   const deliverCapture = useCallback(async (
     imageDataUrl: string,
     additionalImages: string[],
     mode: CaptureMode,
+    quality: ImageQuality,
     options?: { videoDurationSeconds?: number; videoBlob?: Blob; videoPreviewUrl?: string },
   ) => {
     const now = new Date().toISOString();
     setPreview(imageDataUrl);
     setCapturedAt(now);
-    setIsProcessing(true);
-
-    let depthResult = nativeDepthRef.current;
-    if (depthResult?.source !== "lidar" || !depthResult.depthData) {
-      setProcessingMessage("Estimation IA de la profondeur…");
-      depthResult = await estimateDepthWithAI(imageDataUrl, setProcessingMessage);
-      setDepth(depthResult);
-    }
-
-    setProcessingMessage("");
+    // Un modèle de profondeur local n'est jamais sur le chemin critique. La
+    // carte WebXR native est conservée quand elle existe ; sinon l'analyse IA
+    // complète estime profondeur, volume et composition côté serveur.
+    const depthResult = nativeDepthRef.current ?? {
+      source: "ai" as const,
+      label: "Analyse de profondeur côté IA",
+      detail: "La profondeur est estimée pendant l'analyse complète.",
+      confidence: 0.55,
+    };
+    if (!depth) setDepth(depthResult);
     onCapture({
       imageDataUrl,
       additionalImages,
@@ -271,16 +428,10 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       videoDurationSeconds: options?.videoDurationSeconds,
       videoBlob: options?.videoBlob,
       videoPreviewUrl: options?.videoPreviewUrl,
-      imageQuality,
+      imageQuality: quality,
     });
-    setIsProcessing(false);
-
-    if (depthResult.source === "unavailable") {
-      toast.warning("Photo acquise, mais l'estimation de profondeur n'a pas pu être chargée.");
-    } else {
-      toast.success("Capture intelligente prête pour l'analyse.");
-    }
-  }, [imageQuality, location, onCapture]);
+    toast.success("Photo prête pour l'analyse.");
+  }, [depth, location, onCapture]);
 
   const captureStill = useCallback(async () => {
     const video = videoRef.current;
@@ -293,24 +444,29 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
 
     const frame = dataUrlFromCanvas(video, canvas);
     if (!frame) return toast.error("Impossible de capturer cette image.");
-    setImageQuality(qualityFromDimensions(video.videoWidth, video.videoHeight));
+    const nextQuality = qualityFromDimensions(video.videoWidth, video.videoHeight);
+    setImageQuality(nextQuality);
+    setIsProcessing(true);
 
     if (captureMode === "multi") {
       const nextPhotos = [...additionalPhotos, frame];
       setAdditionalPhotos(nextPhotos);
       if (nextPhotos.length < MULTI_PHOTO_COUNT) {
         toast.success(`Vue ${nextPhotos.length}/${MULTI_PHOTO_COUNT} enregistrée. Déplacez-vous pour le prochain angle.`);
+        setIsProcessing(false);
         return;
       }
 
       stopLiveView();
-      await deliverCapture(nextPhotos[0], nextPhotos.slice(1), "multi");
+      await deliverCapture(nextPhotos[0], nextPhotos.slice(1), "multi", nextQuality);
       setAdditionalPhotos([]);
+      setIsProcessing(false);
       return;
     }
 
     stopLiveView();
-    await deliverCapture(frame, [], "single");
+    await deliverCapture(frame, [], "single", nextQuality);
+    setIsProcessing(false);
   }, [additionalPhotos, captureMode, deliverCapture, stopLiveView]);
 
   const finishVideo = useCallback(async () => {
@@ -339,12 +495,16 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     const duration = Math.max(1, recordingSecondsRef.current);
     recorderChunksRef.current = [];
     stopLiveView();
-    await deliverCapture(firstFrame, frames.slice(0, 5), "video", {
+    const nextQuality = qualityFromDimensions(video.videoWidth, video.videoHeight);
+    setImageQuality(nextQuality);
+    setIsProcessing(true);
+    await deliverCapture(firstFrame, frames.slice(0, 5), "video", nextQuality, {
       videoDurationSeconds: duration,
       videoBlob: blob,
       videoPreviewUrl: url,
     });
-  }, [clearRecordingTimers, deliverCapture, recordingSeconds, stopLiveView]);
+    setIsProcessing(false);
+  }, [clearRecordingTimers, deliverCapture, stopLiveView]);
 
   const startVideoRecording = useCallback(() => {
     const stream = streamRef.current;
@@ -404,16 +564,18 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       toast.error("Image trop volumineuse (max 10 Mo).");
       return;
     }
-    const imageDataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    nativeDepthRef.current = null;
-    setDepth(null);
-    setImageQuality("correct");
-    await deliverCapture(imageDataUrl, [], "single");
+    setIsProcessing(true);
+    try {
+      const { imageDataUrl, quality } = await prepareGalleryImage(file);
+      nativeDepthRef.current = null;
+      setDepth(null);
+      setImageQuality(quality);
+      await deliverCapture(imageDataUrl, [], "single", quality);
+    } catch {
+      toast.error("Impossible de préparer cette image.");
+    } finally {
+      setIsProcessing(false);
+    }
   }, [deliverCapture]);
 
   const resetCapture = useCallback(() => {
@@ -426,7 +588,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
     videoUrlRef.current = null;
     onCapture(null);
-  }, []);
+  }, [onCapture]);
 
   const locationText = location
     ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)} · alt. ${location.altitudeM ?? "—"} m`
@@ -477,7 +639,9 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
               muted
               onLoadedMetadata={(event) => {
                 setImageQuality(qualityFromDimensions(event.currentTarget.videoWidth, event.currentTarget.videoHeight));
+                setIsCameraReady(event.currentTarget.videoWidth > 0 && event.currentTarget.videoHeight > 0);
               }}
+              onCanPlay={() => setIsCameraReady(true)}
               className="size-full object-cover"
             />
             <div className="pointer-events-none absolute inset-4 rounded-xl border border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.12)]" />
@@ -498,7 +662,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
               <div className="absolute inset-0 grid place-items-center bg-black/55 p-4 text-center text-white backdrop-blur-sm">
                 <div>
                   <Loader2 className="mx-auto size-7 animate-spin text-eco" />
-                  <p className="mt-2 text-sm font-bold">{processingMessage || "Préparation de la capture…"}</p>
+                  <p className="mt-2 text-sm font-bold">Préparation de la capture…</p>
                 </div>
               </div>
             )}
@@ -541,7 +705,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
             <button
               type="button"
               onClick={handleCaptureAction}
-              disabled={isProcessing || disabled}
+              disabled={isProcessing || disabled || !isCameraReady}
               className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white ${recording ? "bg-red-600 hover:bg-red-700" : "bg-eco hover:bg-eco/90"} disabled:opacity-50`}
             >
               {captureMode === "video" ? <Video className="size-4" /> : <Camera className="size-4" />}
@@ -551,7 +715,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
                   : "Démarrer la vidéo"
                 : captureMode === "multi"
                   ? `Prendre la vue ${Math.min(additionalPhotos.length + 1, MULTI_PHOTO_COUNT)}/${MULTI_PHOTO_COUNT}`
-                  : "Prendre une photo"}
+                  : isCameraReady ? "Prendre une photo" : "Préparation de la caméra…"}
             </button>
             <button type="button" onClick={stopLiveView} disabled={recording} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-sm font-bold text-foreground hover:bg-secondary disabled:opacity-50">
               <X className="size-4" /> Annuler

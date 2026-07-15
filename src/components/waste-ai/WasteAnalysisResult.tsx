@@ -37,7 +37,7 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
       <div className="space-y-4 rounded-3xl border border-eco/30 bg-eco/5 p-6">
         <div className="flex items-center gap-2">
           <Sparkles className="size-5 text-eco" />
-          <h3 className="font-display text-lg font-bold">Analyse IA EcoKin</h3>
+          <h3 className="font-display text-lg font-bold">Analyse IA et coaching</h3>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="size-4 animate-spin rounded-full border-2 border-eco border-t-transparent" />
@@ -58,7 +58,7 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="size-5 text-eco" />
-          <h3 className="font-display text-lg font-bold">Analyse IA EcoKin</h3>
+          <h3 className="font-display text-lg font-bold">Analyse IA et coaching</h3>
         </div>
         <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${priority.bg} ${priority.color}`}>
           {priority.label}

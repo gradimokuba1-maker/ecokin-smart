@@ -166,29 +166,24 @@ RÈGLES IMPORTANTES :
 - Sois précis et réaliste dans les estimations de volume`;
 
     try {
-      const messages: any[] = [
+      const imageContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
+        { type: "text", text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète." },
+        { type: "image_url", image_url: { url: data.imageDataUrl } },
+      ];
+
+      // Une seule requête utilisateur réduit le surcoût de sérialisation tout
+      // en conservant les vues supplémentaires dans le même contexte visuel.
+      for (const image of data.additionalImages?.slice(0, 3) ?? []) {
+        imageContent.push({ type: "image_url", image_url: { url: image } });
+      }
+
+      const messages = [
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: [
-            { type: "text", text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète." },
-            { type: "image_url", image_url: { url: data.imageDataUrl } },
-          ],
+          content: imageContent,
         },
       ];
-
-      // Ajouter les images supplémentaires si disponibles
-      if (data.additionalImages && data.additionalImages.length > 0) {
-        for (const img of data.additionalImages.slice(0, 3)) {
-          messages.push({
-            role: "user",
-            content: [
-              { type: "text", text: "Voici une vue supplémentaire du même dépôt." },
-              { type: "image_url", image_url: { url: img } },
-            ],
-          });
-        }
-      }
 
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
