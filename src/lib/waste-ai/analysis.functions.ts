@@ -25,7 +25,13 @@ const InputSchema = z.object({
   capturedAt: z.string().datetime().optional(),
   cameraCapability: z.enum(["lidar", "arcore", "basic"]).optional(),
   depthData: z.string().optional(), // JSON stringified depth data if available
+}).extend({
+  // Ajout de champs pour une analyse plus riche côté serveur
+  volumeM3FromDepth: z.number().optional(),
+  surfaceM2FromDepth: z.number().optional(),
+  heightAvgMFromDepth: z.number().optional(),
 });
+
 
 type Input = z.infer<typeof InputSchema>;
 
@@ -114,12 +120,64 @@ function createFallback(input: Input): WasteAnalysisResult {
   };
 }
 
+/**
+ * Calcule le volume, la surface et la hauteur moyenne à partir des données de profondeur.
+ * @param depthData - Les données de profondeur JSON stringifiées.
+ * @returns Un objet avec volumeM3, surfaceM2, heightAvgM, ou null.
+ */
+function calculateVolumeFromDepth(depthData?: string): {
+  volumeM3: number;
+  surfaceM2: number;
+  heightAvgM: number;
+} | null {
+  if (!depthData) return null;
+
+  try {
+    const data = JSON.parse(depthData);
+    const { depthMap, width, height, metric } = data;
+
+    if (!Array.isArray(depthMap) || !width || !height) return null;
+
+    // Hypothèse : la photo est prise à environ 2m de distance, couvrant une zone de 4x4m.
+    // Cette hypothèse peut être affinée avec des données de calibration.
+    const pixelArea = (4 * 4) / (width * height); // Surface en m² par pixel
+
+    let surfaceM2 = 0;
+    let totalDepth = 0;
+    let depthPixels = 0;
+
+    for (const row of depthMap) {
+      for (const depth of row) {
+        if (depth > 0) {
+          surfaceM2 += pixelArea;
+          totalDepth += depth;
+          depthPixels++;
+        }
+      }
+    }
+
+    if (depthPixels === 0) return null;
+
+    const heightAvgM = totalDepth / depthPixels;
+    const volumeM3 = surfaceM2 * heightAvgM;
+
+    return {
+      volumeM3: Number(volumeM3.toFixed(2)),
+      surfaceM2: Number(surfaceM2.toFixed(2)),
+      heightAvgM: Number(heightAvgM.toFixed(2)),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysisResult> => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) return createFallback(data);
 
+    const { imageDataUrl, additionalImages, lat, lng, accuracy, altitudeM, capturedAt, cameraCapability, depthData } = data;
     const now = new Date().toISOString();
     const id = "ECO-" + Date.now().toString(36).toUpperCase();
 
@@ -166,14 +224,27 @@ RÈGLES IMPORTANTES :
 - Sois précis et réaliste dans les estimations de volume`;
 
     try {
+      // Enrichir le payload avec les calculs de profondeur si disponibles
+      const depthMetrics = calculateVolumeFromDepth(depthData);
+
+      const payloadForAI = {
+        imageDataUrl,
+        additionalImages,
+        lat,
+        lng,
+        ...(depthMetrics && {
+          volumeM3FromDepth: depthMetrics.volumeM3,
+          surfaceM2FromDepth: depthMetrics.surfaceM2,
+          heightAvgMFromDepth: depthMetrics.heightAvgM,
+        }),
+      };
+
       const imageContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
         { type: "text", text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète." },
-        { type: "image_url", image_url: { url: data.imageDataUrl } },
+        { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
       ];
 
-      // Une seule requête utilisateur réduit le surcoût de sérialisation tout
-      // en conservant les vues supplémentaires dans le même contexte visuel.
-      for (const image of data.additionalImages?.slice(0, 3) ?? []) {
+      for (const image of payloadForAI.additionalImages?.slice(0, 3) ?? []) {
         imageContent.push({ type: "image_url", image_url: { url: image } });
       }
 
@@ -197,7 +268,7 @@ RÈGLES IMPORTANTES :
 
       if (!res.ok) {
         console.error("AI gateway error", res.status, await res.text());
-        return createFallback(data);
+        return createFallback(payloadForAI);
       }
 
       const json: any = await res.json();
@@ -224,12 +295,20 @@ RÈGLES IMPORTANTES :
       }
 
       // Dimensions 3D
-      const lengthM = Math.max(0.1, Number(p.lengthM ?? 1));
-      const widthM = Math.max(0.1, Number(p.widthM ?? 1));
-      const heightAvgM = Math.max(0.05, Number(p.heightAvgM ?? 0.5));
-      const surfaceM2 = Math.round(lengthM * widthM * 10) / 10;
-      const volumeM3 = Math.round(lengthM * widthM * heightAvgM * 100) / 100;
-      const dimensionsConfidence = Math.max(0, Math.min(1, Number(p.dimensionsConfidence ?? 0.6)));
+      // Utiliser les métriques de profondeur si disponibles, sinon fallback sur l'IA
+      const hasDepthMetrics = !!depthMetrics;
+      const surfaceM2 = hasDepthMetrics ? depthMetrics.surfaceM2 : Math.round(Number(p.surfaceM2 ?? 1.5) * 10) / 10;
+      const heightAvgM = hasDepthMetrics ? depthMetrics.heightAvgM : Math.max(0.05, Number(p.heightAvgM ?? 0.5));
+      const volumeM3 = hasDepthMetrics ? depthMetrics.volumeM3 : Math.round(Number(p.volumeM3 ?? 1.2) * 100) / 100;
+
+      // Estimer L et l à partir de la surface si non fournies
+      const ratio = (p.lengthM && p.widthM) ? p.lengthM / p.widthM : 1.5;
+      const widthM = Math.sqrt(surfaceM2 / ratio);
+      const lengthM = widthM * ratio;
+
+      const dimensionsConfidence = hasDepthMetrics
+        ? 0.85 // Confiance plus élevée avec les données du capteur
+        : Math.max(0, Math.min(1, Number(p.dimensionsConfidence ?? 0.6)));
 
       const dimensions: Dimensions3D = {
         lengthM: Math.round(lengthM * 10) / 10,
@@ -246,11 +325,11 @@ RÈGLES IMPORTANTES :
 
       // Localisation
       const location: LocationInfo = {
-        lat: data.lat ?? -4.3317,
-        lng: data.lng ?? 15.3139,
-        accuracy: data.accuracy ?? 50,
-        altitudeM: data.altitudeM,
-        capturedAt: data.capturedAt ?? now,
+        lat: payloadForAI.lat ?? -4.3317,
+        lng: payloadForAI.lng ?? 15.3139,
+        accuracy: accuracy ?? 50,
+        altitudeM: altitudeM,
+        capturedAt: capturedAt ?? now,
         commune: "matete", // sera mis à jour côté client
       };
 
@@ -267,8 +346,8 @@ RÈGLES IMPORTANTES :
       return {
         id,
         timestamp: now,
-        photoUrl: data.imageDataUrl,
-        model3DAvailable: data.cameraCapability === "lidar" || data.cameraCapability === "arcore",
+        photoUrl: payloadForAI.imageDataUrl,
+        model3DAvailable: cameraCapability === "lidar" || cameraCapability === "arcore",
         composition,
         mainCategory,
         secondaryCategory,
@@ -285,7 +364,7 @@ RÈGLES IMPORTANTES :
         healthRisk: toRisk(p.healthRisk),
         environmentalRisk: toRisk(p.environmentalRisk),
         obstructionRisk: toRisk(p.obstructionRisk),
-        cameraCapability: data.cameraCapability ?? "basic",
+        cameraCapability: cameraCapability ?? "basic",
         analysisConfidence: dimensionsConfidence,
         description: String(p.description ?? "Dépôt de déchets détecté."),
         recommendations: Array.isArray(p.recommendations)
@@ -295,6 +374,6 @@ RÈGLES IMPORTANTES :
       };
     } catch (err) {
       console.error("AI analyze advanced failed", err);
-      return createFallback(data);
+      return createFallback(data); // Utilise les données d'entrée originales pour le fallback
     }
   });
