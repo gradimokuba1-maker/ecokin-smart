@@ -117,7 +117,8 @@ function computeSharpness(data: Uint8ClampedArray, width: number, height: number
       const i = (y * width + x) * 4;
       const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
       const right = (data[i + 4] + data[i + 5] + data[i + 6]) / 3;
-      const down = (data[(y + 1) * width + x] * 4 + data[(y + 1) * width + x] * 4 + 1 + data[(y + 1) * width + x] * 4 + 2) / 3;
+      const downIndex = ((y + 1) * width + x) * 4;
+      const down = (data[downIndex] + data[downIndex + 1] + data[downIndex + 2]) / 3;
       sum += Math.abs(lum - right) + Math.abs(lum - down);
       count += 1;
     }

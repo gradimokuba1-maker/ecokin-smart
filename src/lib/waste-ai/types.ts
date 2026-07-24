@@ -45,6 +45,10 @@ export type CameraCapability = "lidar" | "arcore" | "basic";
 export type CompositionEntry = {
   material: WasteMaterial;
   percentage: number; // 0-100
+  surfaceM2?: number;
+  volumeM3?: number;
+  weightKg?: number;
+  confidence?: number; // 0-1
 };
 
 export type Dimensions3D = {

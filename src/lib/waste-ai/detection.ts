@@ -9,6 +9,7 @@
  */
 
 import type { WasteMaterial, WasteObjectType } from "./types";
+import { analyzeImageContent } from "./image-metrics";
 
 export type BoundingBox = {
   x: number;
@@ -94,6 +95,11 @@ function classFromLabel(value: string): WasteClass {
 
 function classIdFor(type: WasteObjectType) {
   return Math.max(0, WASTE_CLASSES.findIndex((entry) => entry.displayLabel === type));
+}
+
+function displayLabelForMaterial(material: WasteMaterial): WasteObjectType {
+  const wasteClass = WASTE_CLASSES.find((entry) => entry.material === material);
+  return wasteClass?.displayLabel ?? "autres";
 }
 
 function loadImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
@@ -211,40 +217,53 @@ async function detectWithModels(
 
 /** Fallback local sans réseau/modèle, conservé pour les usages hors ligne. */
 async function detectFallback(imageDataUrl: string): Promise<DetectionResult> {
-  const { width, height } = await loadImageSize(imageDataUrl);
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Canvas 2D unavailable");
-  context.drawImage(await loadImage(dataUrlToImageSource(imageDataUrl)), 0, 0);
-  const pixels = context.getImageData(0, 0, width, height).data;
-  let dark = 0;
-  for (let index = 0; index < pixels.length; index += 4) {
-    if ((pixels[index] + pixels[index + 1] + pixels[index + 2]) / 3 < 95) dark += 1;
-  }
-  const ratio = dark / (pixels.length / 4);
-  const object: DetectedObject = {
-    classId: classIdFor("menagers"),
-    label: "menager",
-    displayLabel: "menagers",
-    confidence: Math.min(0.55, 0.25 + ratio),
-    bbox: { x: 0.5, y: 0.58, width: 0.7, height: 0.45 },
-    area: 0.315,
-  };
+  const metrics = await analyzeImageContent(imageDataUrl);
+  const baseBox = metrics.wasteBoundingBox;
+  const visibleShare = Math.max(0.02, Math.min(0.95, metrics.wastePixelRatio));
+  const composition = metrics.colorComposition.filter((entry) => entry.material !== "inconnu").slice(0, 6);
+  const usableComposition = composition.length > 0 ? composition : [{ material: "mixte" as WasteMaterial, percentage: 100 }];
+
+  const objects = usableComposition.map((entry, index): DetectedObject => {
+    const share = Math.max(0.04, entry.percentage / 100);
+    const label = displayLabelForMaterial(entry.material);
+    const columns = Math.ceil(Math.sqrt(usableComposition.length));
+    const rows = Math.ceil(usableComposition.length / columns);
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const cellWidth = baseBox.width / columns;
+    const cellHeight = baseBox.height / rows;
+    const width = Math.max(0.04, Math.min(baseBox.width, cellWidth * (0.65 + share * 0.6)));
+    const height = Math.max(0.04, Math.min(baseBox.height, cellHeight * (0.65 + share * 0.6)));
+    const x = baseBox.x - baseBox.width / 2 + cellWidth * (col + 0.5);
+    const y = baseBox.y - baseBox.height / 2 + cellHeight * (row + 0.5);
+    const confidence = Math.max(0.32, Math.min(0.72, 0.3 + metrics.quality.score * 0.28 + share * 0.22 + visibleShare * 0.12));
+    return {
+      classId: classIdFor(label),
+      label: entry.material,
+      displayLabel: label,
+      confidence: Math.round(confidence * 100) / 100,
+      bbox: {
+        x: Math.max(0.02, Math.min(0.98, x)),
+        y: Math.max(0.02, Math.min(0.98, y)),
+        width,
+        height,
+      },
+      area: Math.min(0.95, baseBox.width * baseBox.height * share),
+    };
+  });
+
+  const confidence = objects.length
+    ? objects.reduce((sum, object) => sum + object.confidence, 0) / objects.length
+    : 0;
   return {
-    objects: ratio > 0.08 ? [object] : [],
-    totalObjects: ratio > 0.08 ? 1 : 0,
-    imageWidth: width,
-    imageHeight: height,
+    objects: visibleShare > 0.02 ? objects : [],
+    totalObjects: visibleShare > 0.02 ? objects.length : 0,
+    imageWidth: metrics.imageWidth,
+    imageHeight: metrics.imageHeight,
     processingTimeMs: 0,
     modelUsed: "fallback",
-    confidence: ratio > 0.08 ? object.confidence : 0,
+    confidence: visibleShare > 0.02 ? Math.round(confidence * 100) / 100 : 0,
   };
-}
-
-function dataUrlToImageSource(dataUrl: string) {
-  return dataUrl;
 }
 
 function loadImage(source: string): Promise<HTMLImageElement> {
