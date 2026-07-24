@@ -7,6 +7,7 @@
 import type { Dimensions3D } from "./types";
 import type { SegmentMask } from "./segmentation";
 import type { BoundingBox } from "./detection";
+import { applyVolumeSanityChecks } from "./image-metrics";
 
 export type DepthEstimate = {
   method: "lidar" | "ai-depth" | "depth-api" | "perspective" | "reference" | "estimation";
