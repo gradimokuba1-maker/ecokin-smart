@@ -6,7 +6,6 @@
  * nécessaires à la création du signalement sont retournées à l'interface.
  */
 
-import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { quantifyWaste } from "./quantification-pipeline";
 import { MATERIAL_DENSITIES, calculatePriorityLevel, type CameraCapability, type CompositionEntry, type LocationInfo, type RiskLevel, type WasteAnalysisResult, type WasteMaterial, type WasteObjectType } from "./types";
 
@@ -45,15 +44,7 @@ function level(score: number): RiskLevel {
 
 function locationFromCapture(capture: WasteCaptureForAnalysis): LocationInfo {
   if (capture.location) return capture.location;
-  const lat = -4.3317;
-  const lng = 15.3139;
-  return {
-    lat,
-    lng,
-    accuracy: 100,
-    commune: detectCityCommune(DEFAULT_CITY, lat, lng).id,
-    capturedAt: capture.capturedAt,
-  };
+  throw new Error("GPS location is required for waste analysis");
 }
 
 function recommendationFor(risks: { health: RiskLevel; environmental: RiskLevel; pollution: RiskLevel; fire: RiskLevel; flood: boolean }) {

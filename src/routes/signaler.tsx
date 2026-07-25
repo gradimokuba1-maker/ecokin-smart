@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useServerFn } from "@tanstack/react-start";
-import { analyzeWastePhotoAdvanced } from "@/lib/waste-ai.functions";
 import { validateReportHash, commitReportHash } from "@/lib/report-submit.functions";
 import { useEcoUser } from "@/lib/user-store";
 import { priorityScore, type Severity } from "@/lib/data";
@@ -19,6 +18,8 @@ import { toast } from "sonner";
 import { CitizenGate } from "@/components/citizen-gate";
 import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { WasteAnalysisResultCard } from "@/components/waste-ai/WasteAnalysisResult";
+import { analyzeWasteCapture } from "@/lib/waste-ai/client-analysis";
+import type { WasteAnalysisResult } from "@/lib/waste-ai/types";
 
 
 export const Route = createFileRoute("/signaler")({
@@ -53,7 +54,7 @@ type GeoState =
   | { status: "denied" }
   | { status: "unavailable" };
 
-type AnalysisResult = Awaited<ReturnType<typeof analyzeWastePhotoAdvanced>>;
+type AnalysisResult = WasteAnalysisResult;
 
 function severityFromAnalysis(result: AnalysisResult): Severity {
   if (result.interventionUrgent || result.floodRisk || result.priorityLevel === "critique") return "critique";
@@ -63,13 +64,12 @@ function severityFromAnalysis(result: AnalysisResult): Severity {
 
 function SignalerPage() {
   const { user, addPoints } = useEcoUser();
-  const analyzeAdvanced = useServerFn(analyzeWastePhotoAdvanced);
   const validateHash = useServerFn(validateReportHash);
   const commitHash = useServerFn(commitReportHash);
 
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [commune, setCommune] = useState<string>("matete");
+  const [commune, setCommune] = useState<string>("");
   const [imgPreview, setImgPreview] = useState<string | null>(null);
   const [imgHash, setImgHash] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<{ similarity: number; at: string; source: "local" | "server" } | null>(null);
@@ -117,10 +117,13 @@ function SignalerPage() {
       setAnalyzing(false);
       return;
     }
-    const { imageDataUrl: dataUrl, location, capturedAt, cameraCapability, depthData } = captureResult;
-    const effectivePosition = location
-      ? { lat: location.lat, lng: location.lng, accuracy: location.accuracy, altitudeM: location.altitudeM }
-      : pos;
+    const { imageDataUrl: dataUrl, location } = captureResult;
+    if (!location) {
+      toast.error("Position GPS obligatoire : reprenez la photo avec la localisation active.");
+      return;
+    }
+    const effectivePosition = { lat: location.lat, lng: location.lng, accuracy: location.accuracy, altitudeM: location.altitudeM };
+    const detectedCommune = detectCityCommune(DEFAULT_CITY, location.lat, location.lng).id;
 
     setCapture(captureResult);
     setImgPreview(dataUrl);
@@ -133,7 +136,7 @@ function SignalerPage() {
     if (location) {
       setGeo({ status: "ok", lat: location.lat, lng: location.lng, accuracy: location.accuracy });
       setPos({ lat: location.lat, lng: location.lng });
-      setCommune(detectCityCommune(DEFAULT_CITY, location.lat, location.lng).id);
+      setCommune(detectedCommune);
     }
 
     try {
@@ -162,19 +165,7 @@ function SignalerPage() {
         return null;
       });
 
-      const analysisPromise = analyzeAdvanced({
-        data: {
-          imageDataUrl: dataUrl,
-          additionalImages: captureResult.additionalImages,
-          lat: effectivePosition?.lat,
-          lng: effectivePosition?.lng,
-          accuracy: effectivePosition?.accuracy,
-          altitudeM: effectivePosition?.altitudeM,
-          capturedAt,
-          cameraCapability,
-          depthData,
-        },
-      });
+      const analysisPromise = analyzeWasteCapture(captureResult);
 
       const [check, smartAnalysis] = await Promise.all([validationPromise, analysisPromise]);
       if (requestId !== analysisRequestRef.current) return;
@@ -189,6 +180,7 @@ function SignalerPage() {
       }
 
       setAnalysisResult(smartAnalysis);
+      setCommune(smartAnalysis.location.commune);
       toast.success("Analyse IA terminée");
     } catch (e) {
       console.error("AI analysis failed", e);
@@ -196,10 +188,10 @@ function SignalerPage() {
     } finally {
       if (requestId === analysisRequestRef.current) setAnalyzing(false);
     }
-  }, [analyzeAdvanced, pos, validateHash]);
+  }, [validateHash]);
 
   async function submitReport() {
-    if (!analysisResult || !imgHash || !pos || submitting || submitted || duplicate) return;
+    if (!analysisResult || !imgHash || !pos || !commune || submitting || submitted || duplicate) return;
     setSubmitting(true);
     const severity = severityFromAnalysis(analysisResult);
     const earned = severity === "critique" ? 80 : severity === "modere" ? 50 : 25;
@@ -290,18 +282,6 @@ function SignalerPage() {
                       setCommune(detectCityCommune(DEFAULT_CITY, lat, lng).id);
                     }
                   }}
-                  picker={
-                    pos
-                      ? {
-                        lat: pos.lat,
-                        lng: pos.lng,
-                        onChange: (lat, lng) => {
-                          setPos({ lat, lng });
-                          setCommune(detectCityCommune(DEFAULT_CITY, lat, lng).id);
-                        },
-                      }
-                      : undefined
-                  }
                 />
               </ClientOnly>
             </div>
@@ -311,19 +291,11 @@ function SignalerPage() {
                   {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
                 </span>
               )}
-              <select
-                value={commune}
-                onChange={(e) => setCommune(e.target.value)}
-                className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold"
-              >
-                {DEFAULT_CITY.communes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <span className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold">
+                Commune detectee : {DEFAULT_CITY.communes.find((c) => c.id === commune)?.name ?? "en attente GPS"}
+              </span>
               {!pos && (
-                <span className="text-muted-foreground">Cliquez sur la carte pour placer le marqueur.</span>
+                <span className="text-muted-foreground">La commune sera detectee automatiquement avec la photo GPS.</span>
               )}
             </div>
           </section>
@@ -366,7 +338,7 @@ function SignalerPage() {
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} maxLength={300} placeholder="Ex. caniveau bloqué, accumulation depuis 3 jours…" className="mt-3 w-full rounded-xl border border-border bg-background p-3 text-sm focus:border-eco focus:outline-none focus:ring-2 focus:ring-eco/30" />
           </section>
 
-          <button onClick={submitReport} disabled={!analysisResult || submitted || !!duplicate || analyzing || submitting || !pos} className="w-full rounded-xl bg-foreground py-4 text-sm font-bold text-background transition-transform hover:-translate-y-0.5 disabled:opacity-50">
+          <button onClick={submitReport} disabled={!analysisResult || submitted || !!duplicate || analyzing || submitting || !pos || !commune} className="w-full rounded-xl bg-foreground py-4 text-sm font-bold text-background transition-transform hover:-translate-y-0.5 disabled:opacity-50">
             {submitting ? "Envoi…" : submitted ? "✓ Signalement envoyé" : "Envoyer le signalement"}
           </button>
         </div>

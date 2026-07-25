@@ -80,12 +80,12 @@ function cameraErrorMessage(error: unknown) {
     return "Autorisation de la caméra refusée. Activez-la dans les paramètres du navigateur, puis réessayez.";
   }
   if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-    return "Aucune caméra utilisable n’a été détectée. Vous pouvez néanmoins choisir une photo depuis la galerie.";
+    return "Aucune caméra utilisable n’a été détectée sur cet appareil.";
   }
   if (name === "NotReadableError" || name === "TrackStartError") {
     return "La caméra est actuellement utilisée par une autre application. Fermez-la puis réessayez.";
   }
-  return "Impossible d’ouvrir la caméra. Réessayez ou choisissez une photo depuis la galerie.";
+  return "Impossible d’ouvrir la caméra. Vérifiez les autorisations du navigateur puis réessayez.";
 }
 
 function analysisDimensions(width: number, height: number) {
@@ -113,7 +113,7 @@ function imageDataUrlFromSource(
   return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
 }
 
-function readImageFile(file: File): Promise<HTMLImageElement> {
+function readDisabledLegacyFile(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const image = new Image();
@@ -129,8 +129,8 @@ function readImageFile(file: File): Promise<HTMLImageElement> {
   });
 }
 
-async function prepareGalleryImage(file: File): Promise<{ imageDataUrl: string; quality: ImageQuality }> {
-  const image = await readImageFile(file);
+async function prepareDisabledLegacyImage(file: File): Promise<{ imageDataUrl: string; quality: ImageQuality }> {
+  const image = await readDisabledLegacyFile(file);
   const imageDataUrl = imageDataUrlFromSource(
     image,
     image.naturalWidth || image.width,
@@ -267,7 +267,7 @@ function dataUrlFromCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
 export function SmartWasteCamera({ onCapture, disabled }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
+  const disabledLegacyFileRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
@@ -402,7 +402,25 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     quality: ImageQuality,
     options?: { videoDurationSeconds?: number; videoBlob?: Blob; videoPreviewUrl?: string },
   ) => {
+    setPermissions((current) => ({ ...current, gps: "requesting" }));
+    const gpsPosition = await requestGPSPosition({ maximumAge: 0, timeout: 15000 });
+    if (gpsPosition.status !== "ok") {
+      setPermissions((current) => ({
+        ...current,
+        gps: gpsPosition.status === "denied" ? "denied" : "unavailable",
+      }));
+      toast.error("Position GPS obligatoire : activez la localisation puis reprenez la photo.");
+      return;
+    }
+    const nextLocation = buildLocationInfo(
+      gpsPosition.lat,
+      gpsPosition.lng,
+      gpsPosition.accuracy,
+      gpsPosition.altitudeM,
+    );
     const now = new Date().toISOString();
+    setLocation(nextLocation);
+    setPermissions((current) => ({ ...current, gps: "granted" }));
     setPreview(imageDataUrl);
     setCapturedAt(now);
     // Un modèle de profondeur local n'est jamais sur le chemin critique. La
@@ -421,7 +439,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       cameraCapability: depthResult.source === "lidar" ? "lidar" : "basic",
       depthSource: depthResult.source,
       depthData: depthResult.depthData,
-      location,
+      location: nextLocation,
       captureMode: mode,
       capturedAt: now,
       videoDurationSeconds: options?.videoDurationSeconds,
@@ -430,7 +448,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
       imageQuality: quality,
     });
     toast.success("Photo prête pour l'analyse.");
-  }, [depth, location, onCapture]);
+  }, [depth, onCapture]);
 
   const captureStill = useCallback(async () => {
     const video = videoRef.current;
@@ -557,7 +575,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     void captureStill();
   }, [captureMode, captureStill, recording, startVideoRecording, stopVideoRecording]);
 
-  const handleGallery = useCallback(async (file?: File) => {
+  const disabledLegacyFileHandler = useCallback(async (file?: File) => {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
       toast.error("Image trop volumineuse (max 10 Mo).");
@@ -565,7 +583,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
     }
     setIsProcessing(true);
     try {
-      const { imageDataUrl, quality } = await prepareGalleryImage(file);
+      const { imageDataUrl, quality } = await prepareDisabledLegacyImage(file);
       nativeDepthRef.current = null;
       setDepth(null);
       setImageQuality(quality);
@@ -620,7 +638,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
         <CaptureTip icon={<ScanLine className="size-4" />} title="Qualité" text={showLiveView ? qualityLabel(imageQuality) : "La qualité sera vérifiée à la capture."} />
       </div>
 
-      {!preview && !showLiveView && (
+      {false && !preview && !showLiveView && (
         <div className="grid grid-cols-3 gap-2 rounded-2xl bg-secondary/45 p-1">
           <ModeButton active={captureMode === "single"} icon={<Camera className="size-4" />} label="1 photo" onClick={() => setCaptureMode("single")} />
           <ModeButton active={captureMode === "multi"} icon={<Images className="size-4" />} label="3 angles" onClick={() => setCaptureMode("multi")} />
@@ -676,7 +694,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
             <div>
               <Camera className="mx-auto size-10 text-emerald-300" />
               <p className="mt-3 text-sm font-bold">Prêt pour une capture guidée</p>
-              <p className="mt-1 max-w-sm text-xs text-slate-300">Choisissez une photo, trois angles ou une courte vidéo autour du dépôt.</p>
+              <p className="mt-1 max-w-sm text-xs text-slate-300">Prenez une photo en direct du dépôt.</p>
             </div>
           </div>
         )}
@@ -726,14 +744,13 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
               {isStarting ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
               {isStarting ? "Autorisations et capteurs…" : "Prendre une photo"}
             </button>
-            <button type="button" onClick={() => galleryRef.current?.click()} disabled={isStarting || isProcessing || disabled} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-eco/35 bg-eco/5 px-4 py-3 text-sm font-bold text-eco hover:bg-eco/10 disabled:opacity-50">
-              <ImageIcon className="size-4" /> Depuis la galerie
+            <button type="button" aria-hidden="true" tabIndex={-1} disabled className="hidden">
+              <span />
             </button>
           </>
         ) : null}
       </div>
 
-      <input ref={galleryRef} type="file" accept="image/*" className="hidden" onChange={(event) => void handleGallery(event.target.files?.[0])} />
 
       <div className="grid gap-2 rounded-2xl border border-border/70 bg-background/70 p-3 text-xs text-muted-foreground sm:grid-cols-2">
         <div className="flex items-center gap-2"><Crosshair className="size-4 shrink-0 text-eco" /><span className="font-mono">{locationText}</span></div>
