@@ -3,6 +3,8 @@
 // des composants (bell, salle de crise, audit).
 import { useEffect, useState } from "react";
 import { logAudit } from "./audit-log";
+import { pushNotification } from "./notification-store";
+import { assignMission, updateMissionStatus } from "./agent-tracking-store";
 
 export type Urgency = "faible" | "moyen" | "eleve" | "critique";
 export type LiveStatus = "en_attente" | "assignee" | "en_cours" | "terminee" | "rejete";
@@ -40,6 +42,9 @@ export type LiveReport = {
   floodRisk?: boolean;
   interventionUrgent?: boolean;
   photoUrl?: string;
+  greenPointsAwarded?: number;
+  assignedAgentId?: string;
+  assignedAgentName?: string;
 };
 
 const KEY = "ecokin_live_reports_v1";
@@ -105,14 +110,20 @@ export function pushLiveReport(input: Omit<LiveReport, "id" | "createdAt" | "ack
     target: item.id,
     details: `${input.category} · ${input.commune} · urgence ${item.urgency}`,
   });
-  // Browser notification (best-effort)
-  if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-    try {
-      new Notification("Nouveau signalement · EcoKin", {
-        body: `${item.urgency.toUpperCase()} — ${item.category} à ${item.commune}`,
-        tag: item.id,
-      });
-    } catch { }
+  pushNotification({
+    kind: "report_created",
+    title: "Signalement enregistré",
+    message: `${item.category} · ${item.commune} · urgence ${item.urgency}`,
+    targetId: item.id,
+    meta: { greenPoints: item.greenPointsAwarded ?? 0 },
+  });
+  if (item.status === "assignee" && item.team) {
+    pushNotification({
+      kind: "agent_assigned",
+      title: "Mission affectée",
+      message: `${item.id} assigné à ${item.team}`,
+      targetId: item.id,
+    });
   }
   return item;
 }
@@ -138,11 +149,65 @@ export function ackLiveReport(id: string, by: string) {
 export function assignLiveReport(id: string, team: string, by: string) {
   update(id, { team, status: "assignee" }, `Assigné à ${team}`);
   logAudit({ user: by, role: "autorité", action: "report_assign", target: id, details: team });
+  pushNotification({
+    kind: "agent_assigned",
+    title: "Agent affecté",
+    message: `${id} assigné à ${team}`,
+    targetId: id,
+  });
+}
+
+export function assignLiveReportToAgent(
+  id: string,
+  agentId: string,
+  agentName: string,
+  team: string,
+  by: string,
+) {
+  const report = read().find((r) => r.id === id);
+  update(
+    id,
+    { team, status: "assignee", assignedAgentId: agentId, assignedAgentName: agentName },
+    `Assigné à ${agentName} (${team})`,
+  );
+  logAudit({ user: by, role: "autorité", action: "report_assign", target: id, details: `${agentName} · ${team}` });
+  if (report) {
+    assignMission({
+      reportId: id,
+      agentId,
+      agentName,
+      commune: report.commune,
+      category: report.category,
+      team,
+    });
+  }
+  pushNotification({
+    kind: "mission_assigned",
+    title: "Mission assignée",
+    message: `${agentName} a reçu la mission ${id}`,
+    targetId: id,
+    meta: { agent: agentName },
+  });
 }
 
 export function setLiveStatus(id: string, status: LiveStatus, by: string) {
   update(id, { status }, `Statut → ${status}`);
   logAudit({ user: by, role: "autorité", action: "report_status", target: id, details: status });
+  const statusLabels: Record<LiveStatus, string> = {
+    en_attente: "En attente",
+    assignee: "Assignée",
+    en_cours: "En cours",
+    terminee: "Terminée",
+    rejete: "Rejeté",
+  };
+  pushNotification({
+    kind: status === "terminee" ? "intervention_completed" : "status_changed",
+    title: status === "terminee" ? "Intervention terminée" : "Statut mis à jour",
+    message: `${id} → ${statusLabels[status]}`,
+    targetId: id,
+  });
+  if (status === "en_cours") updateMissionStatus(id, "en_cours");
+  if (status === "terminee") updateMissionStatus(id, "terminee");
 }
 
 export function setReportPhoto(id: string, type: 'before' | 'after', photoDataUrl: string, by: string) {
@@ -163,7 +228,14 @@ export function useLiveReports() {
       window.removeEventListener("storage", h);
     };
   }, []);
-  return { items, ack: ackLiveReport, assign: assignLiveReport, setStatus: setLiveStatus, setPhoto: setReportPhoto };
+  return {
+    items,
+    ack: ackLiveReport,
+    assign: assignLiveReport,
+    assignToAgent: assignLiveReportToAgent,
+    setStatus: setLiveStatus,
+    setPhoto: setReportPhoto,
+  };
 }
 
 export const TEAMS_LIST = TEAMS;
