@@ -17,9 +17,12 @@ export function AccessGate({ required, title, children }: Props) {
   const [password, setPassword] = useState("");
   const [commune, setCommune] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const needsCommune = role === "agent" || role === "bourgmestre";
+  const needsCommune = role === "agent" || role === "bourgmestre" || role === "admin";
 
-  if ((required.includes(session.role as any) || session.role === "admin") && (session.role !== "agent" && session.role !== "bourgmestre" || session.commune)) {
+  if (
+    required.includes(session.role as any) &&
+    ((session.role !== "agent" && session.role !== "bourgmestre" && session.role !== "admin") || session.commune)
+  ) {
     return <>{children}</>;
   }
 
@@ -80,7 +83,7 @@ export function AccessGate({ required, title, children }: Props) {
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 type="text"
-                placeholder="ECOKIN2026"
+                placeholder="ECOKIN-..."
                 className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
               />
             </div>

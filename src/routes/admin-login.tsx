@@ -4,6 +4,7 @@ import { ShieldCheck, Lock, Phone } from "lucide-react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { useAccess, AUTH_USERS } from "@/lib/access-store";
+import { CommuneSelector } from "@/components/commune-selector";
 
 export const Route = createFileRoute("/admin-login")({
   head: () => ({
@@ -21,14 +22,15 @@ function AdminLoginPage() {
   const { session, loginAdmin } = useAccess();
   const [phone, setPhone] = useState("");
   const [pin, setPin] = useState("");
+  const [commune, setCommune] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   // Redirection automatique si déjà admin.
   useEffect(() => {
-    if (session.role === "admin") {
+    if (session.role === "admin" && session.commune) {
       navigate({ to: "/admin", replace: true });
     }
-  }, [session.role, navigate]);
+  }, [session.role, session.commune, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,7 +56,11 @@ function AdminLoginPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (loginAdmin(phone, pin)) {
+              if (!commune) {
+                setErr("Veuillez choisir la commune administree.");
+                return;
+              }
+              if (loginAdmin(phone, pin, commune)) {
                 setErr(null);
                 navigate({ to: "/admin", replace: true });
               } else {
@@ -96,6 +102,7 @@ function AdminLoginPage() {
                 />
               </div>
             </div>
+            <CommuneSelector value={commune} onChange={setCommune} required />
             {err && <p className="text-xs font-semibold text-red-600">{err}</p>}
             <button
               type="submit"

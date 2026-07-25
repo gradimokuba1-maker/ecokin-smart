@@ -11,6 +11,7 @@ import { pushLiveReport, urgencyFromSeverity } from "@/lib/live-reports";
 import { computePerceptualHash, findDuplicate, saveHash } from "@/lib/image-hash";
 import { ClientOnly } from "@/components/client-only";
 import { KinshasaMap } from "@/components/kinshasa-map";
+import { ReportSuccessDialog } from "@/components/report-success-dialog";
 import {
   Crosshair, Loader2, ShieldAlert, ShieldCheck, Trophy,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { CitizenGate } from "@/components/citizen-gate";
 import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { WasteAnalysisResultCard } from "@/components/waste-ai/WasteAnalysisResult";
 import { analyzeWasteCapture } from "@/lib/waste-ai/client-analysis";
+import type { LiveReport } from "@/lib/live-reports";
 import type { WasteAnalysisResult } from "@/lib/waste-ai/types";
 
 
@@ -79,6 +81,9 @@ function SignalerPage() {
   const [description, setDescription] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [submittedReport, setSubmittedReport] = useState<LiveReport | null>(null);
+  const [earnedGreenPoints, setEarnedGreenPoints] = useState(0);
   const analysisRequestRef = useRef(0);
 
   useEffect(() => {
@@ -130,6 +135,9 @@ function SignalerPage() {
     setImgHash(null);
     setAnalysisResult(null);
     setSubmitted(false);
+    setSubmittedReport(null);
+    setEarnedGreenPoints(0);
+    setSuccessDialogOpen(false);
     setDuplicate(null);
     setAnalyzing(true);
 
@@ -204,6 +212,10 @@ function SignalerPage() {
     const urgency = urgencyFromSeverity(severity, analysisResult.floodRisk);
     const item = pushLiveReport({
       author: user.name,
+      authorId: user.id,
+      authorRole: "citoyen",
+      province: "Kinshasa",
+      city: "Kinshasa",
       commune,
       category: analysisResult.mainCategory,
       urgency,
@@ -219,6 +231,8 @@ function SignalerPage() {
       priorityLevel: analysisResult.priorityLevel,
       healthRisk: analysisResult.healthRisk,
       cameraCapability: capture?.cameraCapability,
+      greenPointsAwarded: earned,
+      aiAnalysis: analysisResult,
     });
     saveHash(imgHash, item.id);
     try {
@@ -235,6 +249,9 @@ function SignalerPage() {
       console.warn("commitHash failed", e);
     }
     addPoints(earned);
+    setSubmittedReport(item);
+    setEarnedGreenPoints(earned);
+    setSuccessDialogOpen(true);
     setSubmitted(true);
     setSubmitting(false);
     toast.success(`Signalement enregistré · +${earned} Green Points · urgence ${urgency}`);
@@ -375,6 +392,14 @@ function SignalerPage() {
           </div>
         </div>
       </div>
+
+      <ReportSuccessDialog
+        open={successDialogOpen}
+        onClose={() => setSuccessDialogOpen(false)}
+        report={submittedReport}
+        greenPoints={earnedGreenPoints}
+        communeLabel={DEFAULT_CITY.communes.find((c) => c.id === submittedReport?.commune)?.name ?? submittedReport?.commune ?? "Kinshasa"}
+      />
 
       <SiteFooter />
     </div>

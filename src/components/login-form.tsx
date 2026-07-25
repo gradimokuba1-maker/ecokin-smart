@@ -14,7 +14,7 @@ export function LoginForm({ role, title, onSubmit }: Props) {
   const [password, setPassword] = useState("");
   const [commune, setCommune] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const needsCommune = role === "agent" || role === "bourgmestre";
+  const needsCommune = role === "agent" || role === "bourgmestre" || role === "admin";
   const userDetails = AUTH_USERS[role];
 
   const handleSubmit = (event: FormEvent) => {

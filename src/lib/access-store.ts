@@ -1,16 +1,15 @@
-// Lightweight role-based access control for the demo platform.
-// Persists in localStorage. Replace with Lovable Cloud Auth for production.
+// Controle d'acces base sur les comptes persistants ecokin-db.
 import { useEffect, useState } from "react";
 import { logAudit } from "./audit-log";
+import { DB_EVT, findUserByCredentials, readDb } from "./ecokin-db";
+import type { EcokinUserRecord } from "./ecokin-db";
 
 export type Role = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
+export type AuthorityRole = Exclude<Role, "citoyen">;
 
 const KEY = "ecokin_access_v1";
 
-export type AuthorityRole = Exclude<Role, "citoyen">;
-
-// Demo access codes — communicated to demo users.
-export const ACCESS_CODES: Record<Exclude<Role, "citoyen">, string> = {
+export const ACCESS_CODES: Record<AuthorityRole, string> = {
   agent: "AGENT2026",
   bourgmestre: "BOURG2026",
   gouverneur: "GOUV2026",
@@ -18,10 +17,10 @@ export const ACCESS_CODES: Record<Exclude<Role, "citoyen">, string> = {
 };
 
 export const AUTH_USERS: Record<AuthorityRole, { identifier: string; password: string; label: string }> = {
-  agent: { identifier: "ECOKIN2026", password: "AGENT2026", label: "Agent" },
-  bourgmestre: { identifier: "ECOKIN2026", password: "BOURG2026", label: "Bourgmestre" },
-  gouverneur: { identifier: "ECOKIN2026", password: "GOUV2026", label: "Gouverneur" },
-  admin: { identifier: "ECOKIN2026", password: "ADMIN2026", label: "Administrateur" },
+  agent: { identifier: "ECOKIN-AGENT", password: "AGENT2026", label: "Agent terrain" },
+  bourgmestre: { identifier: "ECOKIN-BOURG", password: "BOURG2026", label: "Bourgmestre" },
+  gouverneur: { identifier: "ECOKIN-GOUV", password: "GOUV2026", label: "Cabinet du Gouverneur" },
+  admin: { identifier: "ECOKIN-ADMIN", password: "ADMIN2026", label: "Administrateur communal" },
 };
 
 export function getAuthorityDashboardPath(role: Role) {
@@ -39,38 +38,31 @@ export function getAuthorityDashboardPath(role: Role) {
   }
 }
 
-// Permissions granulaires par rôle.
-// Un rôle absent de la liste ⇒ accès refusé.
 export const ROUTE_ROLES: Record<string, Role[]> = {
-  // Consultation opérationnelle
-  "/gouverneur": ["gouverneur", "admin"],
+  "/gouverneur": ["gouverneur"],
   "/situation": ["agent", "bourgmestre", "gouverneur", "admin"],
   "/predictif": ["bourgmestre", "gouverneur", "admin"],
   "/observatoire": ["citoyen", "agent", "bourgmestre", "gouverneur", "admin"],
-  "/crise": ["gouverneur", "admin"],
+  "/crise": ["gouverneur"],
   "/assistant-ia": ["bourgmestre", "gouverneur", "admin"],
   "/decisions": ["bourgmestre", "gouverneur", "admin"],
-  // Interventions & équipes terrain
   "/interventions": ["agent", "bourgmestre", "gouverneur", "admin"],
   "/itineraires": ["agent", "bourgmestre", "gouverneur", "admin"],
   "/gps-flotte": ["agent", "bourgmestre", "gouverneur", "admin"],
-
   "/autorites": ["bourgmestre", "gouverneur", "admin"],
   "/rapports": ["bourgmestre", "gouverneur", "admin"],
-  // Journal d'audit & administration
   "/audit": ["admin", "gouverneur"],
   "/admin": ["admin"],
 };
 
-// Permissions fonctionnelles (formulaires, exports, alertes).
 export type Permission =
-  | "signaler"          // créer un signalement citoyen
-  | "export_data"       // exporter PDF/CSV
-  | "manage_alerts"     // émettre/acquitter alertes
-  | "manage_activities" // gérer activités opérationnelles
-  | "manage_fleet"      // gérer flotte GPS et itinéraires
-  | "moderate_reports"  // valider/rejeter signalements
-  | "reset_data";       // réinitialiser la plateforme
+  | "signaler"
+  | "export_data"
+  | "manage_alerts"
+  | "manage_activities"
+  | "manage_fleet"
+  | "moderate_reports"
+  | "reset_data";
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   citoyen: ["signaler"],
@@ -80,8 +72,33 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   admin: ["signaler", "export_data", "manage_alerts", "manage_activities", "manage_fleet", "moderate_reports", "reset_data"],
 };
 
-type Session = { role: Role; name: string; commune?: string };
-const DEFAULT: Session = { role: "citoyen", name: "Citoyen EcoKin" };
+export type Session = {
+  userId?: string;
+  role: Role;
+  name: string;
+  province?: string;
+  city?: string;
+  commune?: string;
+  quartier?: string;
+  zone?: string;
+  permissions: Permission[];
+};
+
+const DEFAULT: Session = { role: "citoyen", name: "Citoyen EcoKin", permissions: ROLE_PERMISSIONS.citoyen };
+
+function toSession(record: EcokinUserRecord, commune?: string): Session {
+  return {
+    userId: record.id,
+    role: record.role,
+    name: record.name,
+    province: record.province,
+    city: record.city,
+    commune: commune || record.commune,
+    quartier: record.quartier,
+    zone: record.zone,
+    permissions: (record.permissions as Permission[]) ?? ROLE_PERMISSIONS[record.role],
+  };
+}
 
 function read(): Session {
   if (typeof window === "undefined") return DEFAULT;
@@ -93,52 +110,69 @@ function read(): Session {
   }
 }
 
+function write(session: Session) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event(DB_EVT));
+}
+
+function findAuthority(role: AuthorityRole, identifier: string, password: string) {
+  const direct = findUserByCredentials(role, identifier, password);
+  if (direct) return direct;
+
+  // Compatibilite avec les anciens formulaires de demonstration.
+  if (identifier.trim().toUpperCase() !== "ECOKIN2026" || ACCESS_CODES[role] !== password.trim()) return undefined;
+  return readDb().users.find((user) => user.role === role && user.password === ACCESS_CODES[role]);
+}
+
+function roleRequiresCommune(role: Role) {
+  return role === "agent" || role === "bourgmestre" || role === "admin";
+}
+
 export function useAccess() {
   const [session, setSession] = useState<Session>(DEFAULT);
-  useEffect(() => setSession(read()), []);
 
-  const login = (role: Exclude<Role, "citoyen">, identifier: string, password?: string, commune?: string) => {
-    const normalizedIdentifier = identifier.trim().toLowerCase();
-    const normalizedPassword = password?.trim() ?? "";
+  useEffect(() => {
+    const refresh = () => setSession(read());
+    refresh();
+    window.addEventListener(DB_EVT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(DB_EVT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
+  const login = (role: AuthorityRole, identifier: string, password?: string, commune?: string) => {
     const normalizedCommune = commune?.trim();
+    const record = findAuthority(role, identifier, password ?? "");
+    if (!record) return false;
+    if (roleRequiresCommune(role) && !(normalizedCommune || record.commune)) return false;
 
-    if (password !== undefined) {
-      const authUser = AUTH_USERS[role as AuthorityRole];
-      const expectedIdentifier = authUser?.identifier.trim().toLowerCase();
-      if (!authUser || normalizedIdentifier !== expectedIdentifier || normalizedPassword !== authUser.password.trim()) {
-        return false;
-      }
-    } else if (ACCESS_CODES[role] !== identifier.trim()) {
-      return false;
-    }
-
-    if ((role === "agent" || role === "bourgmestre") && !normalizedCommune) {
-      return false;
-    }
-
-    const label =
-      role === "admin" ? "Administrateur" :
-        role === "gouverneur" ? "Cabinet du Gouverneur" :
-          role === "bourgmestre" ? "Bourgmestre" :
-            "Agent terrain";
-    const next: Session = { role, name: label, commune: normalizedCommune };
-    localStorage.setItem(KEY, JSON.stringify(next));
+    const next = toSession(record, normalizedCommune);
+    write(next);
     setSession(next);
     logAudit({ user: next.name, role, action: "login" });
     return true;
   };
+
   const logout = () => {
     const prev = read();
-    localStorage.removeItem(KEY);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(KEY);
+      window.dispatchEvent(new Event(DB_EVT));
+    }
     setSession(DEFAULT);
     if (prev.role !== "citoyen") logAudit({ user: prev.name, role: prev.role, action: "logout" });
   };
-  const loginAdmin = (identifier: string, password?: string) => login("admin", identifier, password);
+
+  const loginAdmin = (identifier: string, password?: string, commune?: string) => login("admin", identifier, password, commune);
   const can = (path: string) => {
     const allowed = ROUTE_ROLES[path];
     if (!allowed) return true;
     return allowed.includes(session.role);
   };
-  const hasPermission = (perm: Permission) => (ROLE_PERMISSIONS[session.role] ?? []).includes(perm);
+  const hasPermission = (perm: Permission) => session.permissions.includes(perm);
+
   return { session, login, loginAdmin, logout, can, hasPermission };
 }
