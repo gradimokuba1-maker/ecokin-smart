@@ -95,6 +95,7 @@ export async function quantifyWaste(
   const detectionHints = detectionResult.objects.map(obj => ({
     bbox: obj.bbox,
     label: obj.label,
+    displayLabel: obj.displayLabel,
     confidence: obj.confidence,
   }));
 

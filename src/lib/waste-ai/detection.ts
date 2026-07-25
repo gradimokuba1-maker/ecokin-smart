@@ -219,7 +219,18 @@ async function detectWithModels(
 async function detectFallback(imageDataUrl: string): Promise<DetectionResult> {
   const metrics = await analyzeImageContent(imageDataUrl);
   const baseBox = metrics.wasteBoundingBox;
-  const visibleShare = Math.max(0.02, Math.min(0.95, metrics.wastePixelRatio));
+  const visibleShare = Math.max(0, Math.min(0.95, metrics.wastePixelRatio));
+  if (visibleShare < 0.015 || baseBox.width <= 0 || baseBox.height <= 0) {
+    return {
+      objects: [],
+      totalObjects: 0,
+      imageWidth: metrics.imageWidth,
+      imageHeight: metrics.imageHeight,
+      processingTimeMs: 0,
+      modelUsed: "fallback",
+      confidence: 0,
+    };
+  }
   const composition = metrics.colorComposition.filter((entry) => entry.material !== "inconnu").slice(0, 6);
   const usableComposition = composition.length > 0 ? composition : [{ material: "mixte" as WasteMaterial, percentage: 100 }];
 

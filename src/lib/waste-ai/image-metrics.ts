@@ -216,7 +216,7 @@ export async function analyzeImageContent(imageDataUrl: string): Promise<ImageCo
       height: (maxY - minY + 1) / height,
     };
   } else {
-    wasteBoundingBox = { x: 0.5, y: 0.55, width: 0.6, height: 0.45 };
+    wasteBoundingBox = { x: 0.5, y: 0.5, width: 0, height: 0 };
   }
 
   return {
@@ -237,6 +237,9 @@ export function applyVolumeSanityChecks(
   heightAvgM: number,
   wasteAreaRatio: number,
 ): { volumeM3: number; surfaceM2: number; heightAvgM: number } {
+  if (volumeM3 <= 0 || surfaceM2 <= 0 || heightAvgM <= 0 || wasteAreaRatio <= 0) {
+    return { volumeM3: 0, surfaceM2: 0, heightAvgM: 0 };
+  }
   const areaBasedSurface = clamp(surfaceM2, 0.05, 80);
   const areaBasedHeight = clamp(heightAvgM, 0.05, 4.5);
   let safeVolume = clamp(volumeM3, 0.02, 45);

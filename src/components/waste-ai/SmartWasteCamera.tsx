@@ -9,7 +9,6 @@ import {
   Clock3,
   Compass,
   Crosshair,
-  ImageIcon,
   Images,
   Layers3,
   Loader2,

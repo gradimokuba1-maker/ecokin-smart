@@ -8,7 +8,7 @@
 
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { quantifyWaste } from "./quantification-pipeline";
-import { calculatePriorityLevel, type CameraCapability, type LocationInfo, type RiskLevel, type WasteAnalysisResult, type WasteObjectType } from "./types";
+import { MATERIAL_DENSITIES, calculatePriorityLevel, type CameraCapability, type CompositionEntry, type LocationInfo, type RiskLevel, type WasteAnalysisResult, type WasteMaterial, type WasteObjectType } from "./types";
 
 export type WasteCaptureForAnalysis = {
   imageDataUrl: string;
@@ -66,6 +66,26 @@ function recommendationFor(risks: { health: RiskLevel; environmental: RiskLevel;
 }
 
 /** Calcule les risques métier à partir de la composition, du volume et de la zone. */
+function round(value: number, digits: number) {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function labelForMaterial(material: WasteMaterial) {
+  if (material === "plastique") return "Plastiques";
+  if (material === "carton") return "Cartons";
+  if (material === "papier") return "Papiers";
+  if (material === "metal") return "Metaux";
+  if (material === "organique") return "Dechets organiques";
+  if (material === "construction") return "Gravats";
+  if (material === "electronique") return "Dechets electroniques";
+  if (material === "textile") return "Textiles";
+  if (material === "pneu") return "Pneus";
+  if (material === "menager") return "Dechets menagers";
+  if (material === "verre") return "Verre";
+  return "Dechets mixtes";
+}
+
 function assessRisks(composition: { material: string; percentage: number }[], volumeM3: number, wasteAreaPercent: number) {
   const share = (material: string) => (composition.find((entry) => entry.material === material)?.percentage ?? 0) / 100;
   const hazardous = share("dangereux") + share("electronique");
@@ -106,6 +126,29 @@ export async function analyzeWasteCapture(
     count: value.count,
     confidence: Math.round((value.confidence / value.count) * 100) / 100,
   }));
+  if (detectedObjects.length === 0) {
+    for (const entry of quantified.categories.composition.slice(0, 4)) {
+      if (entry.material === "inconnu") continue;
+      detectedObjects.push({
+        label: labelForMaterial(entry.material),
+        count: 1,
+        confidence: round(Math.max(0.25, quantified.confidence.detection || quantified.confidence.overall * 0.75), 2),
+      });
+    }
+  }
+  const composition: CompositionEntry[] = quantified.categories.composition.map((entry) => {
+    const ratio = entry.percentage / 100;
+    const volumeM3 = round(quantified.volume.m3 * ratio, 3);
+    const surfaceM2 = round(quantified.volume.dimensions.surfaceM2 * ratio, 2);
+    const density = MATERIAL_DENSITIES[entry.material] ?? MATERIAL_DENSITIES.inconnu;
+    return {
+      ...entry,
+      surfaceM2,
+      volumeM3,
+      weightKg: round(volumeM3 * density, 1),
+      confidence: round(Math.max(0.15, quantified.confidence.overall * (0.75 + ratio * 0.25)), 2),
+    };
+  });
   const risks = assessRisks(quantified.categories.composition, quantified.volume.m3, quantified.metadata.wasteAreaPercent);
   const priorityScore = Math.min(100, Math.round(
       (risks.health === "eleve" ? 25 : risks.health === "modere" ? 13 : 4) +
@@ -123,7 +166,7 @@ export async function analyzeWasteCapture(
     timestamp: new Date().toISOString(),
     photoUrl: capture.imageDataUrl,
     model3DAvailable: quantified.metadata.totalSegments > 0,
-    composition: quantified.categories.composition,
+    composition,
     mainCategory: quantified.categories.main,
     secondaryCategory: quantified.categories.secondary,
     detectedObjects,

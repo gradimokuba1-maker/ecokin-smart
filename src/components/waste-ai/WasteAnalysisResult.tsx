@@ -1,7 +1,7 @@
 // EcoKin Smart — WasteAnalysisResult : Affichage détaillé des résultats d'analyse IA
 // Composition, dimensions 3D, poids, priorité, risques
 
-import { type WasteAnalysisResult, type CompositionEntry, type WasteMaterial } from "@/lib/waste-ai.functions";
+import { type WasteAnalysisResult, type CompositionEntry, type WasteMaterial } from "@/lib/waste-ai/types";
 import { BarChart3, Box, Crosshair, Gauge, Scale, Shield, Siren, Sparkles, TriangleAlert, Truck, Zap } from "lucide-react";
 
 type Props = {
@@ -84,7 +84,7 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
       <Section icon={<BarChart3 className="size-4" />} title="Composition estimée">
         <div className="space-y-2">
           {result.composition.map((entry, i) => (
-            <CompositionBar key={i} entry={entry} />
+            <DetailedCompositionBar key={i} entry={entry} />
           ))}
         </div>
         <div className="mt-2 flex items-center gap-2 text-xs">
@@ -277,6 +277,33 @@ function CompositionBar({ entry }: { entry: CompositionEntry }) {
         />
       </div>
       <span className="w-10 text-right text-xs font-bold">{entry.percentage}%</span>
+    </div>
+  );
+}
+
+function DetailedCompositionBar({ entry }: { entry: CompositionEntry }) {
+  const icon = MATERIAL_ICONS[entry.material] ?? "?";
+  const details = [
+    entry.surfaceM2 != null ? `${entry.surfaceM2} m²` : null,
+    entry.volumeM3 != null ? `${entry.volumeM3} m³` : null,
+    entry.weightKg != null ? `${entry.weightKg.toLocaleString()} kg` : null,
+    entry.confidence != null ? `${Math.round(entry.confidence * 100)}%` : null,
+  ].filter(Boolean).join(" · ");
+
+  return (
+    <div className="rounded-lg bg-secondary/40 p-2">
+      <div className="flex items-center gap-2">
+        <span className="w-5 text-center text-sm">{icon}</span>
+        <span className="w-20 text-xs font-medium capitalize">{entry.material}</span>
+        <div className="flex-1 overflow-hidden rounded-full bg-secondary">
+          <div
+            className="h-2 rounded-full bg-eco transition-all duration-500"
+            style={{ width: `${entry.percentage}%` }}
+          />
+        </div>
+        <span className="w-10 text-right text-xs font-bold">{entry.percentage}%</span>
+      </div>
+      {details && <div className="mt-1 pl-7 text-[10px] font-medium text-muted-foreground">{details}</div>}
     </div>
   );
 }

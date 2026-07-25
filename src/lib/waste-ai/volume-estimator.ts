@@ -7,7 +7,7 @@
 import type { Dimensions3D } from "./types";
 import type { SegmentMask } from "./segmentation";
 import type { BoundingBox } from "./detection";
-import { applyVolumeSanityChecks } from "./image-metrics";
+import { applyVolumeSanityChecks, normalizedSpanToMeters } from "./image-metrics";
 
 export type DepthEstimate = {
   method: "lidar" | "ai-depth" | "depth-api" | "perspective" | "reference" | "estimation";
@@ -220,22 +220,23 @@ function estimateDistanceFromScene(
   imageWidth: number,
   imageHeight: number
 ): number {
-  if (segments.length === 0) return 3; // distance par défaut
+  if (segments.length === 0) return 2.5;
 
   // Utiliser la hauteur angulaire du plus grand segment
   const largestSegment = segments.reduce((max, s) => s.areaRatio > max.areaRatio ? s : max, segments[0]);
 
   // Taille angulaire = taille dans l'image / focale
-  const angularHeight = (largestSegment.bbox.height * imageHeight) / focalLength;
+  const focalPixels = imageHeight * (focalLength / sensorHeight);
+  const pixelHeight = largestSegment.bbox.height * imageHeight;
 
   // Estimer la taille réelle basée sur le type de déchet
   const realHeightM = getTypicalSize(largestSegment.label);
 
   // distance = (taille réelle * focale) / taille image
-  const distance = angularHeight > 0 ? (realHeightM * focalLength) / (largestSegment.bbox.height * imageHeight) : 3;
+  const distance = pixelHeight > 0 ? (realHeightM * focalPixels) / pixelHeight : 2.5;
 
   // Contrainte entre 0.5m et 50m
-  return Math.max(0.5, Math.min(50, distance));
+  return Math.max(0.8, Math.min(12, distance));
 }
 
 /**
@@ -273,13 +274,13 @@ function calculateDimensionsFromSegments(
 ): Dimensions3D {
   if (segments.length === 0) {
     return {
-      lengthM: 1.5,
-      widthM: 1.0,
-      heightAvgM: 0.5,
-      surfaceM2: 1.5,
-      volumeM3: 0.75,
-      confidence: 0.2,
-      uncertaintyPercent: 80,
+      lengthM: 0,
+      widthM: 0,
+      heightAvgM: 0,
+      surfaceM2: 0,
+      volumeM3: 0,
+      confidence: 0,
+      uncertaintyPercent: 100,
     };
   }
 
@@ -294,43 +295,34 @@ function calculateDimensionsFromSegments(
     maxY = Math.max(maxY, seg.bbox.y + seg.bbox.height / 2);
   }
 
-  // Taille angulaire de la zone de déchets
-  const angularWidth = (maxX - minX) * imageWidth / focalLength;
-  const angularHeight = (maxY - minY) * imageHeight / focalLength;
-
-  // Conversion taille angulaire -> taille réelle à la distance estimée
-  const realWidth = angularWidth * distanceM;
-  const realHeight = angularHeight * distanceM;
-
-  // Estimation de la hauteur moyenne du tas
-  // Utilise le wasteAreaRatio comme proxy: plus c'est dense, plus c'est haut
-  const totalAreaRatio = segments.reduce((sum, s) => sum + s.areaRatio, 0);
-  const densityFactor = Math.min(1, totalAreaRatio * 3); // 0-1
-  const heightM = Math.max(0.1, distanceM * 0.05 + densityFactor * 0.5);
-
-  // Volume = surface au sol × hauteur moyenne
-  // Ajustement: les déchets n'occupent pas tout le rectangle
-  const fillFactor = Math.min(1, segments.reduce((sum, s) => sum + s.areaRatio, 0) * 5);
-  const effectiveWidth = realWidth * Math.max(0.3, fillFactor);
-  const effectiveLength = realHeight * Math.max(0.3, fillFactor);
-
-  const surfaceM2 = effectiveWidth * effectiveLength;
-  const volumeM3 = surfaceM2 * heightM;
+  const spanX = Math.max(0, maxX - minX);
+  const spanY = Math.max(0, maxY - minY);
+  const realWidth = normalizedSpanToMeters(spanX, distanceM, focalLength, sensorWidth, imageWidth);
+  const realHeight = normalizedSpanToMeters(spanY, distanceM, focalLength, sensorHeight, imageHeight);
+  const totalAreaRatio = Math.min(1, segments.reduce((sum, s) => sum + s.areaRatio, 0));
+  const bboxArea = Math.max(0.001, spanX * spanY);
+  const fillFactor = Math.max(0.12, Math.min(0.92, totalAreaRatio / bboxArea));
+  const effectiveWidth = realWidth * Math.sqrt(fillFactor);
+  const effectiveLength = realHeight * Math.sqrt(fillFactor);
+  const typicalHeight = segments.reduce((sum, segment) => sum + getTypicalSize(segment.label) * segment.areaRatio, 0) / Math.max(totalAreaRatio, 0.001);
+  const heightM = Math.max(0.03, Math.min(1.8, typicalHeight * 0.35 + Math.sqrt(totalAreaRatio) * distanceM * 0.07));
+  const checked = applyVolumeSanityChecks(effectiveWidth * effectiveLength * heightM, effectiveWidth * effectiveLength, heightM, totalAreaRatio);
 
   // Confiance basée sur la qualité des segmentations et la méthode
   const segConfidence = segments.length > 0
     ? segments.reduce((sum, s) => sum + s.confidence, 0) / segments.length
     : 0.3;
 
-  const distanceConfidence = Math.max(0.1, 1 - distanceM / 50); // Moins de confiance si loin
-  const confidence = segConfidence * 0.6 + distanceConfidence * 0.4;
+  const distanceConfidence = Math.max(0.25, 1 - distanceM / 14);
+  const coverageConfidence = Math.min(1, totalAreaRatio * 3.5);
+  const confidence = segConfidence * 0.55 + distanceConfidence * 0.25 + coverageConfidence * 0.2;
 
   return {
-    lengthM: Math.round(effectiveLength * 10) / 10,
-    widthM: Math.round(effectiveWidth * 10) / 10,
-    heightAvgM: Math.round(heightM * 10) / 10,
-    surfaceM2: Math.round(surfaceM2 * 10) / 10,
-    volumeM3: Math.round(volumeM3 * 100) / 100,
+    lengthM: Math.round(effectiveLength * 100) / 100,
+    widthM: Math.round(effectiveWidth * 100) / 100,
+    heightAvgM: checked.heightAvgM,
+    surfaceM2: checked.surfaceM2,
+    volumeM3: checked.volumeM3,
     confidence: Math.round(confidence * 100) / 100,
     uncertaintyPercent: Math.round((1 - confidence) * 100),
   };

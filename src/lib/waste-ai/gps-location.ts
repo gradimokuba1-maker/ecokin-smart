@@ -15,7 +15,7 @@ export type GPSState =
  * Demande la position GPS avec haute précision
  * Retourne l'état GPS et les coordonnées
  */
-export function requestGPSPosition(): Promise<GPSState> {
+export function requestGPSPosition(options?: { maximumAge?: number; timeout?: number }): Promise<GPSState> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       resolve({ status: "unavailable" });
@@ -39,7 +39,7 @@ export function requestGPSPosition(): Promise<GPSState> {
           resolve({ status: "unavailable" });
         }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: options?.timeout ?? 15000, maximumAge: options?.maximumAge ?? 60000 }
     );
   });
 }
