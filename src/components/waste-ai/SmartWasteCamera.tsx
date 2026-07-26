@@ -13,6 +13,8 @@ import {
   Layers3,
   Loader2,
   MapPin,
+  Maximize2,
+  Minimize2,
   Navigation,
   RotateCcw,
   Ruler,
@@ -297,6 +299,7 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [imageQuality, setImageQuality] = useState<ImageQuality>("correct");
   const [capturedAt, setCapturedAt] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const stopLiveView = useCallback(() => {
     stopStream(streamRef.current);
@@ -613,7 +616,11 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
   const captureProgress = captureMode === "multi" ? additionalPhotos.length : preview ? 1 : 0;
 
   return (
-    <div className="space-y-4 rounded-3xl border border-eco/20 bg-gradient-to-br from-eco/5 via-card to-card p-4 shadow-sm sm:p-5">
+    <div
+      className={`space-y-4 border border-eco/20 bg-gradient-to-br from-eco/5 via-card to-card p-4 shadow-sm sm:p-5 ${
+        isExpanded ? "fixed inset-0 z-50 overflow-y-auto rounded-none" : "rounded-3xl"
+      }`}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-eco">
@@ -623,7 +630,18 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
             Caméra, GPS, date, heure et profondeur sont acquis automatiquement.
           </p>
         </div>
-        <DepthBadge depth={depth} />
+        <div className="flex items-center gap-2">
+          <DepthBadge depth={depth} />
+          <button
+            type="button"
+            onClick={() => setIsExpanded((value) => !value)}
+            className="inline-flex size-10 items-center justify-center rounded-xl border border-border bg-background text-foreground shadow-sm hover:bg-secondary"
+            aria-label={isExpanded ? "Réduire la caméra" : "Agrandir la caméra"}
+            title={isExpanded ? "Réduire" : "Agrandir"}
+          >
+            {isExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-3">
@@ -646,7 +664,11 @@ export function SmartWasteCamera({ onCapture, disabled }: Props) {
         </div>
       )}
 
-      <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-slate-950">
+      <div
+        className={`relative overflow-hidden rounded-2xl border border-border bg-slate-950 ${
+          isExpanded ? "h-[min(72vh,760px)] min-h-[420px]" : "aspect-video"
+        }`}
+      >
         {showLiveView ? (
           <>
             <video

@@ -35,6 +35,8 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { resetAllEcoKinData } from "@/lib/utils";
+import { deleteUser, updateUser, upsertUser, useEcokinDb } from "@/lib/ecokin-db";
+import { filterReportsByScope } from "@/lib/dashboard-analytics";
 import {
   useAdminSettings,
   LANGUAGES,
@@ -84,9 +86,16 @@ function AdminPage() {
   const { items: reports } = useLiveReports();
   const { households } = useHouseholds();
   const { totalPaid } = useWasteTax();
-  const totalUsers = households.length + Object.keys(AUTH_USERS).length;
+  const { session } = useAccess();
+  const db = useEcokinDb();
+  const scopedReports = useMemo(() => filterReportsByScope(reports, session), [reports, session]);
+  const scopedUsers = useMemo(
+    () => db.users.filter((user) => !session.commune || user.role === "gouverneur" || user.commune === session.commune),
+    [db.users, session.commune],
+  );
+  const totalUsers = scopedUsers.length;
   const totalBudget = Object.values(COMMUNE_BUDGET).reduce((s, b) => s + b.mensuel, 0);
-  const kpis = { totalUsers, totalReports: reports.length, totalBudget, totalHouseholds: households.length, totalTaxPaid: totalPaid };
+  const kpis = { totalUsers, totalReports: scopedReports.length, totalBudget, totalHouseholds: households.length, totalTaxPaid: totalPaid };
 
   return (
     <div className="min-h-screen bg-background">
@@ -121,7 +130,7 @@ function AdminPage() {
         </aside>
 
         <div className="space-y-6">
-          {tab === "overview" && <Overview reports={reports} kpis={kpis} />}
+          {tab === "overview" && <Overview reports={scopedReports} kpis={kpis} />}
           {tab === "ia" && <IATab />}
           {tab === "users" && <UsersTab />}
           {tab === "households" && <HouseholdsTab />}
@@ -371,22 +380,21 @@ function HouseholdsTab() {
 }
 
 function UsersTab() {
-  const { households, registerHousehold, updateHousehold, removeHousehold } = useHouseholds();
+  const db = useEcokinDb();
+  const { session } = useAccess();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [deletingUser, setDeletingUser] = useState<any | null>(null);
 
   const allUsers = useMemo(() => {
-    const authorities = Object.entries(AUTH_USERS).map(([role, user]) => ({
-      id: role,
-      role: role as keyof typeof AUTH_USERS,
-       name: user.label,
-      status: "Actif",
-      isAuthority: true,
-    }));
-    const citizens = households.map((h) => ({ ...h, id: h.id, role: "citoyen", status: "Actif", isAuthority: false }));
-    return [...authorities, ...citizens];
-  }, [households]);
+    return db.users
+      .filter((user) => !session.commune || user.role === "gouverneur" || user.commune === session.commune)
+      .map((user) => ({
+        ...user,
+        status: user.active ? "Actif" : "Inactif",
+        isAuthority: user.role !== "citoyen",
+      }));
+  }, [db.users, session.commune]);
 
   const handleEdit = (user: any) => {
     setEditingUser(user);
@@ -400,10 +408,17 @@ function UsersTab() {
 
   const handleSave = (data: any) => {
     if (editingUser) {
-      updateHousehold(editingUser.id, data);
+      updateUser(editingUser.id, data);
       toast.success("Utilisateur mis à jour.");
     } else {
-      registerHousehold(data);
+      upsertUser({
+        role: data.role ?? "citoyen",
+        name: data.name,
+        identifier: data.phone || data.identifier,
+        password: data.pin || data.password || "0000",
+        phone: data.phone,
+        commune: data.commune,
+      });
       toast.success("Utilisateur créé.");
     }
     setIsFormOpen(false);
@@ -411,7 +426,7 @@ function UsersTab() {
 
   const handleDelete = () => {
     if (deletingUser) {
-      removeHousehold(deletingUser.id);
+      deleteUser(deletingUser.id);
       toast.success("Utilisateur supprimé.");
       setDeletingUser(null);
     }
@@ -549,14 +564,15 @@ function ReportsTab() {
   const [filters, setFilters] = useState({ q: "", commune: "all", status: "all", urgency: "all" });
 
   const filteredReports = useMemo(() => {
-    return reports.filter(r => {
+    const scopedReports = filterReportsByScope(reports, session);
+    return scopedReports.filter(r => {
       if (filters.commune !== 'all' && r.commune !== filters.commune) return false;
       if (filters.status !== 'all' && r.status !== filters.status) return false;
       if (filters.urgency !== 'all' && r.urgency !== filters.urgency) return false;
       if (filters.q && !`${r.id} ${r.description}`.toLowerCase().includes(filters.q.toLowerCase())) return false;
       return true;
     });
-  }, [reports, filters]);
+  }, [reports, filters, session]);
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));

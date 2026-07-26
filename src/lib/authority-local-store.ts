@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { nextId, readDb, writeDb } from "./ecokin-db";
 
 export type LocalPme = {
   id: string;
@@ -66,6 +67,13 @@ function write(next: LocalState) {
 
 const id = (prefix: string) => `${prefix}-${Date.now().toString(36).toUpperCase()}`;
 
+function collectionId() {
+  const db = readDb();
+  const generated = nextId(db, "ECO-COL");
+  writeDb(db);
+  return generated;
+}
+
 export function useAuthorityLocalStore() {
   const [state, setState] = useState<LocalState>(DEFAULT);
 
@@ -101,7 +109,7 @@ export function useAuthorityLocalStore() {
     },
     addActivity(input: Omit<LocalActivity, "id" | "at">) {
       const current = read();
-      write({ ...current, activities: [{ ...input, id: id("ACT"), at: new Date().toISOString() }, ...current.activities] });
+      write({ ...current, activities: [{ ...input, id: collectionId(), at: new Date().toISOString() }, ...current.activities] });
     },
   };
 }

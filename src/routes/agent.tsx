@@ -3,7 +3,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
 import { useAccess } from "@/lib/access-store";
-import { LiveReport, STATUS_META, URGENCY_META, useLiveReports } from "@/lib/eco-store";
+import { LiveReport, STATUS_META, URGENCY_META, useAgentTracking, useLiveReports } from "@/lib/eco-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ClientOnly } from "@/components/client-only";
 import { InteractiveMap } from "@/components/interactive-map";
 import { InterventionValidation } from "@/components/intervention-validation";
+import { filterReportsByScope } from "@/lib/dashboard-analytics";
 
 export const Route = createFileRoute("/agent")({
     head: () => ({
@@ -84,6 +85,7 @@ function PhotoCapture({ report, type, onCapture, onClose }: { report: LiveReport
 function AgentDashboard() {
     const { session } = useAccess();
     const { items: allReports, setStatus, setPhoto } = useLiveReports();
+    const { updatePosition } = useAgentTracking();
     const [userPosition, setUserPosition] = useState<{ lat: number; lng: number } | null>(null);
     const [geoStatus, setGeoStatus] = useState<"loading" | "ok" | "error">("loading");
     const [capturing, setCapturing] = useState<{ report: LiveReport, type: 'before' | 'after' } | null>(null);
@@ -99,6 +101,13 @@ function AgentDashboard() {
             const watchId = navigator.geolocation.watchPosition(
                 (pos) => {
                     setUserPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                    if (session.userId && session.commune) {
+                        updatePosition(session.userId, session.name, session.commune, {
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude,
+                            accuracy: pos.coords.accuracy,
+                        });
+                    }
                     setGeoStatus("ok");
                 },
                 () => setGeoStatus("error"),
@@ -108,11 +117,11 @@ function AgentDashboard() {
         } else {
             setGeoStatus("error");
         }
-    }, []);
+    }, [session.commune, session.name, session.userId, updatePosition]);
 
     const assignedReports = useMemo(() => {
-        return allReports.filter((r) => !session.commune || r.commune === session.commune);
-    }, [allReports, session.commune]);
+        return filterReportsByScope(allReports, session);
+    }, [allReports, session]);
 
     const todoReports = useMemo(() => {
         return assignedReports.filter((r) => r.status === "assignee" || r.status === "en_cours");
@@ -146,6 +155,26 @@ function AgentDashboard() {
                 </div>
 
                 <div className="container py-8">
+                    <div className="mb-6 grid gap-4 sm:grid-cols-3">
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm">Missions actives</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-2xl font-bold">{todoReports.length}</CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm">Interventions terminees</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-2xl font-bold">{doneReports.length}</CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm">Signalements visibles</CardTitle>
+                            </CardHeader>
+                            <CardContent className="text-2xl font-bold">{assignedReports.length}</CardContent>
+                        </Card>
+                    </div>
                     <Tabs defaultValue="missions">
                         <TabsList>
                             <TabsTrigger value="missions">Missions ({todoReports.length})</TabsTrigger>

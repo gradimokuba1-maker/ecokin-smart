@@ -21,6 +21,19 @@ import { useAuthorityLocalStore } from "@/lib/authority-local-store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAgentTracking } from "@/lib/agent-tracking-store";
+import { useEcokinDb } from "@/lib/ecokin-db";
+import {
+  agentPerformance,
+  authorityPerformance,
+  environmentalIndicators,
+  illegalDumpCount,
+  pendingReports,
+  recycledVolume,
+  reportVolume,
+  reportWeight,
+  reportsByQuarter,
+} from "@/lib/dashboard-analytics";
 
 export const Route = createFileRoute("/gouverneur")({
   head: () => ({
@@ -418,6 +431,12 @@ function ReportsByCategoryChart({ data }: { data: { name: string; value: number 
 
 function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
   const localStore = useAuthorityLocalStore();
+  const db = useEcokinDb();
+  const tracking = useAgentTracking();
+  const quarterRows = useMemo(() => reportsByQuarter(reports).slice(0, 10), [reports]);
+  const agentRows = useMemo(() => agentPerformance(reports, tracking.missions, db.users).slice(0, 10), [reports, tracking.missions, db.users]);
+  const adminRows = useMemo(() => authorityPerformance(reports, db.users, "admin"), [reports, db.users]);
+  const bourgmestreRows = useMemo(() => authorityPerformance(reports, db.users, "bourgmestre"), [reports, db.users]);
   const reportsByCategory = useMemo(() => {
     const counts = reports.reduce(
       (acc, r) => {
@@ -529,6 +548,75 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
           <ResolutionTimeChart data={resolutionTimeData} />
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Signalements par quartier / zone</CardTitle>
+          <CardDescription>Classement calcule depuis les localisations enregistrees.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PerformanceByCommuneChart data={quarterRows} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Performances des agents</CardTitle>
+          <CardDescription>Missions assignees, actives et terminees.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PerformanceTable rows={agentRows} columns={["name", "commune", "assignes", "termines", "taux"]} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Performances des administrateurs</CardTitle>
+          <CardDescription>Suivi par entite administrative.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PerformanceTable rows={adminRows} columns={["name", "commune", "signalements", "resolus", "taux"]} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Performances des bourgmestres</CardTitle>
+          <CardDescription>Resultats consolides par commune.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PerformanceTable rows={bourgmestreRows} columns={["name", "commune", "signalements", "resolus", "taux"]} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function PerformanceTable({ rows, columns }: { rows: Record<string, unknown>[]; columns: string[] }) {
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground">Aucune donnee enregistree pour le moment.</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          <tr className="border-b">
+            {columns.map((column) => (
+              <th key={column} className="py-2 capitalize">
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={String(row.id ?? index)} className="border-b border-border/60">
+              {columns.map((column) => (
+                <td key={column} className="py-2">
+                  {String(row[column] ?? "-")}
+                  {column === "taux" ? "%" : ""}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -537,11 +625,12 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
   return useMemo(() => {
     const total = filteredReports.length;
     const resolus = filteredReports.filter((r) => r.status === "terminee").length;
-    const volume = filteredReports.reduce((sum, r) => sum + (r.volumeM3 ?? 0), 0);
-    const poidsTotal = filteredReports.reduce((sum, r) => sum + (r.weightTons ?? 0), 0);
+    const volume = reportVolume(filteredReports);
+    const poidsTotal = reportWeight(filteredReports);
     const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
     const alertes = filteredReports.filter((r) => r.urgency === "critique" || r.urgency === "eleve").length;
     const interventionUrgent = filteredReports.filter((r) => r.interventionUrgent).length;
+    const env = environmentalIndicators(filteredReports);
 
     const communeCounts = filteredReports.reduce(
       (acc, r) => {
@@ -567,6 +656,10 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
         icon: Trash2,
         color: "text-orange-500",
       },
+      { title: "Dechets en attente", value: String(pendingReports(filteredReports).length), icon: Trash2, color: "text-amber-500" },
+      { title: "Dechets recyclables", value: `${Math.round(recycledVolume(filteredReports))} m3`, icon: Recycle, color: "text-eco" },
+      { title: "Depots sauvages", value: String(illegalDumpCount(filteredReports)), icon: AlertTriangle, color: "text-red-500" },
+      { title: "Indice environnemental", value: `${env.cleanlinessScore}/100`, icon: ShieldCheck, color: "text-emerald-600" },
       { title: "Taux de collecte", value: `${tauxCollecte}%`, icon: Percent, color: "text-indigo-500" },
       { title: "Interventions urgentes", value: String(interventionUrgent), icon: AlertTriangle, color: "text-red-500" },
       { title: "Commune la + active", value: topCommune ? topCommune[0] : "N/A", icon: Trophy, color: "text-amber-500" },
