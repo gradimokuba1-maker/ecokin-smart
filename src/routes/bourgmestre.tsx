@@ -71,7 +71,7 @@ function BourgmestreCharts({ reports }: { reports: ReturnType<typeof useLiveRepo
                         name,
                         créés: reports.filter((r) => r.createdAt.startsWith(dayStr)).length,
                         résolus: reports.filter(
-                            (r) => r.status === "terminee" && r.history.find((h) => h.label.startsWith("Statut →"))?.at.startsWith(dayStr),
+                            (r) => r.status === "terminee" && r.history.find((h) => h.label.startsWith("Statut →"))?.at?.startsWith(dayStr),
                         ).length,
                     };
                 }).reverse();
@@ -87,7 +87,7 @@ function BourgmestreCharts({ reports }: { reports: ReturnType<typeof useLiveRepo
                         name,
                         créés: reports.filter((r) => r.createdAt.startsWith(monthStr)).length,
                         résolus: reports.filter(
-                            (r) => r.status === "terminee" && r.history.find((h) => h.label.startsWith("Statut →"))?.at.startsWith(monthStr),
+                            (r) => r.status === "terminee" && r.history.find((h) => h.label.startsWith("Statut →"))?.at?.startsWith(monthStr),
                         ).length,
                     };
                 }).reverse();
