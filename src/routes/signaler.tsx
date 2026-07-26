@@ -201,54 +201,64 @@ function SignalerPage() {
   async function submitReport() {
     if (!analysisResult || !imgHash || !pos || !commune || submitting || submitted || duplicate) return;
     setSubmitting(true);
-    const severity = severityFromAnalysis(analysisResult);
-    const earned = severity === "critique" ? 80 : severity === "modere" ? 50 : 25;
-    const score = priorityScore({
-      commune: commune as any,
-      lat: pos.lat,
-      lng: pos.lng,
-      severity,
-    });
-    const urgency = urgencyFromSeverity(severity, analysisResult.floodRisk);
-    const item = pushLiveReport({
-      author: user.name,
-      authorId: user.id,
-      authorRole: "citoyen",
-      province: "Kinshasa",
-      city: "Kinshasa",
-      commune,
-      category: analysisResult.mainCategory,
-      urgency,
-      description: description || undefined,
-      lat: pos.lat,
-      lng: pos.lng,
-      volumeM3: analysisResult.dimensions.volumeM3,
-      priorityScore: score,
-      photoUrl: imgPreview ?? undefined,
-      composition: analysisResult.composition,
-      weightTons: analysisResult.weight.weightTons,
-      dimensions: analysisResult.dimensions,
-      priorityLevel: analysisResult.priorityLevel,
-      healthRisk: analysisResult.healthRisk,
-      cameraCapability: capture?.cameraCapability,
-      greenPointsAwarded: earned,
-      aiAnalysis: analysisResult,
-    });
-    saveHash(imgHash, item.id);
-    // Fire-and-forget, on ne bloque pas l'UI pour ce check serveur.
-    commitHash({
-      data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: analysisResult.mainCategory },
-    }).catch((e) => {
-      console.warn("commitHash failed", e);
-    });
 
-    addPoints(earned);
-    setSubmittedReport(item);
-    setEarnedGreenPoints(earned);
-    setSuccessDialogOpen(true);
-    setSubmitted(true);
-    setSubmitting(false);
-    toast.success(`Signalement enregistré · +${earned} Green Points · urgence ${urgency}`);
+    try {
+      const severity = severityFromAnalysis(analysisResult);
+      const earned = severity === "critique" ? 80 : severity === "modere" ? 50 : 25;
+      const score = priorityScore({
+        commune: commune as any,
+        lat: pos.lat,
+        lng: pos.lng,
+        severity,
+      });
+      const urgency = urgencyFromSeverity(severity, analysisResult.floodRisk);
+
+      const item = pushLiveReport({
+        author: user.name,
+        authorId: user.id,
+        authorRole: "citoyen",
+        province: "Kinshasa",
+        city: "Kinshasa",
+        commune,
+        category: analysisResult.mainCategory,
+        urgency,
+        description: description || undefined,
+        lat: pos.lat,
+        lng: pos.lng,
+        volumeM3: analysisResult.dimensions.volumeM3,
+        priorityScore: score,
+        photoUrl: imgPreview ?? undefined,
+        composition: analysisResult.composition,
+        weightTons: analysisResult.weight.weightTons,
+        dimensions: analysisResult.dimensions,
+        priorityLevel: analysisResult.priorityLevel,
+        healthRisk: analysisResult.healthRisk,
+        cameraCapability: capture?.cameraCapability,
+        greenPointsAwarded: earned,
+        aiAnalysis: analysisResult,
+      });
+
+      saveHash(imgHash, item.id);
+
+      // Fire-and-forget, on ne bloque pas l'UI pour ce check serveur.
+      commitHash({
+        data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: analysisResult.mainCategory },
+      }).catch((e) => {
+        console.warn("commitHash failed", e);
+      });
+
+      addPoints(earned);
+      setSubmittedReport(item);
+      setEarnedGreenPoints(earned);
+      setSuccessDialogOpen(true);
+      setSubmitted(true);
+      toast.success(`Signalement enregistré · +${earned} Green Points · urgence ${urgency}`);
+    } catch (error) {
+      console.error("Erreur lors de la soumission du signalement :", error);
+      toast.error("Une erreur est survenue. Le signalement n'a pas pu être enregistré.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
