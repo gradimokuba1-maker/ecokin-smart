@@ -235,19 +235,13 @@ function SignalerPage() {
       aiAnalysis: analysisResult,
     });
     saveHash(imgHash, item.id);
-    try {
-      const commit = await commitHash({
-        data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: analysisResult.mainCategory },
-      });
-      if ("duplicate" in commit && commit.duplicate) {
-        toast.error("Rejeté au commit : cette photo vient d'être signalée par un autre utilisateur.");
-        setDuplicate({ similarity: commit.similarity ?? 100, at: commit.matchedAt ?? new Date().toISOString(), source: "server" });
-        setSubmitting(false);
-        return;
-      }
-    } catch (e) {
+    // Fire-and-forget, on ne bloque pas l'UI pour ce check serveur.
+    commitHash({
+      data: { hash: imgHash, lat: pos.lat, lng: pos.lng, reportId: item.id, category: analysisResult.mainCategory },
+    }).catch((e) => {
       console.warn("commitHash failed", e);
-    }
+    });
+
     addPoints(earned);
     setSubmittedReport(item);
     setEarnedGreenPoints(earned);
