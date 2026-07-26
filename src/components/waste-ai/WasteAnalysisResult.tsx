@@ -2,7 +2,7 @@
 // Composition, dimensions 3D, poids, priorité, risques
 
 import { type WasteAnalysisResult, type CompositionEntry, type WasteMaterial } from "@/lib/waste-ai/types";
-import { BarChart3, Box, Crosshair, Gauge, Scale, Shield, Siren, Sparkles, TriangleAlert, Truck, Zap } from "lucide-react";
+import { BarChart3, Box, Crosshair, Gauge, Shield, Siren, Sparkles, TriangleAlert, Truck, Zap } from "lucide-react";
 
 type Props = {
   result: WasteAnalysisResult;
@@ -103,7 +103,7 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
             {result.detectedObjects.map((object, i) => (
               <div key={`${object.label}-${i}`} className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2 text-xs">
                 <span className="capitalize">{object.label}</span>
-                <span className="font-semibold">{object.count} · {Math.round(object.confidence * 100)}%</span>
+                <span className="font-semibold">{Math.round(object.confidence * 100)}%</span>
               </div>
             ))}
           </div>
@@ -142,29 +142,6 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
           <span className="text-[10px] text-muted-foreground">
             Précision {Math.round(result.dimensions.confidence * 100)}%
           </span>
-        </div>
-      </Section>
-
-      {/* Poids estimé */}
-      <Section icon={<Scale className="size-4" />} title="Poids estimé">
-        <div className="flex items-center gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold">{result.weight.weightTons}</div>
-            <div className="text-xs text-muted-foreground">tonnes</div>
-          </div>
-          <div className="text-center">
-            <div className="text-lg font-bold">{result.weight.weightKg.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">kg</div>
-          </div>
-          <div className="text-center">
-            <div className="text-sm font-bold">{result.weight.densityUsed} kg/m³</div>
-            <div className="text-xs text-muted-foreground">densité moyenne</div>
-          </div>
-          <div className="ml-auto">
-            <span className="rounded-full bg-eco/10 px-2 py-1 text-[10px] font-bold text-eco">
-              ±{result.weight.uncertaintyPercent}%
-            </span>
-          </div>
         </div>
       </Section>
 
@@ -286,7 +263,6 @@ function DetailedCompositionBar({ entry }: { entry: CompositionEntry }) {
   const details = [
     entry.surfaceM2 != null ? `${entry.surfaceM2} m²` : null,
     entry.volumeM3 != null ? `${entry.volumeM3} m³` : null,
-    entry.weightKg != null ? `${entry.weightKg.toLocaleString()} kg` : null,
     entry.confidence != null ? `${Math.round(entry.confidence * 100)}%` : null,
   ].filter(Boolean).join(" · ");
 

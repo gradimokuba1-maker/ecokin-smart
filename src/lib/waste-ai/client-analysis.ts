@@ -7,7 +7,8 @@
  */
 
 import { quantifyWaste } from "./quantification-pipeline";
-import { MATERIAL_DENSITIES, calculatePriorityLevel, type CameraCapability, type CompositionEntry, type LocationInfo, type RiskLevel, type WasteAnalysisResult, type WasteMaterial, type WasteObjectType } from "./types";
+import { estimateDepthWithAI } from "./depth-acquisition";
+import { calculatePriorityLevel, type CameraCapability, type CompositionEntry, type LocationInfo, type RiskLevel, type WasteAnalysisResult, type WasteMaterial, type WasteObjectType } from "./types";
 
 export type WasteCaptureForAnalysis = {
   imageDataUrl: string;
@@ -100,29 +101,38 @@ export async function analyzeWasteCapture(
   capture: WasteCaptureForAnalysis,
   onProgress?: (message: string) => void,
 ): Promise<WasteAnalysisResult> {
+  let depthData = capture.depthData;
+  if (!depthData) {
+    const depth = await estimateDepthWithAI(capture.imageDataUrl, onProgress);
+    depthData = depth.depthData;
+  }
+
   const quantified = await quantifyWaste(capture.imageDataUrl, {
-    depthData: capture.depthData,
+    depthData,
     detectionModelType: "yolo11",
     onProgress,
   });
-  const objectsByType = new Map<WasteObjectType, { count: number; confidence: number }>();
+  const objectsByType = new Map<WasteObjectType, { score: number; confidence: number; count: number }>();
   for (const object of quantified.objects) {
-    const current = objectsByType.get(object.displayLabel) ?? { count: 0, confidence: 0 };
+    const current = objectsByType.get(object.displayLabel) ?? { score: 0, confidence: 0, count: 0 };
     current.count += 1;
+    current.score += object.area * object.confidence;
     current.confidence += object.confidence;
     objectsByType.set(object.displayLabel, current);
   }
   const detectedObjects = Array.from(objectsByType, ([type, value]) => ({
     label: DISPLAY_LABELS[type],
-    count: value.count,
+    score: value.score,
     confidence: Math.round((value.confidence / value.count) * 100) / 100,
-  }));
+  }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map(({ label, confidence }) => ({ label, confidence }));
   if (detectedObjects.length === 0) {
-    for (const entry of quantified.categories.composition.slice(0, 4)) {
+    for (const entry of quantified.categories.composition.slice(0, 3)) {
       if (entry.material === "inconnu") continue;
       detectedObjects.push({
         label: labelForMaterial(entry.material),
-        count: 1,
         confidence: round(Math.max(0.25, quantified.confidence.detection || quantified.confidence.overall * 0.75), 2),
       });
     }
@@ -131,12 +141,10 @@ export async function analyzeWasteCapture(
     const ratio = entry.percentage / 100;
     const volumeM3 = round(quantified.volume.m3 * ratio, 3);
     const surfaceM2 = round(quantified.volume.dimensions.surfaceM2 * ratio, 2);
-    const density = MATERIAL_DENSITIES[entry.material] ?? MATERIAL_DENSITIES.inconnu;
     return {
       ...entry,
       surfaceM2,
       volumeM3,
-      weightKg: round(volumeM3 * density, 1),
       confidence: round(Math.max(0.15, quantified.confidence.overall * (0.75 + ratio * 0.25)), 2),
     };
   });
@@ -164,7 +172,6 @@ export async function analyzeWasteCapture(
     wasteAreaPercent: quantified.metadata.wasteAreaPercent,
     environmentDetected: ["sol", "zone urbaine"],
     dimensions: quantified.volume.dimensions,
-    weight: quantified.weight,
     location,
     priorityScore,
     priorityLevel: calculatePriorityLevel(priorityScore),

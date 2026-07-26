@@ -4,8 +4,7 @@
 //
 // Retourne: catégories de déchets, volume estimé, poids estimé, score de confiance
 
-import type { WasteMaterial, CompositionEntry, Dimensions3D, WeightEstimate } from "./types";
-import { MATERIAL_DENSITIES, calculateWeightFromVolume } from "./types";
+import type { WasteMaterial, CompositionEntry, Dimensions3D } from "./types";
 import { detectWasteObjects, calculateCompositionFromDetections, type DetectionResult } from "./detection";
 import type { DetectedObject } from "./detection";
 import { segmentWasteAreas, type SegmentationResult, type SegmentMask } from "./segmentation";
@@ -30,8 +29,6 @@ export type QuantificationResult = {
   };
 
   // Poids estimé
-  weight: WeightEstimate;
-
   // Scores de confiance
   confidence: {
     detection: number;     // confiance de la détection YOLO
@@ -67,7 +64,6 @@ export type QuantificationOptions = {
   depthData?: string; // JSON stringified depth data
 
   // Options de densité
-  densityOverrides?: Partial<Record<WasteMaterial, number>>;
   onProgress?: (message: string) => void;
 };
 
@@ -117,13 +113,6 @@ export async function quantifyWaste(
     segmentationResult.segments
   );
 
-  // Appliquer les surcharges de densité si fournies
-  if (options?.densityOverrides) {
-    applyDensityOverrides(options.densityOverrides);
-  }
-
-  const weight = calculateWeightFromVolume(volumeResult.dimensions.volumeM3, mergedComposition);
-
   // Déterminer la catégorie principale et secondaire
   const sortedComposition = [...mergedComposition].sort((a, b) => b.percentage - a.percentage);
   const mainCategory = sortedComposition[0]?.material ?? "inconnu";
@@ -136,10 +125,9 @@ export async function quantifyWaste(
 
   // Confiance globale: moyenne pondérée
   const overallConfidence =
-    detectionConfidence * 0.25 +
-    segmentationConfidence * 0.25 +
-    volumeConfidence * 0.3 +
-    weight.confidence * 0.2;
+    detectionConfidence * 0.34 +
+    segmentationConfidence * 0.33 +
+    volumeConfidence * 0.33;
 
   const processingTimeMs = Math.round(performance.now() - startTime);
 
@@ -156,7 +144,6 @@ export async function quantifyWaste(
       method: volumeResult.method,
       dimensions: volumeResult.dimensions,
     },
-    weight,
     confidence: {
       detection: Math.round(detectionConfidence * 100) / 100,
       segmentation: Math.round(segmentationConfidence * 100) / 100,
@@ -269,14 +256,6 @@ function segmentsToComposition(segments: SegmentMask[]): CompositionEntry[] {
 /**
  * Applique des surcharges de densité
  */
-function applyDensityOverrides(overrides: Partial<Record<WasteMaterial, number>>): void {
-  for (const [material, density] of Object.entries(overrides)) {
-    if (density !== undefined && density > 0) {
-      (MATERIAL_DENSITIES as Record<string, number>)[material] = density;
-    }
-  }
-}
-
 /**
  * Version simplifiée pour une quantification rapide
  * (sans segmentation complète, juste détection + estimation)
@@ -333,16 +312,13 @@ export async function quickQuantify(
     uncertaintyPercent: Math.round((1 - (0.3 + detectionResult.confidence * 0.3)) * 100),
   };
 
-  const weight = calculateWeightFromVolume(volumeM3, composition);
-
   const sortedComposition = [...composition].sort((a, b) => b.percentage - a.percentage);
   const mainCategory = sortedComposition[0]?.material ?? "inconnu";
   const secondaryCategory = sortedComposition.length > 1 ? sortedComposition[1].material : undefined;
 
   const overallConfidence =
-    detectionResult.confidence * 0.4 +
-    dimensions.confidence * 0.3 +
-    weight.confidence * 0.3;
+    detectionResult.confidence * 0.55 +
+    dimensions.confidence * 0.45;
 
   return {
     objects: detectionResult.objects,
@@ -357,7 +333,6 @@ export async function quickQuantify(
       method: "estimation",
       dimensions,
     },
-    weight,
     confidence: {
       detection: Math.round(detectionResult.confidence * 100) / 100,
       segmentation: 0,
