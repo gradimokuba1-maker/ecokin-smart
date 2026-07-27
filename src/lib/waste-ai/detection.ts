@@ -35,7 +35,7 @@ export type DetectionResult = {
   imageWidth: number;
   imageHeight: number;
   processingTimeMs: number;
-  modelUsed: "yolo11" | "zero-shot" | "ai-gateway" | "fallback";
+  modelUsed: "yolo11" | "yolo11+zero-shot" | "unavailable";
   confidence: number;
 };
 
@@ -87,19 +87,16 @@ function normalize(value: string) {
   return value.trim().toLowerCase().replace(/[_-]/g, " ");
 }
 
-function classFromLabel(value: string): WasteClass {
+function classFromLabel(value: string): WasteClass | undefined {
   const normalized = normalize(value);
-  return WASTE_CLASSES.find((entry) => entry.aliases.some((alias) => normalized.includes(normalize(alias))))
-    ?? WASTE_CLASSES[WASTE_CLASSES.length - 1];
+  return WASTE_CLASSES.find((entry) => entry.aliases.some((alias) => {
+    const normalizedAlias = normalize(alias);
+    return normalized === normalizedAlias || normalized.includes(normalizedAlias);
+  }));
 }
 
 function classIdFor(type: WasteObjectType) {
   return Math.max(0, WASTE_CLASSES.findIndex((entry) => entry.displayLabel === type));
-}
-
-function displayLabelForMaterial(material: WasteMaterial): WasteObjectType {
-  const wasteClass = WASTE_CLASSES.find((entry) => entry.material === material);
-  return wasteClass?.displayLabel ?? "autres";
 }
 
 function loadImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
@@ -113,6 +110,9 @@ function loadImageSize(dataUrl: string): Promise<{ width: number; height: number
 
 function toObject(raw: RawModelDetection, imageWidth: number, imageHeight: number): DetectedObject | null {
   const mapped = classFromLabel(raw.label);
+  // Une classe COCO sans correspondance métier (personne, voiture, chien, etc.)
+  // ne doit jamais devenir artificiellement « autres déchets ».
+  if (!mapped) return null;
   const score = Math.max(0, Math.min(1, Number(raw.score)));
   const xmin = Math.max(0, Math.min(imageWidth, Number(raw.box.xmin)));
   const ymin = Math.max(0, Math.min(imageHeight, Number(raw.box.ymin)));
@@ -209,81 +209,27 @@ async function detectWithModels(
 
   return {
     objects: deduplicate([...yoloObjects, ...semanticObjects]),
-    modelUsed: semanticObjects.length > 0 ? "zero-shot" : "yolo11",
+    modelUsed: semanticObjects.length > 0 ? "yolo11+zero-shot" : "yolo11",
     imageWidth: width,
     imageHeight: height,
   };
 }
 
-/** Fallback local sans réseau/modèle, conservé pour les usages hors ligne. */
+/**
+ * Repli honnête hors ligne : aucune boîte n'est inventée à partir des couleurs.
+ * La quantification s'arrête donc à zéro plutôt que de répéter une fausse valeur.
+ */
 async function detectFallback(imageDataUrl: string): Promise<DetectionResult> {
   const metrics = await analyzeImageContent(imageDataUrl);
-  const baseBox = metrics.wasteBoundingBox;
-  const visibleShare = Math.max(0, Math.min(0.95, metrics.wastePixelRatio));
-  if (visibleShare < 0.015 || baseBox.width <= 0 || baseBox.height <= 0) {
-    return {
-      objects: [],
-      totalObjects: 0,
-      imageWidth: metrics.imageWidth,
-      imageHeight: metrics.imageHeight,
-      processingTimeMs: 0,
-      modelUsed: "fallback",
-      confidence: 0,
-    };
-  }
-  const composition = metrics.colorComposition.filter((entry) => entry.material !== "inconnu").slice(0, 6);
-  const usableComposition = composition.length > 0 ? composition : [{ material: "mixte" as WasteMaterial, percentage: 100 }];
-
-  const objects = usableComposition.map((entry, index): DetectedObject => {
-    const share = Math.max(0.04, entry.percentage / 100);
-    const label = displayLabelForMaterial(entry.material);
-    const columns = Math.ceil(Math.sqrt(usableComposition.length));
-    const rows = Math.ceil(usableComposition.length / columns);
-    const col = index % columns;
-    const row = Math.floor(index / columns);
-    const cellWidth = baseBox.width / columns;
-    const cellHeight = baseBox.height / rows;
-    const width = Math.max(0.04, Math.min(baseBox.width, cellWidth * (0.65 + share * 0.6)));
-    const height = Math.max(0.04, Math.min(baseBox.height, cellHeight * (0.65 + share * 0.6)));
-    const x = baseBox.x - baseBox.width / 2 + cellWidth * (col + 0.5);
-    const y = baseBox.y - baseBox.height / 2 + cellHeight * (row + 0.5);
-    const confidence = Math.max(0.32, Math.min(0.72, 0.3 + metrics.quality.score * 0.28 + share * 0.22 + visibleShare * 0.12));
-    return {
-      classId: classIdFor(label),
-      label: entry.material,
-      displayLabel: label,
-      confidence: Math.round(confidence * 100) / 100,
-      bbox: {
-        x: Math.max(0.02, Math.min(0.98, x)),
-        y: Math.max(0.02, Math.min(0.98, y)),
-        width,
-        height,
-      },
-      area: Math.min(0.95, baseBox.width * baseBox.height * share),
-    };
-  });
-
-  const confidence = objects.length
-    ? objects.reduce((sum, object) => sum + object.confidence, 0) / objects.length
-    : 0;
   return {
-    objects: visibleShare > 0.02 ? objects : [],
-    totalObjects: visibleShare > 0.02 ? objects.length : 0,
+    objects: [],
+    totalObjects: 0,
     imageWidth: metrics.imageWidth,
     imageHeight: metrics.imageHeight,
     processingTimeMs: 0,
-    modelUsed: "fallback",
-    confidence: visibleShare > 0.02 ? Math.round(confidence * 100) / 100 : 0,
+    modelUsed: "unavailable",
+    confidence: 0,
   };
-}
-
-function loadImage(source: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = source;
-  });
 }
 
 /**
@@ -309,7 +255,7 @@ export async function detectWasteObjects(
       processingTimeMs: Math.round(performance.now() - startedAt),
     };
   } catch (error) {
-    console.warn("YOLO11 detection unavailable; using offline fallback", error);
+    console.warn("YOLO11 indisponible; aucune détection ne sera inventée", error);
     const fallback = await detectFallback(imageDataUrl);
     return { ...fallback, processingTimeMs: Math.round(performance.now() - startedAt) };
   }

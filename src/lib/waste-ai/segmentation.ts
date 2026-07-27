@@ -29,7 +29,7 @@ export type SegmentationResult = {
   imageWidth: number;
   imageHeight: number;
   processingTimeMs: number;
-  modelUsed: "sam2" | "fallback";
+  modelUsed: "sam2" | "bounding-box" | "unavailable";
   confidence: number;
 };
 
@@ -226,6 +226,15 @@ export async function segmentWasteAreas(
   onProgress?: (message: string) => void,
 ): Promise<SegmentationResult> {
   const startedAt = performance.now();
+  if (detections.length === 0) {
+    const image = await loadImage(imageDataUrl);
+    return {
+      segments: [], totalSegments: 0, wasteAreaRatio: 0,
+      imageWidth: image.width, imageHeight: image.height,
+      processingTimeMs: Math.round(performance.now() - startedAt),
+      modelUsed: "unavailable", confidence: 0,
+    };
+  }
   try {
     const result = await segmentWithSam2(imageDataUrl, detections, onProgress);
     const area = Math.min(1, result.segments.reduce((sum, segment) => sum + segment.areaRatio, 0));
@@ -249,7 +258,7 @@ export async function segmentWasteAreas(
       totalSegments: fallback.segments.length,
       wasteAreaRatio: area,
       processingTimeMs: Math.round(performance.now() - startedAt),
-      modelUsed: "fallback",
+      modelUsed: "bounding-box",
       confidence: fallback.segments.length
         ? fallback.segments.reduce((sum, segment) => sum + segment.confidence, 0) / fallback.segments.length
         : 0,

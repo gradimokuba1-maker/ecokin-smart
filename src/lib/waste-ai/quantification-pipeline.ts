@@ -4,11 +4,12 @@
 //
 // Retourne: catégories de déchets, volume estimé, poids estimé, score de confiance
 
-import type { WasteMaterial, CompositionEntry, Dimensions3D } from "./types";
+import type { WasteMaterial, CompositionEntry, Dimensions3D, WeightEstimate } from "./types";
 import { detectWasteObjects, calculateCompositionFromDetections, type DetectionResult } from "./detection";
 import type { DetectedObject } from "./detection";
 import { segmentWasteAreas, type SegmentationResult, type SegmentMask } from "./segmentation";
 import { estimateWasteVolume, type DepthEstimate } from "./volume-estimator";
+import { estimateWasteWeight } from "./weight-estimator";
 
 export type QuantificationResult = {
   /** Objets détectés, avec libellé métier, boîte et confiance. */
@@ -28,7 +29,7 @@ export type QuantificationResult = {
     dimensions: Dimensions3D;
   };
 
-  // Poids estimé
+  weight: WeightEstimate;
   // Scores de confiance
   confidence: {
     detection: number;     // confiance de la détection YOLO
@@ -118,6 +119,13 @@ export async function quantifyWaste(
   const mainCategory = sortedComposition[0]?.material ?? "inconnu";
   const secondaryCategory = sortedComposition.length > 1 ? sortedComposition[1].material : undefined;
 
+  const weight = estimateWasteWeight(
+    volumeResult.dimensions.volumeM3,
+    sortedComposition,
+    volumeResult.confidence,
+    detectionResult.confidence,
+  );
+
   // Calculer les scores de confiance
   const detectionConfidence = detectionResult.confidence;
   const segmentationConfidence = segmentationResult.confidence;
@@ -144,6 +152,7 @@ export async function quantifyWaste(
       method: volumeResult.method,
       dimensions: volumeResult.dimensions,
     },
+    weight,
     confidence: {
       detection: Math.round(detectionConfidence * 100) / 100,
       segmentation: Math.round(segmentationConfidence * 100) / 100,
@@ -319,6 +328,7 @@ export async function quickQuantify(
   const overallConfidence =
     detectionResult.confidence * 0.55 +
     dimensions.confidence * 0.45;
+  const weight = estimateWasteWeight(volumeM3, sortedComposition, dimensions.confidence, detectionResult.confidence);
 
   return {
     objects: detectionResult.objects,
@@ -333,6 +343,7 @@ export async function quickQuantify(
       method: "estimation",
       dimensions,
     },
+    weight,
     confidence: {
       detection: Math.round(detectionResult.confidence * 100) / 100,
       segmentation: 0,
@@ -346,7 +357,7 @@ export async function quickQuantify(
       processingTimeMs: Math.round(performance.now() - startTime),
       modelsUsed: {
         detection: detectionResult.modelUsed,
-        segmentation: "fallback",
+        segmentation: "unavailable",
         volume: "estimation",
       },
     },

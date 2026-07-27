@@ -42,6 +42,16 @@ export type RiskLevel = "faible" | "modere" | "eleve";
 
 export type CameraCapability = "lidar" | "arcore" | "basic";
 
+export type CameraMetadata = {
+  widthPx: number;
+  heightPx: number;
+  facingMode?: string;
+  deviceId?: string;
+  focalLengthMm?: number;
+  sensorWidthMm?: number;
+  sensorHeightMm?: number;
+};
+
 export type CompositionEntry = {
   material: WasteMaterial;
   percentage: number; // 0-100
@@ -74,6 +84,26 @@ export type LocationInfo = {
 export type DetectedWasteObject = {
   label: string;
   confidence: number;
+  count?: number;
+};
+
+export type WeightEstimate = {
+  weightKg: number;
+  weightTons: number;
+  /** Densité apparente pondérée du dépôt, et non densité du matériau massif. */
+  densityKgM3: number;
+  minWeightKg: number;
+  maxWeightKg: number;
+  confidence: number;
+  uncertaintyPercent: number;
+};
+
+export type AnalysisMethodMetadata = {
+  detection: "yolo11" | "yolo11+zero-shot" | "unavailable";
+  segmentation: "sam2" | "bounding-box" | "unavailable";
+  volume: "lidar" | "ai-depth" | "depth-api" | "perspective" | "reference" | "estimation";
+  captureMode: "single" | "multi" | "video";
+  viewsAnalyzed: number;
 };
 
 export type WasteAnalysisResult = {
@@ -98,6 +128,9 @@ export type WasteAnalysisResult = {
   // Dimensions 3D
   dimensions: Dimensions3D;
 
+  // Masse estimée à partir du volume et des densités apparentes par matériau
+  weight: WeightEstimate;
+
   // Localisation
   location: LocationInfo;
 
@@ -116,6 +149,8 @@ export type WasteAnalysisResult = {
 
   // Métadonnées
   cameraCapability: CameraCapability;
+  cameraMetadata?: CameraMetadata;
+  methods: AnalysisMethodMetadata;
   analysisConfidence: number; // 0-1
   description: string;
   recommendations: string[];

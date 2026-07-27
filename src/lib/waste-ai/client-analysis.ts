@@ -8,7 +8,18 @@
 
 import { quantifyWaste } from "./quantification-pipeline";
 import { estimateDepthWithAI } from "./depth-acquisition";
-import { calculatePriorityLevel, type CameraCapability, type CompositionEntry, type LocationInfo, type RiskLevel, type WasteAnalysisResult, type WasteMaterial, type WasteObjectType } from "./types";
+import { mergeMultiViewCompositions } from "./multi-view";
+import {
+  calculatePriorityLevel,
+  type CameraCapability,
+  type CameraMetadata,
+  type CompositionEntry,
+  type LocationInfo,
+  type RiskLevel,
+  type WasteAnalysisResult,
+  type WasteMaterial,
+  type WasteObjectType,
+} from "./types";
 
 export type WasteCaptureForAnalysis = {
   imageDataUrl: string;
@@ -17,6 +28,8 @@ export type WasteCaptureForAnalysis = {
   cameraCapability: CameraCapability;
   depthData?: string;
   capturedAt: string;
+  cameraMetadata?: CameraMetadata;
+  captureMode: "single" | "multi" | "video";
 };
 
 const DISPLAY_LABELS: Record<WasteObjectType, string> = {
@@ -107,11 +120,55 @@ export async function analyzeWasteCapture(
     depthData = depth.depthData;
   }
 
-  const quantified = await quantifyWaste(capture.imageDataUrl, {
+  let quantified = await quantifyWaste(capture.imageDataUrl, {
     depthData,
     detectionModelType: "yolo11",
+    focalLength: capture.cameraMetadata?.focalLengthMm,
+    sensorWidth: capture.cameraMetadata?.sensorWidthMm,
+    sensorHeight: capture.cameraMetadata?.sensorHeightMm,
     onProgress,
   });
+
+  // Agrégation multi-vues : on analyse chaque image supplémentaire et on
+  // combine les volumes par catégorie pour lisser les erreurs de perspective.
+  let multiViews = 1;
+  if (capture.additionalImages.length > 0) {
+    const extraResults = await Promise.all(
+      capture.additionalImages.map((extra) =>
+        quantifyWaste(extra, {
+          depthData,
+          detectionModelType: "yolo11",
+          focalLength: capture.cameraMetadata?.focalLengthMm,
+          sensorWidth: capture.cameraMetadata?.sensorWidthMm,
+          sensorHeight: capture.cameraMetadata?.sensorHeightMm,
+          onProgress,
+        }).catch(() => null),
+      ),
+    );
+    const valid = extraResults.filter((r): r is NonNullable<typeof r> => r !== null);
+    if (valid.length > 0) {
+      multiViews = 1 + valid.length;
+      const combined = [...valid, quantified];
+      const totalVolume = combined.reduce((sum, r) => sum + r.volume.m3, 0);
+      const avgVolume = totalVolume / combined.length;
+      const avgConfidence = combined.reduce((sum, r) => sum + r.confidence.overall, 0) / combined.length;
+      const avgWeight = combined.reduce((sum, r) => sum + r.weight.weightKg, 0) / combined.length;
+      const avgDensity = combined.reduce((sum, r) => sum + r.weight.densityKgM3, 0) / combined.length;
+      const avgArea = combined.reduce((sum, r) => sum + r.metadata.wasteAreaPercent, 0) / combined.length;
+      const mergedComposition = mergeMultiViewCompositions(combined.map((r) => r.categories.composition));
+      const sorted = [...mergedComposition].sort((a, b) => b.percentage - a.percentage);
+      const mainCategory = sorted[0]?.material ?? quantified.categories.main;
+      const secondaryCategory = sorted.length > 1 ? sorted[1].material : undefined;
+      quantified = {
+        ...quantified,
+        categories: { main: mainCategory, secondary: secondaryCategory, composition: sorted },
+        volume: { ...quantified.volume, m3: avgVolume, confidence: avgConfidence, dimensions: { ...quantified.volume.dimensions, volumeM3: avgVolume } },
+        weight: { ...quantified.weight, weightKg: avgWeight, weightTons: avgWeight / 1000, densityKgM3: avgDensity },
+        metadata: { ...quantified.metadata, wasteAreaPercent: Math.round(avgArea), modelsUsed: { ...quantified.metadata.modelsUsed } },
+        confidence: { ...quantified.confidence, overall: avgConfidence },
+      };
+    }
+  }
   const objectsByType = new Map<WasteObjectType, { score: number; confidence: number; count: number }>();
   for (const object of quantified.objects) {
     const current = objectsByType.get(object.displayLabel) ?? { score: 0, confidence: 0, count: 0 };
@@ -150,12 +207,12 @@ export async function analyzeWasteCapture(
   });
   const risks = assessRisks(quantified.categories.composition, quantified.volume.m3, quantified.metadata.wasteAreaPercent);
   const priorityScore = Math.min(100, Math.round(
-      (risks.health === "eleve" ? 25 : risks.health === "modere" ? 13 : 4) +
-      (risks.environmental === "eleve" ? 20 : risks.environmental === "modere" ? 10 : 3) +
-      (risks.pollution === "eleve" ? 18 : risks.pollution === "modere" ? 8 : 2) +
-      (risks.fire === "eleve" ? 15 : risks.fire === "modere" ? 7 : 0) +
-      (risks.floodRisk ? 17 : 0) +
-      (quantified.volume.m3 > 10 ? 12 : quantified.volume.m3 > 3 ? 7 : 2),
+    (risks.health === "eleve" ? 25 : risks.health === "modere" ? 13 : 4) +
+    (risks.environmental === "eleve" ? 20 : risks.environmental === "modere" ? 10 : 3) +
+    (risks.pollution === "eleve" ? 18 : risks.pollution === "modere" ? 8 : 2) +
+    (risks.fire === "eleve" ? 15 : risks.fire === "modere" ? 7 : 0) +
+    (risks.floodRisk ? 17 : 0) +
+    (quantified.volume.m3 > 10 ? 12 : quantified.volume.m3 > 3 ? 7 : 2),
   ));
   const location = locationFromCapture(capture);
   const mainLabel = DISPLAY_LABELS[quantified.objects[0]?.displayLabel ?? "autres"];
@@ -183,9 +240,18 @@ export async function analyzeWasteCapture(
     fireRisk: risks.fire,
     obstructionRisk: risks.obstruction,
     cameraCapability: capture.cameraCapability,
+    cameraMetadata: capture.cameraMetadata,
+    methods: {
+      detection: quantified.metadata.modelsUsed.detection,
+      segmentation: quantified.metadata.modelsUsed.segmentation,
+      volume: quantified.metadata.modelsUsed.volume,
+      captureMode: capture.captureMode,
+      viewsAnalyzed: multiViews,
+    },
     analysisConfidence: quantified.confidence.overall,
     description: `${mainLabel} détectés sur environ ${quantified.metadata.wasteAreaPercent}% de l’image. Volume estimé : ${quantified.volume.m3} m³ via ${quantified.metadata.modelsUsed.volume}.`,
     recommendations: recommendationFor(risks),
+    weight: quantified.weight,
     status: "en_attente",
   };
 }
