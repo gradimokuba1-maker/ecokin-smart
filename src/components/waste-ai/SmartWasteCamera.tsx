@@ -135,6 +135,7 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
 
   const [cameraPermission, setCameraPermission] = useState<PermissionStatus>("idle");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [diag, setDiag] = useState<Record<string, any>>({});
   
   const [captureMode, setCaptureMode] = useState<CaptureMode>("multi"); // Default to "3 vues"
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
@@ -157,45 +158,48 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
     onClose();
   }, [onClose]);
 
+  // Effect 1: Request permissions and get the stream
   useEffect(() => {
     let isCancelled = false;
-    
+
     async function startCamera() {
-      if (mediaStreamRef.current || cameraPermission === 'denied' || cameraPermission === 'unavailable') {
-        return;
-      }
+      if (mediaStreamRef.current) return;
       
       setCameraPermission("requesting");
-      
-      try {
-        const streamPromise = requestPreferredCameraStream();
-        const gpsPromise = requestGPSPosition();
-        const depthPromise = acquireNativeDepth();
-        
-        const stream = await streamPromise;
+      setDiag({ status: "Requesting permissions..." });
 
+      try {
+        const stream = await requestPreferredCameraStream();
         if (isCancelled) {
           stopStream(stream);
           return;
         }
-
         mediaStreamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-        }
+        
+        setDiag(d => ({
+          ...d,
+          getUserMedia: "OK",
+          stream: "OUI",
+          videoTracks: stream.getVideoTracks().length,
+        }));
 
-        nativeDepthRef.current = await depthPromise;
-        await gpsPromise;
+        // Fire and forget, not critical for camera start
+        acquireNativeDepth().then(depth => { if(!isCancelled) nativeDepthRef.current = depth; });
+        requestGPSPosition();
         
         setCameraPermission("granted");
-        
       } catch (error) {
         if (isCancelled) return;
-        console.error("Camera startup failed:", error);
-        const name = error instanceof Error ? error.name : "";
+        const err = error instanceof Error ? error : new Error(String(error));
+        console.error("Camera startup failed:", err);
+        const name = err.name;
         const status = (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") ? "denied" : "unavailable";
         setCameraPermission(status);
+        setDiag(d => ({
+          ...d,
+          getUserMedia: "ERREUR",
+          error: { name: err.name, message: err.message },
+        }));
       }
     }
 
@@ -207,6 +211,95 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
       mediaStreamRef.current = null;
     };
   }, []); // <-- Empty dependency array ensures this runs only once.
+
+  // Effect 2: Connect stream to video element when permission is granted
+  useEffect(() => {
+    const videoEl = videoRef.current;
+    const stream = mediaStreamRef.current;
+
+    if (cameraPermission !== 'granted' || !stream || !videoEl) {
+      return;
+    }
+
+    const playVideo = async () => {
+      try {
+        await videoEl.play();
+        setDiag(d => ({ ...d, isPlaying: !videoEl.paused, playAttempt: 'success' }));
+      } catch (error) {
+        console.error("Video play failed:", error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        setDiag(d => ({ ...d, playError: { name: err.name, message: err.message }, isPlaying: false }));
+      }
+    };
+    
+    setDiag(d => ({
+        ...d,
+        stream: {
+            active: stream.active,
+            tracks: stream.getVideoTracks().map(t => ({
+                id: t.id,
+                enabled: t.enabled,
+                muted: t.muted,
+                readyState: t.readyState,
+                kind: t.kind,
+            })),
+        }
+    }));
+
+    const onLoadedMetadata = () => {
+      setDiag(d => ({
+        ...d,
+        videoWidth: videoEl.videoWidth,
+        videoHeight: videoEl.videoHeight,
+        readyState: videoEl.readyState,
+        event: 'loadedmetadata'
+      }));
+    };
+
+    const onCanPlay = () => {
+      setDiag(d => ({ ...d, event: 'canplay' }));
+      playVideo();
+    };
+
+    const onPlaying = () => setDiag(d => ({ ...d, event: 'playing', paused: videoEl.paused }));
+    const onPause = () => setDiag(d => ({ ...d, event: 'pause' }));
+    const onStalled = () => setDiag(d => ({ ...d, event: 'stalled' }));
+    const onSuspend = () => setDiag(d => ({ ...d, event: 'suspend' }));
+    const onWaiting = () => setDiag(d => ({ ...d, event: 'waiting' }));
+    const onError = (e: Event) => {
+        const error = videoEl.error;
+        setDiag(d => ({ ...d, event: 'error', videoError: { code: error?.code, message: error?.message }}));
+    }
+
+    if (videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream;
+    }
+
+    videoEl.addEventListener('loadedmetadata', onLoadedMetadata);
+    videoEl.addEventListener('canplay', onCanPlay);
+    videoEl.addEventListener('playing', onPlaying);
+    videoEl.addEventListener('pause', onPause);
+    videoEl.addEventListener('stalled', onStalled);
+    videoEl.addEventListener('suspend', onSuspend);
+    videoEl.addEventListener('waiting', onWaiting);
+    videoEl.addEventListener('error', onError);
+
+    // If video is already able to play, trigger play manually.
+    if (videoEl.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA) {
+      playVideo();
+    }
+
+    return () => {
+      videoEl.removeEventListener('loadedmetadata', onLoadedMetadata);
+      videoEl.removeEventListener('canplay', onCanPlay);
+      videoEl.removeEventListener('playing', onPlaying);
+      videoEl.removeEventListener('pause', onPause);
+      videoEl.removeEventListener('stalled', onStalled);
+      videoEl.removeEventListener('suspend', onSuspend);
+      videoEl.removeEventListener('waiting', onWaiting);
+      videoEl.removeEventListener('error', onError);
+    };
+  }, [cameraPermission]);
 
 
   const deliverCapture = useCallback(
@@ -328,9 +421,16 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
         autoPlay
         playsInline
         muted
-        className="size-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover"
       />
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* --- START DIAGNOSTIC --- */}
+      <div className="pointer-events-none absolute right-4 top-24 z-[99] max-w-sm rounded-lg bg-black/60 p-2 text-xs text-white backdrop-blur-sm">
+        <p className="font-bold">Diagnostics</p>
+        <pre className="mt-1 font-mono text-xs whitespace-pre-wrap">{JSON.stringify(diag, null, 2)}</pre>
+      </div>
+      {/* --- END DIAGNOSTIC --- */}
 
       {isProcessing && (
         <div className="absolute inset-0 grid place-items-center bg-black/80 backdrop-blur-sm">
