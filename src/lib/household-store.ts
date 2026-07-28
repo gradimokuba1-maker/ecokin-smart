@@ -1,6 +1,5 @@
-// EcoKin Smart — Module Déchets ménagers.
-// Persistance locale (localStorage) — architecture prête pour un backend Cloud.
 import { useEffect, useState, useCallback } from "react";
+import { useUser } from "./user-store";
 
 export type HouseholdKind = "menage" | "pme";
 export type BinType = "120L" | "240L" | "660L";
@@ -16,6 +15,11 @@ export type Household = {
   occupants: number;
   binType: BinType;
   createdAt: string;
+  paymentStatus?: "paid" | "unpaid";
+  gps?: {
+    lat: number;
+    lon: number;
+  };
 };
 
 export type CollectionRequest = {
@@ -69,17 +73,24 @@ function write<T>(key: string, list: T[]) {
 }
 
 export function useHouseholds() {
+  const { user } = useUser();
   const [households, setHouseholds] = useState<Household[]>([]);
   const [requests, setRequests] = useState<CollectionRequest[]>([]);
   const [issues, setIssues] = useState<BinIssue[]>([]);
   const [history, setHistory] = useState<CollectionHistoryItem[]>([]);
 
   const refresh = useCallback(() => {
-    setHouseholds(read<Household>(K_HH));
+    let allHouseholds = read<Household>(K_HH);
+    if (user) {
+        if (user.role === 'bourgmestre' && user.commune) {
+            allHouseholds = allHouseholds.filter(h => h.commune === user.commune);
+        }
+    }
+    setHouseholds(allHouseholds);
     setRequests(read<CollectionRequest>(K_REQ));
     setIssues(read<BinIssue>(K_BIN));
     setHistory(read<CollectionHistoryItem>(K_HIST));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refresh();
@@ -91,6 +102,51 @@ export function useHouseholds() {
       window.removeEventListener("storage", h);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const data = read<Household>(K_HH);
+    if (data.length === 0) {
+        write(K_HH, [
+            {
+                id: "HH-1",
+                kind: "menage",
+                name: "Famille Kabongo",
+                commune: "Kalamu",
+                quartier: "Matonge",
+                address: "123, Avenue Victoire",
+                phone: "+243810000001",
+                occupants: 5,
+                binType: "120L",
+                createdAt: new Date().toISOString(),
+            },
+            {
+                id: "HH-2",
+                kind: "pme",
+                name: "Chez Mama Nseya",
+                commune: "Kalamu",
+                quartier: "Yolo",
+                address: "456, Avenue de l'Université",
+                phone: "+243810000002",
+                occupants: 10,
+                binType: "240L",
+                createdAt: new Date().toISOString(),
+            },
+            {
+                id: "HH-3",
+                kind: "menage",
+                name: "Famille Mavanga",
+                commune: "Gombe",
+                quartier: "Centre-ville",
+                address: "789, Boulevard du 30 Juin",
+                phone: "+243810000003",
+                occupants: 3,
+                binType: "120L",
+                createdAt: new Date().toISOString(),
+            },
+        ]);
+        refresh();
+    }
+}, [refresh]);
 
   return {
     households,

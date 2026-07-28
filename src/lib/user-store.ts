@@ -1,150 +1,76 @@
-// Session citoyenne persistante. Les comptes sont conserves dans ecokin-db;
-// la deconnexion ne supprime plus le profil ni les Green Points.
-import { useEffect, useState } from "react";
-import { DB_EVT, findUserByCredentials, readDb, updateUser, upsertUser } from "./ecokin-db";
-import type { EcokinUserRecord } from "./ecokin-db";
+// EcoKin Smart — Module Utilisateur.
+import { useEffect, useState, useCallback } from "react";
 
-const SESSION_KEY = "ecokin_citizen_session_v1";
+export type UserRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
 
-export type EcoUser = {
-  id?: string;
+export type User = {
+  id: string;
   name: string;
-  commune: string;
-  phone: string;
-  pin: string;
-  registered: boolean;
-  points: number;
-  reports: number;
-  badges: string[];
+  role: UserRole;
+  commune?: string; // For bourgmestre
 };
 
-const DEFAULT: EcoUser = {
-  name: "Citoyen EcoKin",
-  commune: "Kinshasa",
-  phone: "",
-  pin: "",
-  registered: false,
-  points: 0,
-  reports: 0,
-  badges: [],
-};
+const K_USER = "ecokin_user_v1";
+const EVT = "ecokin:user";
 
-function toEcoUser(record?: EcokinUserRecord, registered = false): EcoUser {
-  if (!record) return DEFAULT;
-  return {
-    id: record.id,
-    name: record.name,
-    commune: record.commune ?? record.city,
-    phone: record.phone ?? record.identifier,
-    pin: record.password,
-    registered,
-    points: record.points,
-    reports: record.reports,
-    badges: record.badges,
-  };
+function read<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
 }
 
-function readSessionUser(): EcoUser {
-  if (typeof window === "undefined") return DEFAULT;
-  const userId = localStorage.getItem(SESSION_KEY);
-  if (!userId) return DEFAULT;
-  const record = readDb().users.find((user) => user.id === userId && user.role === "citoyen");
-  return toEcoUser(record, Boolean(record));
-}
-
-function writeSession(userId: string) {
+function write<T>(key: string, data: T) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(SESSION_KEY, userId);
-  window.dispatchEvent(new Event(DB_EVT));
+  localStorage.setItem(key, JSON.stringify(data));
+  window.dispatchEvent(new Event(EVT));
 }
 
-function clearSession() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(SESSION_KEY);
-  window.dispatchEvent(new Event(DB_EVT));
-}
+export function useUser() {
+  const [user, setUser] = useState<User | null>(null);
 
-export function useEcoUser() {
-  const [user, setUser] = useState<EcoUser>(DEFAULT);
-
-  useEffect(() => {
-    const refresh = () => setUser(readSessionUser());
-    refresh();
-    window.addEventListener(DB_EVT, refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener(DB_EVT, refresh);
-      window.removeEventListener("storage", refresh);
-    };
+  const refresh = useCallback(() => {
+    setUser(read<User>(K_USER));
   }, []);
 
-  const update = (patch: Partial<EcoUser>) => {
-    setUser((prev) => {
-      if (!prev.id) return { ...prev, ...patch };
-      const updated = updateUser(prev.id, {
-        name: patch.name,
-        commune: patch.commune,
-        phone: patch.phone,
-        identifier: patch.phone,
-        password: patch.pin,
-        points: patch.points,
-        reports: patch.reports,
-        badges: patch.badges,
-      });
-      return toEcoUser(updated, true);
-    });
-  };
+  useEffect(() => {
+    refresh();
+    const h = () => refresh();
+    window.addEventListener(EVT, h);
+    window.addEventListener("storage", h);
+    return () => {
+      window.removeEventListener(EVT, h);
+      window.removeEventListener("storage", h);
+    };
+  }, [refresh]);
 
-  const addPoints = (n: number) => {
-    setUser((prev) => {
-      if (!prev.id) return prev;
-      const updated = updateUser(prev.id, {
-        points: prev.points + n,
-        reports: prev.reports + 1,
-      });
-      return toEcoUser(updated, true);
-    });
-  };
+  // Initialize with a default user if empty
+  useEffect(() => {
+    const data = read<User>(K_USER);
+    if (!data) {
+        const defaultUser: User = {
+            id: "U-1",
+            name: "Citoyen",
+            role: "citoyen",
+        };
+      write(K_USER, defaultUser);
+      refresh();
+    }
+  }, [refresh]);
 
-  const spend = (n: number) => {
-    if (user.points < n || !user.id) return false;
-    const updated = updateUser(user.id, { points: user.points - n });
-    setUser(toEcoUser(updated, true));
-    return true;
+  return {
+    user,
+    login(u: User) {
+      write(K_USER, u);
+      refresh();
+    },
+    logout() {
+        if (typeof window === "undefined") return;
+        localStorage.removeItem(K_USER);
+        refresh();
+    }
   };
-
-  const register = (data: { name: string; commune: string; phone: string; pin: string }) => {
-    const existing = readDb().users.find((item) => item.role === "citoyen" && item.phone === data.phone);
-    const saved = upsertUser({
-      id: existing?.id,
-      role: "citoyen",
-      name: data.name,
-      identifier: data.phone,
-      password: data.pin,
-      phone: data.phone,
-      commune: data.commune,
-      points: existing?.points ?? 0,
-      reports: existing?.reports ?? 0,
-      badges: existing?.badges ?? [],
-      active: true,
-    });
-    writeSession(saved.id);
-    setUser(toEcoUser(saved, true));
-    return true;
-  };
-
-  const signIn = (phone: string, pin: string) => {
-    const record = findUserByCredentials("citoyen", phone, pin);
-    if (!record) return false;
-    writeSession(record.id);
-    setUser(toEcoUser(record, true));
-    return true;
-  };
-
-  const signOut = () => {
-    clearSession();
-    setUser(DEFAULT);
-  };
-
-  return { user, update, addPoints, spend, register, signIn, signOut };
 }
