@@ -3,6 +3,7 @@ import type { AgentMission } from "./agent-tracking-store";
 import type { Session } from "./access-store";
 import type { EcokinUserRecord } from "./ecokin-db";
 import type { LiveReport, LiveStatus } from "./live-reports";
+import type { WasteAnalysisResult, Severity } from "./waste-ai/types"; // <-- New import
 
 export type ReportScope = {
   commune?: string;
@@ -10,6 +11,21 @@ export type ReportScope = {
   zone?: string;
   agentId?: string;
 };
+
+// New functions added to resolve build errors
+export function severityFromAnalysis(result: WasteAnalysisResult): Severity {
+  if (result.interventionUrgent || result.floodRisk || result.priorityLevel === "critique") return "critique";
+  if (result.priorityLevel === "eleve" || result.healthRisk === "eleve") return "modere";
+  return "faible";
+}
+
+export function priorityScoreFromAnalysis(analysisResult: WasteAnalysisResult, commune: string): number {
+  // The AI analysis result already contains a priorityScore, which is more accurate.
+  // We'll use that directly instead of re-calculating from basic severity.
+  return analysisResult.priorityScore;
+}
+// End new functions
+
 
 export function filterReportsByScope(reports: LiveReport[], session: Pick<Session, "role" | "commune" | "quartier" | "zone" | "userId">) {
   if (session.role === "gouverneur") return reports;
