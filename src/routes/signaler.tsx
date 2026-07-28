@@ -1,12 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { submitCitizenReport } from "@/lib/report-submit.functions";
 import { useEcoUser } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { toast } from "sonner";
-import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
+import {
+  SmartWasteCamera,
+  type CaptureResult,
+} from "@/components/waste-ai/SmartWasteCamera";
 import { CitizenGate } from "@/components/citizen-gate";
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
@@ -15,7 +18,12 @@ export const Route = createFileRoute("/signaler")({
   component: SignalerPage,
 });
 
-type PageStep = "camera" | "confirmation" | "submitting" | "submitted" | "registering";
+type PageStep =
+  | "camera"
+  | "confirmation"
+  | "submitting"
+  | "submitted"
+  | "registering";
 
 function SignalerPage() {
   const navigate = useNavigate({ from: "/signaler" });
@@ -26,19 +34,7 @@ function SignalerPage() {
   const [hash, setHash] = useState<string | null>(null);
   const [description, setDescription] = useState("");
 
-  const submitReportMutation = useMutation({
-    mutationFn: submitCitizenReport,
-    onSuccess: (result) => {
-      console.log("Réponse serveur reçue (onSuccess):", result);
-      toast.success("Votre signalement a été envoyé avec succès !");
-      setStep("submitted");
-    },
-    onError: (error) => {
-      console.error("Erreur serveur (onError):", error);
-      toast.error("L'envoi a échoué. Veuillez réessayer.");
-      setStep("confirmation"); // Go back to confirmation screen on error
-    },
-  });
+  const submitReportFn = useServerFn(submitCitizenReport);
 
   const handleCapture = useCallback(async (captureResult: CaptureResult) => {
     if (!captureResult.imageDataUrl) {
@@ -63,7 +59,7 @@ function SignalerPage() {
     setStep("camera");
   };
 
-  const submitReport = () => {
+  const submitReport = async () => {
     console.log("[CLIENT] Début de submitReport()");
     if (!capture || !hash) {
       console.log("[CLIENT] Abandon : capture ou hash manquant.");
@@ -73,13 +69,26 @@ function SignalerPage() {
     console.log("[CLIENT] Passage à l'étape 'submitting'");
     setStep("submitting");
 
-    console.log("[CLIENT] Juste avant l'appel serveur (mutate)");
-    submitReportMutation.mutate({ capture, description, hash });
-    console.log("[CLIENT] Après l'appel à mutate()");
+    try {
+      console.log("[CLIENT] Juste avant l'appel serveur");
+      const result = await submitReportFn({ capture, description, hash });
+      console.log("Réponse serveur reçue :", result);
+      toast.success("Votre signalement a été envoyé avec succès !");
+      setStep("submitted");
+    } catch (error) {
+      console.error("Erreur serveur :", error);
+      toast.error("L'envoi a échoué. Veuillez réessayer.");
+      setStep("confirmation"); // Go back to confirmation screen on error
+    }
   };
-  
+
   if (step === "camera") {
-    return <SmartWasteCamera onCapture={handleCapture} onClose={() => navigate({ to: "/" })} />;
+    return (
+      <SmartWasteCamera
+        onCapture={handleCapture}
+        onClose={() => navigate({ to: "/" })}
+      />
+    );
   }
 
   if (step === "submitting") {
@@ -87,7 +96,9 @@ function SignalerPage() {
       <div className="fixed inset-0 z-50 grid place-items-center bg-background text-foreground">
         <div className="text-center">
           <Loader2 className="mx-auto size-8 animate-spin text-eco" />
-          <p className="mt-4 font-bold text-lg">Envoi de votre signalement...</p>
+          <p className="mt-4 font-bold text-lg">
+            Envoi de votre signalement...
+          </p>
           <p className="mt-1 text-muted-foreground">Merci de patienter.</p>
         </div>
       </div>
@@ -95,41 +106,57 @@ function SignalerPage() {
   }
 
   if (step === "submitted" || step === "registering") {
-     return (
-        <div className="min-h-screen bg-background">
-          <SiteNav minimal />
-          <main className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 lg:px-8">
-             {step === 'submitted' ? (
-                <>
-                  <ShieldCheck className="mx-auto size-14 text-emerald-500" />
-                  <h1 className="mt-4 font-display text-3xl font-bold">Signalement enregistré !</h1>
-                  <p className="mt-2 text-lg text-muted-foreground">Merci de contribuer à un environnement plus propre.</p>
-                  
-                  <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/50 p-6">
-                    <div className="flex items-center justify-center gap-3">
-                      <Trophy className="size-6 text-amber-400" />
-                      <h3 className="font-display text-xl font-bold">Gagnez des Green Points !</h3>
-                    </div>
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Créez un compte gratuit pour suivre vos signalements, recevoir des notifications et accumuler des points pour chaque action positive.
-                    </p>
-                    <Button onClick={() => setStep("registering")} size="lg" className="mt-5 w-full max-w-xs">
-                      Créer un compte citoyen
-                    </Button>
-                  </div>
-                   <Button onClick={() => navigate({ to: "/" })} variant="ghost" className="mt-8">
-                     Continuer anonymement
-                  </Button>
-                </>
-             ) : (
-                <CitizenGate
-                    title="Rejoignez EcoKin"
-                    description="Créez votre compte citoyen pour cumuler vos Green Points et suivre l'impact de vos actions."
-                />
-             )}
-          </main>
-        </div>
-     )
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteNav minimal />
+        <main className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 lg:px-8">
+          {step === "submitted" ? (
+            <>
+              <ShieldCheck className="mx-auto size-14 text-emerald-500" />
+              <h1 className="mt-4 font-display text-3xl font-bold">
+                Signalement enregistré !
+              </h1>
+              <p className="mt-2 text-lg text-muted-foreground">
+                Merci de contribuer à un environnement plus propre.
+              </p>
+
+              <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/50 p-6">
+                <div className="flex items-center justify-center gap-3">
+                  <Trophy className="size-6 text-amber-400" />
+                  <h3 className="font-display text-xl font-bold">
+                    Gagnez des Green Points !
+                  </h3>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Créez un compte gratuit pour suivre vos signalements, recevoir
+                  des notifications et accumuler des points pour chaque action
+                  positive.
+                </p>
+                <Button
+                  onClick={() => setStep("registering")}
+                  size="lg"
+                  className="mt-5 w-full max-w-xs"
+                >
+                  Créer un compte citoyen
+                </Button>
+              </div>
+              <Button
+                onClick={() => navigate({ to: "/" })}
+                variant="ghost"
+                className="mt-8"
+              >
+                Continuer anonymement
+              </Button>
+            </>
+          ) : (
+            <CitizenGate
+              title="Rejoignez EcoKin"
+              description="Créez votre compte citoyen pour cumuler vos Green Points et suivre l'impact de vos actions."
+            />
+          )}
+        </main>
+      </div>
+    );
   }
 
   // Fallback for confirmation step
@@ -139,23 +166,33 @@ function SignalerPage() {
       <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
           <header>
-            <p className="text-xs font-bold uppercase tracking-widest text-eco">Confirmation</p>
-            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight">Vérifier et soumettre</h1>
+            <p className="text-xs font-bold uppercase tracking-widest text-eco">
+              Confirmation
+            </p>
+            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight">
+              Vérifier et soumettre
+            </h1>
             <p className="mt-2 text-muted-foreground">
-              Votre photo est prête. Ajoutez un commentaire si vous le souhaitez, puis envoyez.
+              Votre photo est prête. Ajoutez un commentaire si vous le
+              souhaitez, puis envoyez.
             </p>
           </header>
-          
+
           {capture?.imageDataUrl && (
-            <img 
-              src={capture.imageDataUrl} 
+            <img
+              src={capture.imageDataUrl}
               alt="Aperçu du signalement"
               className="w-full rounded-xl border-2 border-border object-cover aspect-[4/3]"
             />
           )}
 
           <section>
-            <label htmlFor="description" className="text-sm font-bold text-foreground">Ajouter un commentaire (optionnel)</label>
+            <label
+              htmlFor="description"
+              className="text-sm font-bold text-foreground"
+            >
+              Ajouter un commentaire (optionnel)
+            </label>
             <textarea
               id="description"
               value={description}
