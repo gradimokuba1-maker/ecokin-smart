@@ -69,9 +69,12 @@ function SignalerPage() {
     console.log("[CLIENT] Passage à l'étape 'submitting'");
     setStep("submitting");
 
+    const payload = { capture, description, hash };
+    console.log("[CLIENT] Données envoyées au serveur :", payload);
+
     try {
       console.log("[CLIENT] Juste avant l'appel serveur");
-      const result = await submitReportFn({ capture, description, hash });
+      const result = await submitReportFn({ data: payload });
       console.log("Réponse serveur reçue :", result);
       toast.success("Votre signalement a été envoyé avec succès !");
       setStep("submitted");
