@@ -8,11 +8,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  acquireNativeDepth,
-  type DepthAcquisition,
-  type DepthSource,
-} from "@/lib/waste-ai/depth-acquisition";
+import { getDepthAcquisition, type DepthSource } from "@/lib/waste-ai/depth-acquisition";
+import { type DepthAcquisition } from "@/lib/waste-ai/depth-service";
 import { buildLocationInfo, requestGPSPosition } from "@/lib/waste-ai/gps-location";
 import type { CameraCapability, LocationInfo } from "@/lib/waste-ai/types";
 import { Button } from "@/components/ui/button";
@@ -20,8 +17,7 @@ import { Button } from "@/components/ui/button";
 export type CaptureResult = {
   imageDataUrl: string;
   additionalImages: string[];
-  cameraCapability: CameraCapability;
-  depthSource: DepthSource;
+  cameraCapability: DepthSource;
   depthData?: string;
   location: LocationInfo | null;
   captureMode: "single" | "multi" | "video";
@@ -131,11 +127,25 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const nativeDepthRef = useRef<DepthAcquisition | null>(null);
+  const [depthSensor, setDepthSensor] = useState<DepthAcquisition | null>(null);
 
   const [cameraPermission, setCameraPermission] = useState<PermissionStatus>("idle");
   const [isProcessing, setIsProcessing] = useState(false);
   const [diag, setDiag] = useState<Record<string, any>>({});
+  useEffect(() => {
+    if (depthSensor) {
+      setDiag(d => ({
+        ...d,
+        depthSensor: {
+          label: depthSensor.label,
+          supported: depthSensor.supported,
+          source: depthSensor.source,
+          resolution: depthSensor.resolution,
+          confidence: depthSensor.confidence,
+        }
+      }));
+    }
+  }, [depthSensor]);
   
   const [captureMode, setCaptureMode] = useState<CaptureMode>("multi"); // Default to "3 vues"
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
@@ -184,7 +194,7 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
         }));
 
         // Fire and forget, not critical for camera start
-        acquireNativeDepth().then(depth => { if(!isCancelled) nativeDepthRef.current = depth; });
+        getDepthAcquisition().then(depth => { if(!isCancelled) setDepthSensor(depth); });
         requestGPSPosition();
         
         setCameraPermission("granted");
@@ -321,14 +331,20 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
 
         const location = buildLocationInfo(gpsPosition.lat, gpsPosition.lng, gpsPosition.accuracy, gpsPosition.altitudeM);
         const now = new Date().toISOString();
-        const depthResult = nativeDepthRef.current ?? { source: "ai" as const, label: "Analyse IA" };
+        const fallbackDepth: DepthAcquisition = {
+          source: "ai",
+          label: "Analyse IA",
+          supported: false,
+          depthData: undefined,
+          confidence: 0.55,
+        };
+        const depthResult = depthSensor ?? fallbackDepth;
 
         onCapture({
           imageDataUrl,
           additionalImages,
-          cameraCapability: depthResult.source === "lidar" ? "lidar" : "basic",
-          depthSource: depthResult.source,
-          depthData: depthResult.depthData,
+          cameraCapability: depthResult.source,
+          depthData: depthResult.depthData as any, // TODO: Handle depth data properly
           location,
           captureMode: mode,
           capturedAt: now,
@@ -427,8 +443,17 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
 
       {/* --- START DIAGNOSTIC --- */}
       <div className="pointer-events-none absolute right-4 top-24 z-[99] max-w-sm rounded-lg bg-black/60 p-2 text-xs text-white backdrop-blur-sm">
-        <p className="font-bold">Diagnostics</p>
-        <pre className="mt-1 font-mono text-xs whitespace-pre-wrap">{JSON.stringify(diag, null, 2)}</pre>
+        <p className="font-bold">Capteur détecté :</p>
+        {depthSensor ? (
+          <div className="mt-1 font-mono text-xs whitespace-pre-wrap">
+            <p>{depthSensor.label}</p>
+            {depthSensor.resolution && <p>Résolution: {depthSensor.resolution.width}x{depthSensor.resolution.height}</p>}
+            {depthSensor.confidence && <p>Confiance: {Math.round(depthSensor.confidence * 100)}%</p>}
+            <p>Supporté: {depthSensor.supported ? 'Oui' : 'Non'}</p>
+          </div>
+        ) : (
+          <p className="mt-1 font-mono text-xs">Détection...</p>
+        )}
       </div>
       {/* --- END DIAGNOSTIC --- */}
 
