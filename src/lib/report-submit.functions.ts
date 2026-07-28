@@ -126,25 +126,23 @@ const CitizenReportSchema = z.object({
 export const submitCitizenReport = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => CitizenReportSchema.parse(d))
   .handler(async ({ data }): Promise<{ success: true; reportId: string }> => {
-    console.log("Début de l'envoi du signalement...");
+    console.log("[1] Début submitCitizenReport");
     const { capture, description, hash } = data as { capture: CaptureResult; description?: string; hash: string };
 
     try {
-      console.log("Préparation des données...");
       if (!capture.location) {
         throw new Error("Localisation GPS manquante.");
       }
       
-      // Anti-fraud check (don't block user, just flag report)
+      console.log("[2] Vérification anti-fraude");
       const duplicateCheck = await validateReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng }});
+      console.log("[3] Validation anti-fraude terminée");
       if (duplicateCheck.duplicate) {
         console.log(`Duplicate report detected (similarity: ${duplicateCheck.similarity}%), proceeding anyway but could be flagged.`);
-        // For now, we accept it. In the future, we could add a `status: 'duplicate'`
       }
 
       const preliminaryCommune = detectCityCommune(DEFAULT_CITY, capture.location.lat, capture.location.lng).id;
 
-      // Create a preliminary report structure, this is saved immediately
       const preliminaryReport = {
           author: "Citoyen Anonyme",
           authorId: "anonyme",
@@ -163,14 +161,16 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
           capturedAt: capture.capturedAt,
           greenPointsAwarded: 0,
       };
-      console.log("Données préparées:", preliminaryReport);
-
-      console.log("Appel API pour enregistrement initial...");
-      const item = pushLiveReport(preliminaryReport);
-      await commitReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng, reportId: item.id, category: 'mixte' }});
-      console.log("Réponse du serveur (initial): Enregistrement OK, ID:", item.id);
       
-      console.log("Début de l'analyse AI...");
+      console.log("[4] Création du signalement");
+      const item = pushLiveReport(preliminaryReport);
+      console.log("[5] Signalement créé, ID:", item.id);
+      
+      console.log("[6] Commit du hash");
+      await commitReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng, reportId: item.id, category: 'mixte' }});
+      console.log("[7] Commit terminé");
+      
+      console.log("[8] Début analyse IA");
       const analysisResult = await analyzeWastePhotoAdvanced({
         data: {
           imageDataUrl: capture.imageDataUrl,
@@ -184,10 +184,10 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
           depthData: capture.depthData,
         },
       });
-      console.log("Analyse AI terminée.");
+      console.log("[9] Analyse IA terminée");
       
       // Now, update the report with the full analysis
-      console.log("Mise à jour du signalement avec l'analyse AI...");
+      console.log("[10] Mise à jour du signalement");
       item.category = analysisResult.mainCategory;
       item.urgency = urgencyFromSeverity(severityFromAnalysis(analysisResult), analysisResult.floodRisk);
       item.volumeM3 = analysisResult.dimensions.volumeM3;
@@ -199,14 +199,17 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
       item.healthRisk = analysisResult.healthRisk;
       item.aiAnalysis = analysisResult;
       item.status = 'en_attente'; // Analysis complete, ready for authority review
+      console.log("[11] Mise à jour terminée");
 
-      console.log(`Signalement ${item.id} mis à jour.`);
-      console.log("Processus terminé avec succès.");
+      console.log("[12] Fin submitCitizenReport");
       return { success: true, reportId: item.id };
     } catch (error) {
-      console.error("Erreur éventuelle lors du signalement:", error);
-      // The error will be automatically propagated by createServerFn
+      console.error("Erreur détaillée dans submitCitizenReport:", error instanceof Error ? error.message : error);
+      if (error instanceof Error && error.stack) {
+        console.error(error.stack);
+      }
       throw error;
     }
   });
+
 

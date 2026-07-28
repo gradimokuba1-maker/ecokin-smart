@@ -190,12 +190,16 @@ export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
       return createFallback(data);
     }
 
-    const analysisPromise = (async (): Promise<WasteAnalysisResult> => {
-      const { imageDataUrl, additionalImages, lat, lng, accuracy, altitudeM, capturedAt, cameraCapability, depthData } = data;
-      const now = new Date().toISOString();
-      const id = "ECO-" + Date.now().toString(36).toUpperCase();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30-second timeout
 
-      const systemPrompt = `Tu es l'IA EcoKin Smart spécialisée dans l'analyse des dépôts sauvages à Kinshasa (RDC).
+    try {
+      const analysisResult = await (async (): Promise<WasteAnalysisResult> => {
+        const { imageDataUrl, additionalImages, lat, lng, accuracy, altitudeM, capturedAt, cameraCapability, depthData } = data;
+        const now = new Date().toISOString();
+        const id = "ECO-" + Date.now().toString(36).toUpperCase();
+
+        const systemPrompt = `Tu es l'IA EcoKin Smart spécialisée dans l'analyse des dépôts sauvages à Kinshasa (RDC).
 Réponds UNIQUEMENT avec un JSON valide, sans texte avant ni après.
 
 Analyse la photo et renvoie ce JSON EXACT :
@@ -237,168 +241,169 @@ RÈGLES IMPORTANTES :
 - floodRisk = true si le dépôt obstrue un caniveau ou cours d'eau
 - Sois précis et réaliste dans les estimations de volume`;
 
-      console.log("Prétraitement de l'image et des données de profondeur...");
-      const depthMetrics = calculateVolumeFromDepth(depthData);
+        console.log("Prétraitement de l'image et des données de profondeur...");
+        const depthMetrics = calculateVolumeFromDepth(depthData);
 
-      const payloadForAI = {
-        imageDataUrl,
-        additionalImages,
-        lat,
-        lng,
-        ...(depthMetrics && {
-          volumeM3FromDepth: depthMetrics.volumeM3,
-          surfaceM2FromDepth: depthMetrics.surfaceM2,
-          heightAvgMFromDepth: depthMetrics.heightAvgM,
-        }),
-      };
+        const payloadForAI = {
+          imageDataUrl,
+          additionalImages,
+          lat,
+          lng,
+          ...(depthMetrics && {
+            volumeM3FromDepth: depthMetrics.volumeM3,
+            surfaceM2FromDepth: depthMetrics.surfaceM2,
+            heightAvgMFromDepth: depthMetrics.heightAvgM,
+          }),
+        };
 
-      const imageContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
-        { type: "text", text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète." },
-        { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
-      ];
+        const imageContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
+          { type: "text", text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète." },
+          { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
+        ];
 
-      for (const image of payloadForAI.additionalImages?.slice(0, 3) ?? []) {
-        imageContent.push({ type: "image_url", image_url: { url: image } });
-      }
-
-      const messages = [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: imageContent,
-        },
-      ];
-      
-      console.log("Appel IA...");
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          response_format: { type: "json_object" },
-          messages,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`AI gateway error: ${res.status} ${await res.text()}`);
-      }
-      
-      console.log("Réponse IA reçue.");
-      const json: any = await res.json();
-      const content: string = json?.choices?.[0]?.message?.content ?? "";
-      const p = JSON.parse(content);
-
-      console.log("Calcul des dimensions et de la composition...");
-      const composition: CompositionEntry[] = (p.composition ?? []).map((c: any) => ({
-        material: toMaterial(c.material),
-        percentage: Math.round(c.percentage ?? 0),
-      }));
-
-      const totalPct = composition.reduce((sum: number, c: CompositionEntry) => sum + c.percentage, 0);
-      if (totalPct > 0 && totalPct !== 100) {
-        const factor = 100 / totalPct;
-        for (const c of composition) {
-          c.percentage = Math.round(c.percentage * factor);
+        for (const image of payloadForAI.additionalImages?.slice(0, 3) ?? []) {
+          imageContent.push({ type: "image_url", image_url: { url: image } });
         }
-      }
 
-      if (composition.length === 0) {
-        composition.push({ material: toMaterial(p.mainCategory, "mixte"), percentage: 100 });
-      }
+        const messages = [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: imageContent,
+          },
+        ];
+        
+        console.log("Appel IA avec AbortController...");
+        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            response_format: { type: "json_object" },
+            messages,
+          }),
+          signal: controller.signal, // Intégration de l'AbortSignal
+        });
 
-      const hasDepthMetrics = !!depthMetrics;
-      const surfaceM2 = hasDepthMetrics ? depthMetrics.surfaceM2 : Math.round(Number(p.surfaceM2 ?? 1.5) * 10) / 10;
-      const heightAvgM = hasDepthMetrics ? depthMetrics.heightAvgM : Math.max(0.05, Number(p.heightAvgM ?? 0.5));
-      const volumeM3 = hasDepthMetrics ? depthMetrics.volumeM3 : Math.round(Number(p.volumeM3 ?? 1.2) * 100) / 100;
+        if (!res.ok) {
+          throw new Error(`AI gateway error: ${res.status} ${await res.text()}`);
+        }
+        
+        console.log("Réponse IA reçue.");
+        const json: any = await res.json();
+        const content: string = json?.choices?.[0]?.message?.content ?? "";
+        const p = JSON.parse(content);
 
-      const ratio = (p.lengthM && p.widthM) ? p.lengthM / p.widthM : 1.5;
-      const widthM = Math.sqrt(surfaceM2 / ratio);
-      const lengthM = widthM * ratio;
+        console.log("Calcul des dimensions et de la composition...");
+        const composition: CompositionEntry[] = (p.composition ?? []).map((c: any) => ({
+          material: toMaterial(c.material),
+          percentage: Math.round(c.percentage ?? 0),
+        }));
 
-      const dimensionsConfidence = hasDepthMetrics
-        ? 0.85
-        : Math.max(0, Math.min(1, Number(p.dimensionsConfidence ?? 0.6)));
+        const totalPct = composition.reduce((sum: number, c: CompositionEntry) => sum + c.percentage, 0);
+        if (totalPct > 0 && totalPct !== 100) {
+          const factor = 100 / totalPct;
+          for (const c of composition) {
+            c.percentage = Math.round(c.percentage * factor);
+          }
+        }
 
-      const dimensions: Dimensions3D = {
-        lengthM: Math.round(lengthM * 10) / 10,
-        widthM: Math.round(widthM * 10) / 10,
-        heightAvgM: Math.round(heightAvgM * 10) / 10,
-        surfaceM2,
-        volumeM3,
-        confidence: dimensionsConfidence,
-        uncertaintyPercent: Math.round((1 - dimensionsConfidence) * 100),
-      };
+        if (composition.length === 0) {
+          composition.push({ material: toMaterial(p.mainCategory, "mixte"), percentage: 100 });
+        }
 
-      const weight = calculateWeightFromVolume(volumeM3, composition);
+        const hasDepthMetrics = !!depthMetrics;
+        const surfaceM2 = hasDepthMetrics ? depthMetrics.surfaceM2 : Math.round(Number(p.surfaceM2 ?? 1.5) * 10) / 10;
+        const heightAvgM = hasDepthMetrics ? depthMetrics.heightAvgM : Math.max(0.05, Number(p.heightAvgM ?? 0.5));
+        const volumeM3 = hasDepthMetrics ? depthMetrics.volumeM3 : Math.round(Number(p.volumeM3 ?? 1.2) * 100) / 100;
 
-      const location: LocationInfo = {
-        lat: payloadForAI.lat ?? -4.3317,
-        lng: payloadForAI.lng ?? 15.3139,
-        accuracy: accuracy ?? 50,
-        altitudeM: altitudeM,
-        capturedAt: capturedAt ?? now,
-        commune: "matete",
-      };
+        const ratio = (p.lengthM && p.widthM) ? p.lengthM / p.widthM : 1.5;
+        const widthM = Math.sqrt(surfaceM2 / ratio);
+        const lengthM = widthM * ratio;
 
-      const sevScore = p.interventionUrgent ? 40 : p.healthRisk === "eleve" ? 30 : p.healthRisk === "modere" ? 20 : 10;
-      const floodScore = p.floodRisk ? 25 : 0;
-      const volumeScore = volumeM3 > 10 ? 20 : volumeM3 > 3 ? 12 : 5;
-      const healthScore = p.healthRisk === "eleve" ? 15 : p.healthRisk === "modere" ? 8 : 0;
-      const priorityScore = Math.min(100, sevScore + floodScore + volumeScore + healthScore);
+        const dimensionsConfidence = hasDepthMetrics
+          ? 0.85
+          : Math.max(0, Math.min(1, Number(p.dimensionsConfidence ?? 0.6)));
 
-      const mainCategory = toMaterial(p.mainCategory, "mixte");
-      const secondaryCategory = p.secondaryCategory ? toMaterial(p.secondaryCategory) : undefined;
-      
-      console.log("Fin de l'analyse.");
-      return {
-        id,
-        timestamp: now,
-        photoUrl: payloadForAI.imageDataUrl,
-        model3DAvailable: cameraCapability === "lidar" || cameraCapability === "arcore",
-        composition,
-        mainCategory,
-        secondaryCategory,
-        wasteAreaPercent: Math.min(100, Math.max(0, Number(p.wasteAreaPercent ?? 50))),
-        detectedObjects: detectedObjects(p.detectedObjects),
-        environmentDetected: Array.isArray(p.environmentDetected) ? p.environmentDetected : ["sol"],
-        dimensions,
-        weight,
-        location,
-        priorityScore,
-        priorityLevel: calculatePriorityLevel(priorityScore),
-        interventionUrgent: Boolean(p.interventionUrgent),
-        floodRisk: Boolean(p.floodRisk),
-        healthRisk: toRisk(p.healthRisk),
-        environmentalRisk: toRisk(p.environmentalRisk),
-        pollutionRisk: toRisk(p.environmentalRisk), // IA ne fait pas la distinction, on duplique
-        fireRisk: "faible", // L'IA ne le fournit pas encore
-        obstructionRisk: toRisk(p.obstructionRisk),
-        cameraCapability: cameraCapability ?? "basic",
-        methods: {
-          detection: "yolo11+zero-shot",
-          segmentation: "bounding-box",
-          volume: hasDepthMetrics ? "depth-api" : "ai-depth",
-          captureMode: (additionalImages?.length ?? 0) > 0 ? "multi" : "single",
-          viewsAnalyzed: 1 + (additionalImages?.length ?? 0),
-        },
-        analysisConfidence: dimensionsConfidence,
-        description: String(p.description ?? "Dépôt de déchets détecté."),
-        recommendations: Array.isArray(p.recommendations)
-          ? p.recommendations.slice(0, 5).map(String)
-          : ["Signaler aux services communaux", "Planifier une intervention"],
-        status: "en_attente",
-      };
-    })();
+        const dimensions: Dimensions3D = {
+          lengthM: Math.round(lengthM * 10) / 10,
+          widthM: Math.round(widthM * 10) / 10,
+          heightAvgM: Math.round(heightAvgM * 10) / 10,
+          surfaceM2,
+          volumeM3,
+          confidence: dimensionsConfidence,
+          uncertaintyPercent: Math.round((1 - dimensionsConfidence) * 100),
+        };
 
-    const timeoutPromise = new Promise<WasteAnalysisResult>((_, reject) =>
-      setTimeout(() => reject(new Error("Analyse IA a dépassé le délai de 30 secondes.")), 30000)
-    );
+        const weight = calculateWeightFromVolume(volumeM3, composition);
 
-    try {
-      return await Promise.race([analysisPromise, timeoutPromise]);
+        const location: LocationInfo = {
+          lat: payloadForAI.lat ?? -4.3317,
+          lng: payloadForAI.lng ?? 15.3139,
+          accuracy: accuracy ?? 50,
+          altitudeM: altitudeM,
+          capturedAt: capturedAt ?? now,
+          commune: "matete",
+        };
+
+        const sevScore = p.interventionUrgent ? 40 : p.healthRisk === "eleve" ? 30 : p.healthRisk === "modere" ? 20 : 10;
+        const floodScore = p.floodRisk ? 25 : 0;
+        const volumeScore = volumeM3 > 10 ? 20 : volumeM3 > 3 ? 12 : 5;
+        const healthScore = p.healthRisk === "eleve" ? 15 : p.healthRisk === "modere" ? 8 : 0;
+        const priorityScore = Math.min(100, sevScore + floodScore + volumeScore + healthScore);
+
+        const mainCategory = toMaterial(p.mainCategory, "mixte");
+        const secondaryCategory = p.secondaryCategory ? toMaterial(p.secondaryCategory) : undefined;
+        
+        console.log("Fin de l'analyse.");
+        return {
+          id,
+          timestamp: now,
+          photoUrl: payloadForAI.imageDataUrl,
+          model3DAvailable: cameraCapability === "lidar" || cameraCapability === "arcore",
+          composition,
+          mainCategory,
+          secondaryCategory,
+          wasteAreaPercent: Math.min(100, Math.max(0, Number(p.wasteAreaPercent ?? 50))),
+          detectedObjects: detectedObjects(p.detectedObjects),
+          environmentDetected: Array.isArray(p.environmentDetected) ? p.environmentDetected : ["sol"],
+          dimensions,
+          weight,
+          location,
+          priorityScore,
+          priorityLevel: calculatePriorityLevel(priorityScore),
+          interventionUrgent: Boolean(p.interventionUrgent),
+          floodRisk: Boolean(p.floodRisk),
+          healthRisk: toRisk(p.healthRisk),
+          environmentalRisk: toRisk(p.environmentalRisk),
+          pollutionRisk: toRisk(p.environmentalRisk), // IA ne fait pas la distinction, on duplique
+          fireRisk: "faible", // L'IA ne le fournit pas encore
+          obstructionRisk: toRisk(p.obstructionRisk),
+          cameraCapability: cameraCapability ?? "basic",
+          methods: {
+            detection: "yolo11+zero-shot",
+            segmentation: "bounding-box",
+            volume: hasDepthMetrics ? "depth-api" : "ai-depth",
+            captureMode: (additionalImages?.length ?? 0) > 0 ? "multi" : "single",
+            viewsAnalyzed: 1 + (additionalImages?.length ?? 0),
+          },
+          analysisConfidence: dimensionsConfidence,
+          description: String(p.description ?? "Dépôt de déchets détecté."),
+          recommendations: Array.isArray(p.recommendations)
+            ? p.recommendations.slice(0, 5).map(String)
+            : ["Signaler aux services communaux", "Planifier une intervention"],
+          status: "en_attente",
+        };
+      })();
+      clearTimeout(timeoutId); // Clear timeout if the request succeeds
+      return analysisResult;
     } catch (err) {
-      console.error("L'analyse IA a échoué ou a dépassé le délai.", err);
+      clearTimeout(timeoutId); // Clear timeout on failure as well
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.error("L'analyse IA a dépassé le délai de 30 secondes et a été annulée.", err);
+      } else {
+        console.error("L'analyse IA a échoué.", err);
+      }
       console.log("Création d'un signalement de secours (fallback).");
       return createFallback(data);
     }
