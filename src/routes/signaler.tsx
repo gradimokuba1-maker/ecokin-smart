@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
+import { useMutation } from "@tanstack/react-query";
 import { submitCitizenReport } from "@/lib/report-submit.functions";
 import { useEcoUser } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
@@ -26,7 +26,19 @@ function SignalerPage() {
   const [hash, setHash] = useState<string | null>(null);
   const [description, setDescription] = useState("");
 
-  const submitReportMutation = useServerFn(submitCitizenReport);
+  const submitReportMutation = useMutation({
+    mutationFn: submitCitizenReport,
+    onSuccess: (result) => {
+      console.log("Réponse serveur reçue (onSuccess):", result);
+      toast.success("Votre signalement a été envoyé avec succès !");
+      setStep("submitted");
+    },
+    onError: (error) => {
+      console.error("Erreur serveur (onError):", error);
+      toast.error("L'envoi a échoué. Veuillez réessayer.");
+      setStep("confirmation"); // Go back to confirmation screen on error
+    },
+  });
 
   const handleCapture = useCallback(async (captureResult: CaptureResult) => {
     if (!captureResult.imageDataUrl) {
@@ -51,25 +63,19 @@ function SignalerPage() {
     setStep("camera");
   };
 
-  const submitReport = async () => {
-    if (!capture || !hash) return;
+  const submitReport = () => {
+    console.log("[CLIENT] Début de submitReport()");
+    if (!capture || !hash) {
+      console.log("[CLIENT] Abandon : capture ou hash manquant.");
+      return;
+    }
 
+    console.log("[CLIENT] Passage à l'étape 'submitting'");
     setStep("submitting");
 
-    submitReportMutation.mutate(
-      { capture, description, hash },
-      {
-        onSuccess: () => {
-          toast.success("Votre signalement a été envoyé avec succès !");
-          setStep("submitted");
-        },
-        onError: (error) => {
-          console.error("Submission failed", error);
-          toast.error("L'envoi a échoué. Veuillez réessayer.");
-          setStep("confirmation"); // Go back to confirmation screen on error
-        },
-      }
-    );
+    console.log("[CLIENT] Juste avant l'appel serveur (mutate)");
+    submitReportMutation.mutate({ capture, description, hash });
+    console.log("[CLIENT] Après l'appel à mutate()");
   };
   
   if (step === "camera") {
@@ -170,7 +176,10 @@ function SignalerPage() {
               Reprendre la photo
             </Button>
             <Button
-              onClick={submitReport}
+              onClick={() => {
+                console.log("[CLIENT] Clic sur 'Envoyer le signalement'");
+                submitReport();
+              }}
               className="w-full"
             >
               Envoyer le signalement
