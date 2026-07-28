@@ -1,5 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { analyzeWastePhotoAdvanced } from "./waste-ai/analysis.functions";
+import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
+import { detectCityCommune, DEFAULT_CITY } from "./cities";
+import { pushLiveReport, urgencyFromSeverity } from "./live-reports";
+import { severityFromAnalysis, priorityScoreFromAnalysis } from "./dashboard-analytics";
+import { computePerceptualHash, findDuplicate, saveHash } from "./image-hash";
 
 // Empreinte perceptuelle aHash 8x8 → 16 hex chars.
 const HashSchema = z
@@ -108,4 +114,94 @@ export const commitReportHash = createServerFn({ method: "POST" })
     // Bornage mémoire
     if (list.length > 5000) list.splice(0, list.length - 5000);
     return { ok: true };
+  });
+
+// 3) Nouveau flux de soumission citoyen (asynchrone)
+const CitizenReportSchema = z.object({
+  capture: z.any(), // Zod schema for CaptureResult is complex, 'any' is pragmatic for now
+  description: z.string().max(500).optional(),
+  hash: HashSchema,
+});
+
+export const submitCitizenReport = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => CitizenReportSchema.parse(d))
+  .handler(async ({ data }): Promise<{ success: true; reportId: string }> => {
+    const { capture, description, hash } = data as { capture: CaptureResult; description?: string; hash: string };
+    
+    if (!capture.location) {
+      throw new Error("Localisation GPS manquante.");
+    }
+    
+    // Anti-fraud check (don't block user, just flag report)
+    const duplicateCheck = await validateReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng }});
+    if (duplicateCheck.duplicate) {
+      console.log(`Duplicate report detected (similarity: ${duplicateCheck.similarity}%), proceeding anyway but could be flagged.`);
+      // For now, we accept it. In the future, we could add a `status: 'duplicate'`
+    }
+
+    const preliminaryCommune = detectCityCommune(DEFAULT_CITY, capture.location.lat, capture.location.lng).id;
+
+    // Create a preliminary report structure, this is saved immediately
+    const preliminaryReport = {
+        author: "Citoyen Anonyme",
+        authorId: "anonyme",
+        authorRole: "anonyme" as const,
+        province: "Kinshasa",
+        city: "Kinshasa",
+        commune: preliminaryCommune,
+        category: "mixte" as const,
+        urgency: 3, // Default urgency
+        description: description || "Signalement citoyen rapide.",
+        lat: capture.location.lat,
+        lng: capture.location.lng,
+        photoUrl: capture.imageDataUrl,
+        status: "pending_analysis" as const,
+        cameraCapability: capture.cameraCapability,
+        capturedAt: capture.capturedAt,
+        greenPointsAwarded: 0,
+    };
+
+    const item = pushLiveReport(preliminaryReport);
+    commitReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng, reportId: item.id, category: 'mixte' }});
+    
+    // --- AI Analysis in Background ---
+    // We don't await this promise. The client gets an immediate response.
+    // The server will continue processing this in the background.
+    (async () => {
+      try {
+        const analysisResult = await analyzeWastePhotoAdvanced({
+          data: {
+            imageDataUrl: capture.imageDataUrl,
+            additionalImages: capture.additionalImages,
+            lat: capture.location?.lat,
+            lng: capture.location?.lng,
+            accuracy: capture.location?.accuracy,
+            altitudeM: capture.location?.altitudeM,
+            capturedAt: capture.capturedAt,
+            cameraCapability: capture.cameraCapability,
+            depthData: capture.depthData,
+          },
+        });
+        
+        // Now, update the report with the full analysis
+        item.category = analysisResult.mainCategory;
+        item.urgency = urgencyFromSeverity(severityFromAnalysis(analysisResult), analysisResult.floodRisk);
+        item.volumeM3 = analysisResult.dimensions.volumeM3;
+        item.priorityScore = priorityScoreFromAnalysis(analysisResult, item.commune);
+        item.composition = analysisResult.composition;
+        item.weightTons = analysisResult.weight.weightTons;
+        item.dimensions = analysisResult.dimensions;
+        item.priorityLevel = analysisResult.priorityLevel;
+        item.healthRisk = analysisResult.healthRisk;
+        item.aiAnalysis = analysisResult;
+        item.status = 'en_attente'; // Analysis complete, ready for authority review
+
+        console.log(`Report ${item.id} updated with AI analysis.`);
+      } catch (error) {
+        console.error(`Background AI analysis failed for report ${item.id}:`, error);
+        item.status = 'analysis_failed';
+      }
+    })();
+
+    return { success: true, reportId: item.id };
   });
