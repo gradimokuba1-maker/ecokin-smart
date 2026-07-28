@@ -173,3 +173,58 @@ export function calculatePriorityLevel(score: number): WasteAnalysisResult["prio
   if (score >= 40) return "moyen";
   return "faible";
 }
+
+/**
+ * Densités apparentes moyennes (non compactées) en kg/m³.
+ * Ces valeurs sont des estimations pour des déchets en vrac et peuvent varier.
+ */
+export const MATERIAL_DENSITIES: Record<WasteMaterial, number> = {
+  plastique: 60, // Bouteilles PET, films...
+  carton: 50,
+  papier: 90,
+  verre: 250, // Verre cassé en vrac
+  metal: 150, // Canettes, etc.
+  organique: 400, // Déchets alimentaires humides
+  dangereux: 500, // Variable, moyenne
+  meuble: 120,
+  electronique: 200,
+  construction: 800, // Gravats, béton...
+  textile: 70,
+  pneu: 150,
+  menager: 180, // Mélange de déchets ménagers
+  mixte: 220, // Mélange indéterminé, valeur moyenne
+  inconnu: 220,
+};
+
+/**
+ * Calcule une estimation du poids à partir du volume et de la composition.
+ * @param volumeM3 - Le volume total du dépôt en mètres cubes.
+ * @param composition - Un tableau de la composition des matériaux et leurs pourcentages.
+ * @returns Un objet WeightEstimate.
+ */
+export function calculateWeightFromVolume(volumeM3: number, composition: CompositionEntry[]): WeightEstimate {
+  let weightedDensity = 0;
+  if (composition.length === 0) {
+    // Si la composition est inconnue, on utilise la densité du 'mixte'
+    weightedDensity = MATERIAL_DENSITIES.mixte;
+  } else {
+    // Calcul de la densité pondérée
+    composition.forEach(c => {
+      const density = MATERIAL_DENSITIES[c.material] || MATERIAL_DENSITIES.mixte;
+      weightedDensity += density * (c.percentage / 100);
+    });
+  }
+
+  const weightKg = volumeM3 * weightedDensity;
+  const uncertainty = 0.35; // 35% d'incertitude sur l'estimation de poids
+  
+  return {
+    weightKg: Math.round(weightKg),
+    weightTons: Number((weightKg / 1000).toFixed(2)),
+    densityKgM3: Math.round(weightedDensity),
+    minWeightKg: Math.round(weightKg * (1 - uncertainty)),
+    maxWeightKg: Math.round(weightKg * (1 + uncertainty)),
+    confidence: 1 - uncertainty,
+    uncertaintyPercent: Math.round(uncertainty * 100),
+  };
+}

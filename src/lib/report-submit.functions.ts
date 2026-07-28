@@ -167,7 +167,7 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
 
       console.log("Appel API pour enregistrement initial...");
       const item = pushLiveReport(preliminaryReport);
-      commitReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng, reportId: item.id, category: 'mixte' }});
+      await commitReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng, reportId: item.id, category: 'mixte' }});
       console.log("Réponse du serveur (initial): Enregistrement OK, ID:", item.id);
       
       console.log("Début de l'analyse AI...");

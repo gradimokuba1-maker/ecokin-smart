@@ -104,11 +104,20 @@ function createFallback(input: Input): WasteAnalysisResult {
     floodRisk: false,
     healthRisk: "modere",
     environmentalRisk: "modere",
+    pollutionRisk: "modere",
+    fireRisk: "faible",
     obstructionRisk: "faible",
     cameraCapability: input.cameraCapability ?? "basic",
+    methods: {
+      detection: "unavailable",
+      segmentation: "unavailable",
+      volume: "estimation",
+      captureMode: "single",
+      viewsAnalyzed: 1,
+    },
     analysisConfidence: 0.4,
     wasteAreaPercent: 60,
-    detectedObjects: [{ label: "dépôt mélangé", count: 1, confidence: 0.4 }],
+    detectedObjects: [{ label: "dépôt mélangé", confidence: 0.4, count: 1 }],
     environmentDetected: ["sol", "route"],
     description: "Dépôt de déchets détecté. Analyse précise indisponible (mode dégradé).",
     recommendations: [
@@ -174,14 +183,19 @@ function calculateVolumeFromDepth(depthData?: string): {
 export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysisResult> => {
+    console.log("Début de l'analyse IA...");
     const key = process.env.LOVABLE_API_KEY;
-    if (!key) return createFallback(data);
+    if (!key) {
+      console.warn("Clé API Lovable manquante. Utilisation du fallback.");
+      return createFallback(data);
+    }
 
-    const { imageDataUrl, additionalImages, lat, lng, accuracy, altitudeM, capturedAt, cameraCapability, depthData } = data;
-    const now = new Date().toISOString();
-    const id = "ECO-" + Date.now().toString(36).toUpperCase();
+    const analysisPromise = (async (): Promise<WasteAnalysisResult> => {
+      const { imageDataUrl, additionalImages, lat, lng, accuracy, altitudeM, capturedAt, cameraCapability, depthData } = data;
+      const now = new Date().toISOString();
+      const id = "ECO-" + Date.now().toString(36).toUpperCase();
 
-    const systemPrompt = `Tu es l'IA EcoKin Smart spécialisée dans l'analyse des dépôts sauvages à Kinshasa (RDC).
+      const systemPrompt = `Tu es l'IA EcoKin Smart spécialisée dans l'analyse des dépôts sauvages à Kinshasa (RDC).
 Réponds UNIQUEMENT avec un JSON valide, sans texte avant ni après.
 
 Analyse la photo et renvoie ce JSON EXACT :
@@ -223,8 +237,7 @@ RÈGLES IMPORTANTES :
 - floodRisk = true si le dépôt obstrue un caniveau ou cours d'eau
 - Sois précis et réaliste dans les estimations de volume`;
 
-    try {
-      // Enrichir le payload avec les calculs de profondeur si disponibles
+      console.log("Prétraitement de l'image et des données de profondeur...");
       const depthMetrics = calculateVolumeFromDepth(depthData);
 
       const payloadForAI = {
@@ -255,7 +268,8 @@ RÈGLES IMPORTANTES :
           content: imageContent,
         },
       ];
-
+      
+      console.log("Appel IA...");
       const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
@@ -267,21 +281,20 @@ RÈGLES IMPORTANTES :
       });
 
       if (!res.ok) {
-        console.error("AI gateway error", res.status, await res.text());
-        return createFallback(payloadForAI);
+        throw new Error(`AI gateway error: ${res.status} ${await res.text()}`);
       }
-
+      
+      console.log("Réponse IA reçue.");
       const json: any = await res.json();
       const content: string = json?.choices?.[0]?.message?.content ?? "";
       const p = JSON.parse(content);
 
-      // Construire la composition
+      console.log("Calcul des dimensions et de la composition...");
       const composition: CompositionEntry[] = (p.composition ?? []).map((c: any) => ({
         material: toMaterial(c.material),
         percentage: Math.round(c.percentage ?? 0),
       }));
 
-      // Normaliser les pourcentages à 100
       const totalPct = composition.reduce((sum: number, c: CompositionEntry) => sum + c.percentage, 0);
       if (totalPct > 0 && totalPct !== 100) {
         const factor = 100 / totalPct;
@@ -294,20 +307,17 @@ RÈGLES IMPORTANTES :
         composition.push({ material: toMaterial(p.mainCategory, "mixte"), percentage: 100 });
       }
 
-      // Dimensions 3D
-      // Utiliser les métriques de profondeur si disponibles, sinon fallback sur l'IA
       const hasDepthMetrics = !!depthMetrics;
       const surfaceM2 = hasDepthMetrics ? depthMetrics.surfaceM2 : Math.round(Number(p.surfaceM2 ?? 1.5) * 10) / 10;
       const heightAvgM = hasDepthMetrics ? depthMetrics.heightAvgM : Math.max(0.05, Number(p.heightAvgM ?? 0.5));
       const volumeM3 = hasDepthMetrics ? depthMetrics.volumeM3 : Math.round(Number(p.volumeM3 ?? 1.2) * 100) / 100;
 
-      // Estimer L et l à partir de la surface si non fournies
       const ratio = (p.lengthM && p.widthM) ? p.lengthM / p.widthM : 1.5;
       const widthM = Math.sqrt(surfaceM2 / ratio);
       const lengthM = widthM * ratio;
 
       const dimensionsConfidence = hasDepthMetrics
-        ? 0.85 // Confiance plus élevée avec les données du capteur
+        ? 0.85
         : Math.max(0, Math.min(1, Number(p.dimensionsConfidence ?? 0.6)));
 
       const dimensions: Dimensions3D = {
@@ -320,20 +330,17 @@ RÈGLES IMPORTANTES :
         uncertaintyPercent: Math.round((1 - dimensionsConfidence) * 100),
       };
 
-      // Poids
       const weight = calculateWeightFromVolume(volumeM3, composition);
 
-      // Localisation
       const location: LocationInfo = {
         lat: payloadForAI.lat ?? -4.3317,
         lng: payloadForAI.lng ?? 15.3139,
         accuracy: accuracy ?? 50,
         altitudeM: altitudeM,
         capturedAt: capturedAt ?? now,
-        commune: "matete", // sera mis à jour côté client
+        commune: "matete",
       };
 
-      // Score de priorité
       const sevScore = p.interventionUrgent ? 40 : p.healthRisk === "eleve" ? 30 : p.healthRisk === "modere" ? 20 : 10;
       const floodScore = p.floodRisk ? 25 : 0;
       const volumeScore = volumeM3 > 10 ? 20 : volumeM3 > 3 ? 12 : 5;
@@ -342,7 +349,8 @@ RÈGLES IMPORTANTES :
 
       const mainCategory = toMaterial(p.mainCategory, "mixte");
       const secondaryCategory = p.secondaryCategory ? toMaterial(p.secondaryCategory) : undefined;
-
+      
+      console.log("Fin de l'analyse.");
       return {
         id,
         timestamp: now,
@@ -363,8 +371,17 @@ RÈGLES IMPORTANTES :
         floodRisk: Boolean(p.floodRisk),
         healthRisk: toRisk(p.healthRisk),
         environmentalRisk: toRisk(p.environmentalRisk),
+        pollutionRisk: toRisk(p.environmentalRisk), // IA ne fait pas la distinction, on duplique
+        fireRisk: "faible", // L'IA ne le fournit pas encore
         obstructionRisk: toRisk(p.obstructionRisk),
         cameraCapability: cameraCapability ?? "basic",
+        methods: {
+          detection: "yolo11+zero-shot",
+          segmentation: "bounding-box",
+          volume: hasDepthMetrics ? "depth-api" : "ai-depth",
+          captureMode: (additionalImages?.length ?? 0) > 0 ? "multi" : "single",
+          viewsAnalyzed: 1 + (additionalImages?.length ?? 0),
+        },
         analysisConfidence: dimensionsConfidence,
         description: String(p.description ?? "Dépôt de déchets détecté."),
         recommendations: Array.isArray(p.recommendations)
@@ -372,8 +389,17 @@ RÈGLES IMPORTANTES :
           : ["Signaler aux services communaux", "Planifier une intervention"],
         status: "en_attente",
       };
+    })();
+
+    const timeoutPromise = new Promise<WasteAnalysisResult>((_, reject) =>
+      setTimeout(() => reject(new Error("Analyse IA a dépassé le délai de 30 secondes.")), 30000)
+    );
+
+    try {
+      return await Promise.race([analysisPromise, timeoutPromise]);
     } catch (err) {
-      console.error("AI analyze advanced failed", err);
-      return createFallback(data); // Utilise les données d'entrée originales pour le fallback
+      console.error("L'analyse IA a échoué ou a dépassé le délai.", err);
+      console.log("Création d'un signalement de secours (fallback).");
+      return createFallback(data);
     }
   });
