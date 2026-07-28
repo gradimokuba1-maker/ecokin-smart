@@ -19,7 +19,6 @@ import {
 import { buildLocationInfo, requestGPSPosition } from "@/lib/waste-ai/gps-location";
 import type { CameraCapability, LocationInfo } from "@/lib/waste-ai/types";
 
-// ... (keep all type definitions and constants)
 export type CaptureResult = {
   imageDataUrl: string;
   additionalImages: string[];
@@ -50,7 +49,6 @@ type Props = {
   disabled?: boolean;
 };
 
-// ... (keep all utility functions: stopStream, errorName, cameraErrorMessage, etc.)
 function stopStream(stream: MediaStream | null | undefined) {
   stream?.getTracks().forEach((track) => track.stop());
 }
@@ -101,7 +99,6 @@ function imageDataUrlFromSource(
 async function requestPreferredCameraStream(): Promise<MediaStream> {
     const mediaDevices = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
     if (!mediaDevices?.getUserMedia) throw new DOMException("Camera API unavailable", "NotSupportedError");
-    // ... (rest of the function is identical)
     const attempts: MediaStreamConstraints[] = [ { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, }, }, { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 }, }, }, { audio: false, video: true }, ];
     let stream: MediaStream | null = null;
     let lastError: unknown;
@@ -149,13 +146,10 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
     depth: "idle" as PermissionStatus,
   });
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const [isStarting, setIsStarting] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-
-
 
   const handleClose = useCallback(() => {
     if (mediaStream) {
@@ -164,22 +158,16 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
     onClose();
   }, [mediaStream, onClose]);
 
-  // 1. Effect for acquiring the stream
   useEffect(() => {
     const start = async () => {
-      if (disabled) {
-        setIsStarting(false);
-        return;
-      };
+      if (disabled) return;
 
       setPermissions({ camera: "requesting", depth: "requesting", gps: "requesting" });
       try {
         const stream = await requestPreferredCameraStream();
         setMediaStream(stream);
         setPermissions((current) => ({ ...current, camera: "granted" }));
-        setDiagInfo(d => ({ ...d, stream: "active", tracks: stream.getVideoTracks().length }));
 
-        // Non-blocking side-requests
         requestGPSPosition().then((position) => {
           setPermissions((current) => ({
             ...current,
@@ -198,22 +186,17 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
       } catch (error) {
         const status = getPermissionStatus(error);
         setPermissions((current) => ({ ...current, camera: status }));
-        setDiagInfo(d => ({ ...d, stream: "error" }));
         toast.error(cameraErrorMessage(error));
-      } finally {
-        setIsStarting(false);
       }
     };
     start();
   }, [disabled]);
 
-  // 2. Effect for attaching the stream to the video element
   useEffect(() => {
     if (mediaStream && videoRef.current) {
       videoRef.current.srcObject = mediaStream;
       videoRef.current.play().catch(err => console.error("Video play failed", err));
     }
-    // Cleanup function to stop the stream when component unmounts
     return () => {
       if (mediaStream) {
         stopStream(mediaStream);
@@ -275,7 +258,7 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
       const nextPhotos = [...additionalPhotos, frame];
       setAdditionalPhotos(nextPhotos);
       if (nextPhotos.length < MULTI_PHOTO_COUNT) {
-        toast.success(`Vue ${nextPhotos.length}/${MULTI_PHOTO_COUNT} enregistrée. Changez d'angle.`);
+        toast.success(`Vue \${nextPhotos.length}/\${MULTI_PHOTO_COUNT} enregistrée. Changez d'angle.`);
         setIsProcessing(false);
         return;
       }
@@ -285,7 +268,6 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
     await deliverCapture(frame, [], "single", nextQuality);
   }, [additionalPhotos, captureMode, deliverCapture, isCameraReady, isProcessing]);
 
-  // ... (rest of the functions: finishVideo, startVideoRecording, stopVideoRecording, handleCaptureAction are mostly unchanged)
   const clearRecordingTimers = useCallback(() => { if (recordingTimerRef.current != null) window.clearInterval(recordingTimerRef.current); if (recordingClockRef.current != null) window.clearInterval(recordingClockRef.current); recordingTimerRef.current = null; recordingClockRef.current = null; }, []);
   const finishVideo = useCallback(async () => { clearRecordingTimers(); const video = videoRef.current; const canvas = canvasRef.current; const recorder = recorderRef.current; recorderRef.current = null; setRecording(false); if (!video || !canvas) return; const firstFrame = dataUrlFromCanvas(video, canvas) ?? recordingFramesRef.current[0]; const frames = recordingFramesRef.current; recordingFramesRef.current = []; if (!firstFrame) { toast.error("La vidéo ne contient aucune image exploitable."); return; } const chunks = recorderChunksRef.current; const blob = chunks.length > 0 ? new Blob(chunks, { type: recorder?.mimeType || "video/webm" }) : undefined; if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current); const url = blob ? URL.createObjectURL(blob) : undefined; videoUrlRef.current = url ?? null; const duration = Math.max(1, recordingSecondsRef.current); recorderChunksRef.current = []; const nextQuality = qualityFromDimensions(video.videoWidth, video.videoHeight); await deliverCapture(firstFrame, frames.slice(0, 5), "video", nextQuality, { videoDurationSeconds: duration, videoBlob: blob, videoPreviewUrl: url, }); }, [clearRecordingTimers, deliverCapture]);
   const startVideoRecording = useCallback(() => { const stream = mediaStream; const video = videoRef.current; const canvas = canvasRef.current; if (!stream || !video || !canvas || typeof MediaRecorder === "undefined") { toast.error("L'enregistrement vidéo n'est pas disponible."); return; } const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) => MediaRecorder.isTypeSupported(type), ); const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined); recorderChunksRef.current = []; recorder.ondataavailable = (event) => { if (event.data.size > 0) recorderChunksRef.current.push(event.data); }; recorder.onstop = () => void finishVideo(); recorderRef.current = recorder; recordingFramesRef.current = []; setRecordingSeconds(0); recordingSecondsRef.current = 0; setRecording(true); recorder.start(500); recordingTimerRef.current = window.setInterval(() => { const frame = dataUrlFromCanvas(video, canvas); if (frame && recordingFramesRef.current.length < 6) recordingFramesRef.current.push(frame); }, 1600); let elapsed = 0; recordingClockRef.current = window.setInterval(() => { elapsed += 1; recordingSecondsRef.current = elapsed; setRecordingSeconds(elapsed); if (elapsed >= MAX_VIDEO_SECONDS && recorder.state === "recording") recorder.stop(); }, 1000); }, [finishVideo, mediaStream]);
@@ -293,7 +275,7 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
   const handleCaptureAction = useCallback(() => { if (captureMode === "video") { if (recording) stopVideoRecording(); else startVideoRecording(); return; } void captureStill(); }, [captureMode, captureStill, recording, startVideoRecording, stopVideoRecording]);
 
 
-  if (isStarting) {
+  if (permissions.camera === 'idle' || permissions.camera === 'requesting') {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 text-white backdrop-blur-sm">
         <div className="text-center">
@@ -304,7 +286,7 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
     );
   }
 
-  if (permissions.camera !== "granted") {
+  if (permissions.camera === 'denied' || permissions.camera === 'unavailable') {
     return (
       <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4 text-white backdrop-blur-sm">
         <div className="text-center">
@@ -328,15 +310,12 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
         autoPlay
         playsInline
         muted
-        onLoadedData={(e) => setDiagInfo(d => ({ ...d, width: e.currentTarget.videoWidth, height: e.currentTarget.videoHeight }))}
         onCanPlay={() => setIsCameraReady(true)}
         className="size-full object-cover"
       />
       <canvas ref={canvasRef} className="hidden" />
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/70 pointer-events-none" />
-
-
 
       <div className="absolute inset-0 flex flex-col justify-between p-4 pt-safe-top pb-safe-bottom">
         <header className="flex items-center justify-between">
@@ -360,7 +339,7 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
               type="button"
               onClick={handleCaptureAction}
               disabled={isProcessing || disabled || !isCameraReady}
-              className={`pointer-events-auto size-16 rounded-full border-4 border-white ring-offset-black transition-transform active:scale-90 disabled:opacity-50 ${recording ? "bg-red-500" : "bg-white/30"}`}
+              className={`pointer-events-auto size-16 rounded-full border-4 border-white ring-offset-black transition-transform active:scale-90 disabled:opacity-50 \${recording ? "bg-red-500" : "bg-white/30"}`}
               aria-label={recording ? "Arrêter l'enregistrement" : "Prendre une photo"}
             />
             {isProcessing && <Loader2 className="absolute size-20 animate-spin text-eco" />}
@@ -389,7 +368,7 @@ function ModeButton({ active, icon, label, onClick }: { active: boolean; icon: R
     <button
       type="button"
       onClick={onClick}
-      className={`pointer-events-auto inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+      className={`pointer-events-auto inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-colors \${
         active ? "bg-white text-black" : "bg-transparent text-white/80 hover:text-white"
       }`}
     >
