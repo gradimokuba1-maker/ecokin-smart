@@ -200,7 +200,7 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
       stopStream(mediaStreamRef.current);
       mediaStreamRef.current = null;
     };
-  }, [cameraPermission]);
+  }, []);
 
 
   const deliverCapture = useCallback(
