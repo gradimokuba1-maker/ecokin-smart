@@ -181,7 +181,7 @@ function calculateVolumeFromDepth(depthData?: string): {
 }
 
 export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => InputSchema.parse(data))
+  .validator((data: unknown) => InputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysisResult> => {
     console.log("Début de l'analyse IA...");
     const key = process.env.LOVABLE_API_KEY;

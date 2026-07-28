@@ -59,7 +59,7 @@ export type DuplicateCheck = {
 
 // 1) Vérification anti-fraude côté serveur (avant enregistrement).
 export const validateReportHash = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => ValidateSchema.parse(d))
+  .validator((d: unknown) => ValidateSchema.parse(d))
   .handler(async ({ data }): Promise<DuplicateCheck> => {
     const list = store();
     let best: { s: Stored; sim: number } | null = null;
@@ -90,7 +90,7 @@ export const validateReportHash = createServerFn({ method: "POST" })
 
 // 2) Enregistrement côté serveur du hash (après création du signalement côté client).
 export const commitReportHash = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => CommitSchema.parse(d))
+  .validator((d: unknown) => CommitSchema.parse(d))
   .handler(async ({ data }): Promise<{ ok: true } | DuplicateCheck> => {
     const list = store();
     // Re-vérifier au commit (protection contre TOCTOU).
@@ -124,7 +124,7 @@ const CitizenReportSchema = z.object({
 });
 
 export const submitCitizenReport = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => CitizenReportSchema.parse(d))
+  .validator((d: unknown) => CitizenReportSchema.parse(d))
   .handler(async ({ data }): Promise<{ success: true; reportId: string }> => {
     console.log("[1] Début submitCitizenReport");
     const { capture, description, hash } = data as { capture: CaptureResult; description?: string; hash: string };

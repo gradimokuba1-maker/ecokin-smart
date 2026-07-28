@@ -52,7 +52,7 @@ const FALLBACK: WasteAnalysis = {
 };
 
 export const analyzeWastePhoto = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => AnalyzeInputSchema.parse(data))
+  .validator((data: unknown) => AnalyzeInputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysis> => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) return FALLBACK;
@@ -189,7 +189,7 @@ export type WasteAnalysisResult = {
 };
 
 export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => AdvancedInputSchema.parse(data))
+  .validator((data: unknown) => AdvancedInputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysisResult> => {
     // This is a dynamic mock implementation. It simulates a real AI analysis
     // by generating variable results based on the input image data URL.
@@ -268,7 +268,7 @@ const ChatSchema = z.object({
 });
 
 export const askDecisionAssistant = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => ChatSchema.parse(data))
+  .validator((data: unknown) => ChatSchema.parse(data))
   .handler(async ({ data }): Promise<{ answer: string }> => {
     const key = process.env.LOVABLE_API_KEY;
     const fallbackAnswer =
