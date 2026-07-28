@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   AlertTriangle,
   Camera,
-  ChevronLeft,
   Images,
   Layers3,
   Loader2,
@@ -20,6 +19,7 @@ import {
 import { buildLocationInfo, requestGPSPosition } from "@/lib/waste-ai/gps-location";
 import type { CameraCapability, LocationInfo } from "@/lib/waste-ai/types";
 
+// ... (keep all type definitions and constants)
 export type CaptureResult = {
   imageDataUrl: string;
   additionalImages: string[];
@@ -34,10 +34,15 @@ export type CaptureResult = {
   videoPreviewUrl?: string;
   imageQuality: "excellent" | "correct" | "faible";
 };
-
 type CaptureMode = CaptureResult["captureMode"];
 type PermissionStatus = "idle" | "requesting" | "granted" | "denied" | "unavailable";
 type ImageQuality = CaptureResult["imageQuality"];
+const MAX_VIDEO_SECONDS = 12;
+const MULTI_PHOTO_COUNT = 3;
+const MAX_ANALYSIS_IMAGE_EDGE = 1600;
+const JPEG_QUALITY = 0.88;
+const REAR_CAMERA_LABEL = /back|rear|environment|arrière|arriere|world/i;
+
 
 type Props = {
   onCapture: (result: CaptureResult) => void;
@@ -45,40 +50,31 @@ type Props = {
   disabled?: boolean;
 };
 
-const MAX_VIDEO_SECONDS = 12;
-const MULTI_PHOTO_COUNT = 3;
-const MAX_ANALYSIS_IMAGE_EDGE = 1600;
-const JPEG_QUALITY = 0.88;
-const REAR_CAMERA_LABEL = /back|rear|environment|arrière|arriere|world/i;
-
+// ... (keep all utility functions: stopStream, errorName, cameraErrorMessage, etc.)
 function stopStream(stream: MediaStream | null | undefined) {
   stream?.getTracks().forEach((track) => track.stop());
 }
-
 function errorName(error: unknown) {
   return error instanceof Error ? error.name : "";
 }
-
 function getPermissionStatus(error: unknown): PermissionStatus {
   const name = errorName(error);
   if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") return "denied";
   return "unavailable";
 }
-
 function cameraErrorMessage(error: unknown) {
   const name = errorName(error);
   if (name === "NotAllowedError" || name === "PermissionDeniedError" || name === "SecurityError") {
-    return "Autorisation de la caméra refusée. Activez-la dans les paramètres du navigateur, puis réessayez.";
+    return "Autorisation de la caméra refusée. Activez-la dans les paramètres du navigateur.";
   }
   if (name === "NotFoundError" || name === "DevicesNotFoundError") {
     return "Aucune caméra utilisable n’a été détectée sur cet appareil.";
   }
   if (name === "NotReadableError" || name === "TrackStartError") {
-    return "La caméra est actuellement utilisée par une autre application. Fermez-la puis réessayez.";
+    return "La caméra est actuellement utilisée par une autre application.";
   }
-  return "Impossible d’ouvrir la caméra. Vérifiez les autorisations du navigateur puis réessayez.";
+  return "Impossible d’ouvrir la caméra. Vérifiez les autorisations et réessayez.";
 }
-
 function analysisDimensions(width: number, height: number) {
   const longestEdge = Math.max(width, height);
   if (longestEdge <= MAX_ANALYSIS_IMAGE_EDGE) return { width, height };
@@ -88,7 +84,6 @@ function analysisDimensions(width: number, height: number) {
     height: Math.max(1, Math.round(height * scale)),
   };
 }
-
 function imageDataUrlFromSource(
   source: CanvasImageSource,
   width: number,
@@ -103,110 +98,40 @@ function imageDataUrlFromSource(
   context.drawImage(source, 0, 0, dimensions.width, dimensions.height);
   return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
 }
-
-function isRearCamera(track: MediaStreamTrack, devices: MediaDeviceInfo[]) {
-  const settings = track.getSettings();
-  if (settings.facingMode === "environment") return true;
-  return devices.some((device) => device.deviceId === settings.deviceId && REAR_CAMERA_LABEL.test(device.label));
-}
-
-async function requestDeviceStream(mediaDevices: MediaDevices, devices: MediaDeviceInfo[]) {
-  let lastError: unknown;
-  for (const device of devices) {
-    try {
-      return await mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          deviceId: { exact: device.deviceId },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
-    } catch (error) {
-      lastError = error;
-      if (getPermissionStatus(error) === "denied") throw error;
-    }
-  }
-  throw lastError ?? new DOMException("No camera stream", "NotFoundError");
-}
-
 async function requestPreferredCameraStream(): Promise<MediaStream> {
-  const mediaDevices = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
-  if (!mediaDevices?.getUserMedia) throw new DOMException("Camera API unavailable", "NotSupportedError");
-
-  const attempts: MediaStreamConstraints[] = [
-    {
-      audio: false,
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-    },
-    {
-      audio: false,
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-      },
-    },
-    { audio: false, video: true },
-  ];
-
-  let stream: MediaStream | null = null;
-  let lastError: unknown;
-  for (const constraints of attempts) {
+    const mediaDevices = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+    if (!mediaDevices?.getUserMedia) throw new DOMException("Camera API unavailable", "NotSupportedError");
+    // ... (rest of the function is identical)
+    const attempts: MediaStreamConstraints[] = [ { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 }, }, }, { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 }, }, }, { audio: false, video: true }, ];
+    let stream: MediaStream | null = null;
+    let lastError: unknown;
+    for (const constraints of attempts) { try { stream = await mediaDevices.getUserMedia(constraints); break; } catch (error) { lastError = error; if (getPermissionStatus(error) === "denied") throw error; } }
+    const devices = await mediaDevices.enumerateDevices() .then((entries) => entries.filter((entry) => entry.kind === "videoinput")) .catch(() => [] as MediaDeviceInfo[]) ?? [];
+    const rearDevices = devices.filter((device) => REAR_CAMERA_LABEL.test(device.label));
+    if (!stream) { const candidates = rearDevices.length > 0 ? [...rearDevices, ...devices.filter((device) => !rearDevices.includes(device))] : devices; if (candidates.length > 0) { async function requestDeviceStream(mediaDevices: MediaDevices, devices: MediaDeviceInfo[]) { let lastError: unknown; for (const device of devices) { try { return await mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: device.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, }, }); } catch (error) { lastError = error; if (getPermissionStatus(error) === "denied") throw error; } } throw lastError ?? new DOMException("No camera stream", "NotFoundError"); } return requestDeviceStream(mediaDevices, candidates); } throw lastError ?? new DOMException("No camera device", "NotFoundError"); }
+    const track = stream.getVideoTracks()[0];
+    function isRearCamera(track: MediaStreamTrack, devices: MediaDeviceInfo[]) { const settings = track.getSettings(); if (settings.facingMode === "environment") return true; return devices.some((device) => device.deviceId === settings.deviceId && REAR_CAMERA_LABEL.test(device.label)); }
+    if (!track || rearDevices.length === 0 || isRearCamera(track, devices)) return stream;
+    stopStream(stream);
     try {
-      stream = await mediaDevices.getUserMedia(constraints);
-      break;
-    } catch (error) {
-      lastError = error;
-      if (getPermissionStatus(error) === "denied") throw error;
-    }
-  }
-
-  const devices = await mediaDevices.enumerateDevices()
-    .then((entries) => entries.filter((entry) => entry.kind === "videoinput"))
-    .catch(() => [] as MediaDeviceInfo[]) ?? [];
-  const rearDevices = devices.filter((device) => REAR_CAMERA_LABEL.test(device.label));
-
-  if (!stream) {
-    const candidates = rearDevices.length > 0 ? [...rearDevices, ...devices.filter((device) => !rearDevices.includes(device))] : devices;
-    if (candidates.length > 0) return requestDeviceStream(mediaDevices, candidates);
-    throw lastError ?? new DOMException("No camera device", "NotFoundError");
-  }
-
-  const track = stream.getVideoTracks()[0];
-  if (!track || rearDevices.length === 0 || isRearCamera(track, devices)) return stream;
-
-  stopStream(stream);
-  try {
-    return await requestDeviceStream(mediaDevices, rearDevices);
-  } catch (error) {
-    try {
-      return await mediaDevices.getUserMedia({ audio: false, video: true });
-    } catch {
-      throw error;
-    }
-  }
+        async function requestDeviceStream(mediaDevices: MediaDevices, devices: MediaDeviceInfo[]) { let lastError: unknown; for (const device of devices) { try { return await mediaDevices.getUserMedia({ audio: false, video: { deviceId: { exact: device.deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, }, }); } catch (error) { lastError = error; if (getPermissionStatus(error) === "denied") throw error; } } throw lastError ?? new DOMException("No camera stream", "NotFoundError"); }
+        return await requestDeviceStream(mediaDevices, rearDevices);
+    } catch (error) { try { return await mediaDevices.getUserMedia({ audio: false, video: true }); } catch { throw error; } }
 }
-
 function qualityFromDimensions(width: number, height: number): ImageQuality {
   const pixels = width * height;
   if (pixels >= 1280 * 720) return "excellent";
   if (pixels >= 960 * 540) return "correct";
   return "faible";
 }
-
 function dataUrlFromCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
   return imageDataUrlFromSource(video, video.videoWidth, video.videoHeight, canvas);
 }
 
+
 export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
   const recordingFramesRef = useRef<string[]>([]);
@@ -216,6 +141,7 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
   const videoUrlRef = useRef<string | null>(null);
   const nativeDepthRef = useRef<DepthAcquisition | null>(null);
 
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [captureMode, setCaptureMode] = useState<CaptureMode>("single");
   const [permissions, setPermissions] = useState({
     camera: "idle" as PermissionStatus,
@@ -229,40 +155,31 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
 
-  const stopLiveView = useCallback(() => {
-    stopStream(streamRef.current);
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
-    setIsCameraReady(false);
-  }, []);
 
-  const clearRecordingTimers = useCallback(() => {
-    if (recordingTimerRef.current != null) window.clearInterval(recordingTimerRef.current);
-    if (recordingClockRef.current != null) window.clearInterval(recordingClockRef.current);
-    recordingTimerRef.current = null;
-    recordingClockRef.current = null;
-  }, []);
 
   const handleClose = useCallback(() => {
-    stopLiveView();
+    if (mediaStream) {
+      stopStream(mediaStream);
+    }
     onClose();
-  }, [stopLiveView, onClose]);
+  }, [mediaStream, onClose]);
 
+  // 1. Effect for acquiring the stream
   useEffect(() => {
     const start = async () => {
-      if (disabled) return;
+      if (disabled) {
+        setIsStarting(false);
+        return;
+      };
 
       setPermissions({ camera: "requesting", depth: "requesting", gps: "requesting" });
-
       try {
         const stream = await requestPreferredCameraStream();
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          void videoRef.current.play().catch(() => undefined);
-        }
+        setMediaStream(stream);
         setPermissions((current) => ({ ...current, camera: "granted" }));
+        setDiagInfo(d => ({ ...d, stream: "active", tracks: stream.getVideoTracks().length }));
 
+        // Non-blocking side-requests
         requestGPSPosition().then((position) => {
           setPermissions((current) => ({
             ...current,
@@ -277,9 +194,11 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
           }));
           if (nativeDepth.source === "lidar") toast.success("Capteur de profondeur natif activé.");
         });
+
       } catch (error) {
         const status = getPermissionStatus(error);
         setPermissions((current) => ({ ...current, camera: status }));
+        setDiagInfo(d => ({ ...d, stream: "error" }));
         toast.error(cameraErrorMessage(error));
       } finally {
         setIsStarting(false);
@@ -288,13 +207,20 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
     start();
   }, [disabled]);
 
+  // 2. Effect for attaching the stream to the video element
   useEffect(() => {
+    if (mediaStream && videoRef.current) {
+      videoRef.current.srcObject = mediaStream;
+      videoRef.current.play().catch(err => console.error("Video play failed", err));
+    }
+    // Cleanup function to stop the stream when component unmounts
     return () => {
-      clearRecordingTimers();
-      stopStream(streamRef.current);
-      if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
+      if (mediaStream) {
+        stopStream(mediaStream);
+      }
     };
-  }, [clearRecordingTimers]);
+  }, [mediaStream]);
+
 
   const deliverCapture = useCallback(
     async (
@@ -307,29 +233,14 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
       setPermissions((current) => ({ ...current, gps: "requesting" }));
       const gpsPosition = await requestGPSPosition({ maximumAge: 0, timeout: 15000 });
       if (gpsPosition.status !== "ok") {
-        setPermissions((current) => ({
-          ...current,
-          gps: gpsPosition.status === "denied" ? "denied" : "unavailable",
-        }));
+        setPermissions((current) => ({ ...current, gps: gpsPosition.status === "denied" ? "denied" : "unavailable" }));
         toast.error("Position GPS obligatoire : activez la localisation puis reprenez la photo.");
         setIsProcessing(false);
         return;
       }
-      const nextLocation = buildLocationInfo(
-        gpsPosition.lat,
-        gpsPosition.lng,
-        gpsPosition.accuracy,
-        gpsPosition.altitudeM,
-      );
+      const nextLocation = buildLocationInfo(gpsPosition.lat, gpsPosition.lng, gpsPosition.accuracy, gpsPosition.altitudeM);
       const now = new Date().toISOString();
-      setPermissions((current) => ({ ...current, gps: "granted" }));
-
-      const depthResult = nativeDepthRef.current ?? {
-        source: "ai" as const,
-        label: "Analyse de profondeur côté IA",
-        detail: "La profondeur est estimée pendant l'analyse complète.",
-        confidence: 0.55,
-      };
+      const depthResult = nativeDepthRef.current ?? { source: "ai" as const, label: "Analyse IA", detail: "Profondeur estimée par l'IA", confidence: 0.55 };
 
       onCapture({
         imageDataUrl,
@@ -350,18 +261,14 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
   );
 
   const captureStill = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || isProcessing || !isCameraReady) return;
+    
     const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || !video.videoWidth || !video.videoHeight || isProcessing) {
-      return;
-    }
-
-    const frame = dataUrlFromCanvas(video, canvas);
-    if (!frame) return toast.error("Impossible de capturer cette image.");
+    const frame = dataUrlFromCanvas(video, canvasRef.current);
+    if (!frame) return toast.error("Impossible de capturer l'image.");
 
     setIsProcessing(true);
     toast("Capture en cours...", { id: "capture-toast" });
-
     const nextQuality = qualityFromDimensions(video.videoWidth, video.videoHeight);
 
     if (captureMode === "multi") {
@@ -372,100 +279,18 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
         setIsProcessing(false);
         return;
       }
-      stopLiveView();
       await deliverCapture(nextPhotos[0], nextPhotos.slice(1), "multi", nextQuality);
       return;
     }
-
-    stopLiveView();
     await deliverCapture(frame, [], "single", nextQuality);
-  }, [additionalPhotos, captureMode, deliverCapture, stopLiveView, isProcessing]);
+  }, [additionalPhotos, captureMode, deliverCapture, isCameraReady, isProcessing]);
 
-    const finishVideo = useCallback(async () => {
-    clearRecordingTimers();
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const recorder = recorderRef.current;
-    recorderRef.current = null;
-    setRecording(false);
-
-    if (!video || !canvas) return;
-    const firstFrame = dataUrlFromCanvas(video, canvas) ?? recordingFramesRef.current[0];
-    const frames = recordingFramesRef.current;
-    recordingFramesRef.current = [];
-    if (!firstFrame) {
-      toast.error("La vidéo ne contient aucune image exploitable.");
-      return;
-    }
-
-    const chunks = recorderChunksRef.current;
-    const blob = chunks.length > 0 ? new Blob(chunks, { type: recorder?.mimeType || "video/webm" }) : undefined;
-    if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current);
-    const url = blob ? URL.createObjectURL(blob) : undefined;
-    videoUrlRef.current = url ?? null;
-    const duration = Math.max(1, recordingSecondsRef.current);
-    recorderChunksRef.current = [];
-    stopLiveView();
-    const nextQuality = qualityFromDimensions(video.videoWidth, video.videoHeight);
-    
-    await deliverCapture(firstFrame, frames.slice(0, 5), "video", nextQuality, {
-      videoDurationSeconds: duration,
-      videoBlob: blob,
-      videoPreviewUrl: url,
-    });
-  }, [clearRecordingTimers, deliverCapture, stopLiveView]);
-
-  const startVideoRecording = useCallback(() => {
-    const stream = streamRef.current;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!stream || !video || !canvas || typeof MediaRecorder === "undefined") {
-      toast.error("L'enregistrement vidéo n'est pas disponible dans ce navigateur.");
-      return;
-    }
-
-    const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) =>
-      MediaRecorder.isTypeSupported(type),
-    );
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-    recorderChunksRef.current = [];
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) recorderChunksRef.current.push(event.data);
-    };
-    recorder.onstop = () => void finishVideo();
-    recorderRef.current = recorder;
-    recordingFramesRef.current = [];
-    setRecordingSeconds(0);
-    recordingSecondsRef.current = 0;
-    setRecording(true);
-    recorder.start(500);
-
-    recordingTimerRef.current = window.setInterval(() => {
-      const frame = dataUrlFromCanvas(video, canvas);
-      if (frame && recordingFramesRef.current.length < 6) recordingFramesRef.current.push(frame);
-    }, 1600);
-
-    let elapsed = 0;
-    recordingClockRef.current = window.setInterval(() => {
-      elapsed += 1;
-      recordingSecondsRef.current = elapsed;
-      setRecordingSeconds(elapsed);
-      if (elapsed >= MAX_VIDEO_SECONDS && recorder.state === "recording") recorder.stop();
-    }, 1000);
-  }, [finishVideo]);
-
-  const stopVideoRecording = useCallback(() => {
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
-  }, []);
-
-  const handleCaptureAction = useCallback(() => {
-    if (captureMode === "video") {
-      if (recording) stopVideoRecording();
-      else startVideoRecording();
-      return;
-    }
-    void captureStill();
-  }, [captureMode, captureStill, recording, startVideoRecording, stopVideoRecording]);
+  // ... (rest of the functions: finishVideo, startVideoRecording, stopVideoRecording, handleCaptureAction are mostly unchanged)
+  const clearRecordingTimers = useCallback(() => { if (recordingTimerRef.current != null) window.clearInterval(recordingTimerRef.current); if (recordingClockRef.current != null) window.clearInterval(recordingClockRef.current); recordingTimerRef.current = null; recordingClockRef.current = null; }, []);
+  const finishVideo = useCallback(async () => { clearRecordingTimers(); const video = videoRef.current; const canvas = canvasRef.current; const recorder = recorderRef.current; recorderRef.current = null; setRecording(false); if (!video || !canvas) return; const firstFrame = dataUrlFromCanvas(video, canvas) ?? recordingFramesRef.current[0]; const frames = recordingFramesRef.current; recordingFramesRef.current = []; if (!firstFrame) { toast.error("La vidéo ne contient aucune image exploitable."); return; } const chunks = recorderChunksRef.current; const blob = chunks.length > 0 ? new Blob(chunks, { type: recorder?.mimeType || "video/webm" }) : undefined; if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current); const url = blob ? URL.createObjectURL(blob) : undefined; videoUrlRef.current = url ?? null; const duration = Math.max(1, recordingSecondsRef.current); recorderChunksRef.current = []; const nextQuality = qualityFromDimensions(video.videoWidth, video.videoHeight); await deliverCapture(firstFrame, frames.slice(0, 5), "video", nextQuality, { videoDurationSeconds: duration, videoBlob: blob, videoPreviewUrl: url, }); }, [clearRecordingTimers, deliverCapture]);
+  const startVideoRecording = useCallback(() => { const stream = mediaStream; const video = videoRef.current; const canvas = canvasRef.current; if (!stream || !video || !canvas || typeof MediaRecorder === "undefined") { toast.error("L'enregistrement vidéo n'est pas disponible."); return; } const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) => MediaRecorder.isTypeSupported(type), ); const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined); recorderChunksRef.current = []; recorder.ondataavailable = (event) => { if (event.data.size > 0) recorderChunksRef.current.push(event.data); }; recorder.onstop = () => void finishVideo(); recorderRef.current = recorder; recordingFramesRef.current = []; setRecordingSeconds(0); recordingSecondsRef.current = 0; setRecording(true); recorder.start(500); recordingTimerRef.current = window.setInterval(() => { const frame = dataUrlFromCanvas(video, canvas); if (frame && recordingFramesRef.current.length < 6) recordingFramesRef.current.push(frame); }, 1600); let elapsed = 0; recordingClockRef.current = window.setInterval(() => { elapsed += 1; recordingSecondsRef.current = elapsed; setRecordingSeconds(elapsed); if (elapsed >= MAX_VIDEO_SECONDS && recorder.state === "recording") recorder.stop(); }, 1000); }, [finishVideo, mediaStream]);
+  const stopVideoRecording = useCallback(() => { if (recorderRef.current?.state === "recording") recorderRef.current.stop(); }, []);
+  const handleCaptureAction = useCallback(() => { if (captureMode === "video") { if (recording) stopVideoRecording(); else startVideoRecording(); return; } void captureStill(); }, [captureMode, captureStill, recording, startVideoRecording, stopVideoRecording]);
 
 
   if (isStarting) {
@@ -474,7 +299,6 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
         <div className="text-center">
           <Loader2 className="mx-auto size-8 animate-spin text-eco" />
           <p className="mt-4 font-medium">Démarrage de la caméra...</p>
-          <p className="mt-1 text-sm text-white/70">Vérification des autorisations...</p>
         </div>
       </div>
     );
@@ -489,11 +313,7 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
           <p className="mt-1 max-w-sm text-sm text-white/70 mb-4">
             {cameraErrorMessage({ name: permissions.camera === "denied" ? "NotAllowedError" : "NotFoundError" })}
           </p>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white"
-          >
+          <button type="button" onClick={handleClose} className="rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold">
             Retour
           </button>
         </div>
@@ -508,9 +328,7 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
         autoPlay
         playsInline
         muted
-        onLoadedMetadata={(event) => {
-          setIsCameraReady(event.currentTarget.videoWidth > 0 && event.currentTarget.videoHeight > 0);
-        }}
+        onLoadedData={(e) => setDiagInfo(d => ({ ...d, width: e.currentTarget.videoWidth, height: e.currentTarget.videoHeight }))}
         onCanPlay={() => setIsCameraReady(true)}
         className="size-full object-cover"
       />
@@ -518,14 +336,11 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
 
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/70 pointer-events-none" />
 
+
+
       <div className="absolute inset-0 flex flex-col justify-between p-4 pt-safe-top pb-safe-bottom">
         <header className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleClose}
-            className="pointer-events-auto rounded-full bg-black/50 p-2.5 backdrop-blur-sm"
-            aria-label="Fermer la caméra"
-          >
+          <button type="button" onClick={handleClose} className="pointer-events-auto rounded-full bg-black/50 p-2.5 backdrop-blur-sm" aria-label="Fermer la caméra">
             <X className="size-5" />
           </button>
           <div className="flex items-center gap-4 rounded-full bg-black/50 px-4 py-2.5 text-xs backdrop-blur-sm">
@@ -540,17 +355,16 @@ export function SmartWasteCamera({ onCapture, onClose, disabled }: Props) {
             <ModeButton active={captureMode === "multi"} icon={<Images className="size-5" />} label="3 Vues" onClick={() => setCaptureMode("multi")} />
             <ModeButton active={captureMode === "video"} icon={<Video className="size-5" />} label="Vidéo" onClick={() => setCaptureMode("video")} />
           </div>
-
           <div className="relative flex items-center justify-center">
             <button
               type="button"
               onClick={handleCaptureAction}
               disabled={isProcessing || disabled || !isCameraReady}
-              className={`pointer-events-auto size-16 rounded-full border-4 border-white bg-white/30 ring-offset-black transition-transform active:scale-90 disabled:opacity-50 ${recording ? "bg-red-500" : "bg-white/30"}`}
+              className={`pointer-events-auto size-16 rounded-full border-4 border-white ring-offset-black transition-transform active:scale-90 disabled:opacity-50 ${recording ? "bg-red-500" : "bg-white/30"}`}
               aria-label={recording ? "Arrêter l'enregistrement" : "Prendre une photo"}
             />
             {isProcessing && <Loader2 className="absolute size-20 animate-spin text-eco" />}
-             {recording && <div className="absolute size-16 rounded-full border-4 border-red-500 animate-pulse" />}
+            {recording && <div className="absolute size-16 rounded-full border-4 border-red-500 animate-pulse" />}
           </div>
         </footer>
       </div>
@@ -565,9 +379,9 @@ function StatusIndicator({ status, icon, grantedIcon, unavailableIcon }: { statu
         granted: "text-emerald-400",
         denied: "text-red-400",
         unavailable: "text-amber-400",
-    }
+    };
     const currentIcon = status === 'granted' ? grantedIcon ?? icon : status === 'unavailable' ? unavailableIcon ?? icon : icon;
-    return <div className={color[status]}>{currentIcon}</div>
+    return <div className={color[status]}>{currentIcon}</div>;
 }
 
 function ModeButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
