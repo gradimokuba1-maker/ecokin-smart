@@ -3,10 +3,7 @@ import {
   AlertTriangle,
   Camera,
   Images,
-  Layers3,
   Loader2,
-  MapPin,
-  Sparkles,
   Video,
   X,
 } from "lucide-react";
@@ -18,6 +15,7 @@ import {
 } from "@/lib/waste-ai/depth-acquisition";
 import { buildLocationInfo, requestGPSPosition } from "@/lib/waste-ai/gps-location";
 import type { CameraCapability, LocationInfo } from "@/lib/waste-ai/types";
+import { Button } from "@/components/ui/button";
 
 export type CaptureResult = {
   imageDataUrl: string;
@@ -64,7 +62,6 @@ async function requestPreferredCameraStream(): Promise<MediaStream> {
     return await mediaDevices.getUserMedia(constraints);
   } catch (e) {
     console.error("Failed to get ideal camera, trying fallback", e);
-    // Fallback for devices that don't support high resolutions or facingMode
     try {
       return await mediaDevices.getUserMedia({ audio: false, video: true });
     } catch (fallbackError) {
@@ -137,13 +134,21 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
   const nativeDepthRef = useRef<DepthAcquisition | null>(null);
 
   const [cameraPermission, setCameraPermission] = useState<PermissionStatus>("idle");
-  const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const [captureMode, setCaptureMode] = useState<CaptureMode>("single");
+  const [captureMode, setCaptureMode] = useState<CaptureMode>("multi"); // Default to "3 vues"
   const [additionalPhotos, setAdditionalPhotos] = useState<string[]>([]);
   
+  // Video recording state
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderChunksRef = useRef<Blob[]>([]);
+  const recordingFramesRef = useRef<string[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const recordingClockRef = useRef<number | null>(null);
+  const recordingSecondsRef = useRef(0);
+  const videoUrlRef = useRef<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
 
 
   const handleClose = useCallback(() => {
@@ -175,13 +180,14 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
         }
 
         mediaStreamRef.current = stream;
-        nativeDepthRef.current = await depthPromise;
-        await gpsPromise;
-
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
+
+        nativeDepthRef.current = await depthPromise;
+        await gpsPromise;
+        
         setCameraPermission("granted");
         
       } catch (error) {
@@ -200,7 +206,7 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
       stopStream(mediaStreamRef.current);
       mediaStreamRef.current = null;
     };
-  }, []);
+  }, []); // <-- Empty dependency array ensures this runs only once.
 
 
   const deliverCapture = useCallback(
@@ -247,7 +253,7 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
   );
 
   const captureStill = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || isProcessing || !isCameraReady) return;
+    if (!videoRef.current || !canvasRef.current || isProcessing || cameraPermission !== 'granted') return;
     
     const video = videoRef.current;
     const frame = dataUrlFromCanvas(video, canvasRef.current);
@@ -262,20 +268,30 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
     if (captureMode === "multi") {
       const nextPhotos = [...additionalPhotos, frame];
       setAdditionalPhotos(nextPhotos);
+
+      if (nextPhotos.length === 1) {
+        toast.info("Vue 1/3: OK. Déplacez-vous légèrement vers la gauche.", { duration: 4000 });
+      } else if (nextPhotos.length === 2) {
+        toast.info("Vue 2/3: OK. Déplacez-vous légèrement vers la droite.", { duration: 4000 });
+      }
+
       if (nextPhotos.length < MULTI_PHOTO_COUNT) {
-        toast.success(`Vue ${nextPhotos.length}/${MULTI_PHOTO_COUNT} enregistrée. Changez d'angle.`);
         setIsProcessing(false);
         return;
       }
+      
       await deliverCapture(nextPhotos[0], nextPhotos.slice(1), "multi", quality);
       return;
     }
     await deliverCapture(frame, [], "single", quality);
-  }, [additionalPhotos, captureMode, deliverCapture, isCameraReady, isProcessing]);
+  }, [additionalPhotos, captureMode, deliverCapture, isProcessing, cameraPermission]);
+
+  const clearRecordingTimers = useCallback(() => { if (recordingTimerRef.current != null) window.clearInterval(recordingTimerRef.current); if (recordingClockRef.current != null) window.clearInterval(recordingClockRef.current); recordingTimerRef.current = null; recordingClockRef.current = null; }, []);
+  const finishVideo = useCallback(async () => { clearRecordingTimers(); const video = videoRef.current; const canvas = canvasRef.current; const recorder = recorderRef.current; recorderRef.current = null; setRecording(false); if (!video || !canvas) return; const firstFrame = dataUrlFromCanvas(video, canvas) ?? recordingFramesRef.current[0]; const frames = recordingFramesRef.current; recordingFramesRef.current = []; if (!firstFrame) { toast.error("La vidéo ne contient aucune image exploitable."); return; } const chunks = recorderChunksRef.current; const blob = chunks.length > 0 ? new Blob(chunks, { type: recorder?.mimeType || "video/webm" }) : undefined; if (videoUrlRef.current) URL.revokeObjectURL(videoUrlRef.current); const url = blob ? URL.createObjectURL(blob) : undefined; videoUrlRef.current = url ?? null; const duration = Math.max(1, recordingSecondsRef.current); recorderChunksRef.current = []; const quality = qualityFromDimensions(video.videoWidth, video.videoHeight); await deliverCapture(firstFrame, frames.slice(0, 5), "video", quality, { videoDurationSeconds: duration, videoBlob: blob, videoPreviewUrl: url, }); }, [clearRecordingTimers, deliverCapture]);
+  const startVideoRecording = useCallback(() => { const stream = mediaStreamRef.current; const video = videoRef.current; const canvas = canvasRef.current; if (!stream || !video || !canvas || typeof MediaRecorder === "undefined") { toast.error("L'enregistrement vidéo n'est pas disponible."); return; } const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((type) => MediaRecorder.isTypeSupported(type), ); const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined); recorderChunksRef.current = []; recorder.ondataavailable = (event) => { if (event.data.size > 0) recorderChunksRef.current.push(event.data); }; recorder.onstop = () => void finishVideo(); recorderRef.current = recorder; recordingFramesRef.current = []; setRecordingSeconds(0); recordingSecondsRef.current = 0; setRecording(true); recorder.start(500); recordingTimerRef.current = window.setInterval(() => { const frame = dataUrlFromCanvas(video, canvas); if (frame && recordingFramesRef.current.length < 6) recordingFramesRef.current.push(frame); }, 1600); let elapsed = 0; recordingClockRef.current = window.setInterval(() => { elapsed += 1; recordingSecondsRef.current = elapsed; setRecordingSeconds(elapsed); if (elapsed >= MAX_VIDEO_SECONDS && recorder.state === "recording") recorder.stop(); }, 1000); }, [finishVideo]);
+  const stopVideoRecording = useCallback(() => { if (recorderRef.current?.state === "recording") recorderRef.current.stop(); }, []);
   
-  const handleCaptureAction = useCallback(() => {
-    void captureStill();
-  }, [captureStill]);
+  const handleCaptureAction = useCallback(() => { if (captureMode === "video") { if (recording) stopVideoRecording(); else startVideoRecording(); return; } void captureStill(); }, [captureMode, captureStill, recording, startVideoRecording, stopVideoRecording]);
 
   if (cameraPermission === 'denied' || cameraPermission === 'unavailable') {
     return (
@@ -312,17 +328,15 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
         autoPlay
         playsInline
         muted
-        onCanPlay={() => setIsCameraReady(true)}
-        onPlay={() => setIsCameraReady(true)}
         className="size-full object-cover"
       />
       <canvas ref={canvasRef} className="hidden" />
 
-      {(!isCameraReady || isProcessing) && (
+      {isProcessing && (
         <div className="absolute inset-0 grid place-items-center bg-black/80 backdrop-blur-sm">
             <div className="text-center text-white">
                 <Loader2 className="mx-auto size-8 animate-spin text-eco" />
-                <p className="mt-4 font-medium">{isProcessing ? 'Traitement...' : 'Chargement du flux vidéo...'}</p>
+                <p className="mt-4 font-medium">Traitement...</p>
             </div>
         </div>
       )}
@@ -340,16 +354,20 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
           <div className="flex items-center gap-2 rounded-full bg-black/50 p-1.5 backdrop-blur-sm mb-5">
             <ModeButton active={captureMode === "single"} icon={<Camera className="size-5" />} label="Photo" onClick={() => setCaptureMode("single")} />
             <ModeButton active={captureMode === "multi"} icon={<Images className="size-5" />} label="3 Vues" onClick={() => setCaptureMode("multi")} />
+            <ModeButton active={captureMode === "video"} icon={<Video className="size-5" />} label="Vidéo" onClick={() => setCaptureMode("video")} />
           </div>
           <div className="relative flex items-center justify-center">
             <button
               type="button"
               onClick={handleCaptureAction}
-              disabled={isProcessing || !isCameraReady}
+              disabled={isProcessing || cameraPermission !== 'granted'}
               className={`pointer-events-auto size-16 rounded-full border-4 border-white ring-offset-black transition-transform active:scale-90 disabled:opacity-50 ${recording ? "bg-red-500" : "bg-white/30"}`}
-              aria-label={captureMode === 'multi' ? `Prendre la photo ${additionalPhotos.length + 1}/${MULTI_PHOTO_COUNT}` : "Prendre une photo"}
+              aria-label={
+                captureMode === 'video' ? (recording ? "Arrêter l'enregistrement" : "Démarrer l'enregistrement") :
+                captureMode === 'multi' ? `Prendre la photo ${additionalPhotos.length + 1}/${MULTI_PHOTO_COUNT}` : "Prendre une photo"
+              }
             />
-            {isProcessing && <Loader2 className="absolute size-20 animate-spin text-eco" />}
+            {recording && <div className="absolute size-16 rounded-full border-4 border-red-500 animate-pulse" />}
           </div>
            <div className="h-10 text-center mt-2">
             {captureMode === 'multi' && additionalPhotos.length > 0 && (
@@ -357,14 +375,17 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
                     {additionalPhotos.length} / {MULTI_PHOTO_COUNT} vues capturées.
                 </p>
             )}
-          </div>
+            {recording && (
+                <p className="text-xs font-medium text-red-400 animate-pulse mt-2">
+                    {`Enregistrement ${recordingSeconds}s / ${MAX_VIDEO_SECONDS}s`}
+                </p>
+            )}
+           </div>
         </footer>
       </div>
     </div>
   );
 }
-
-import { Button } from "@/components/ui/button";
 
 function ModeButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
