@@ -9,7 +9,7 @@ import { HouseholdForm } from "@/components/household-form";
 import { FleetMap } from "@/components/fleet-map";
 import { CollectionZones } from "@/components/collection-zones";
 import { OperationalDashboard } from "@/components/operational-dashboard";
-import { useUser, type User, type UserRole } from "@/lib/user-store";
+import { useEcoUser, type User, type UserRole } from "@/lib/user-store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Payments } from "@/components/payments";
 
@@ -21,7 +21,7 @@ type View = "dashboard" | "list" | "form" | "zones" | "settings" | "fleet" | "pa
 
 function MenageRoute() {
   const [view, setView] = useState<View>("dashboard");
-  const { user, login } = useUser();
+  const { user, login } = useEcoUser();
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">

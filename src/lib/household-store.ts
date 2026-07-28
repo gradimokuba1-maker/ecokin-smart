@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useUser } from "./user-store";
+import { useEcoUser } from "./user-store";
 
 export type HouseholdKind = "menage" | "pme";
 export type BinType = "120L" | "240L" | "660L";
@@ -73,7 +73,7 @@ function write<T>(key: string, list: T[]) {
 }
 
 export function useHouseholds() {
-  const { user } = useUser();
+  const { user } = useEcoUser();
   const [households, setHouseholds] = useState<Household[]>([]);
   const [requests, setRequests] = useState<CollectionRequest[]>([]);
   const [issues, setIssues] = useState<BinIssue[]>([]);

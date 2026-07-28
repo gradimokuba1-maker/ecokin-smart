@@ -29,7 +29,7 @@ function write<T>(key: string, data: T) {
   window.dispatchEvent(new Event(EVT));
 }
 
-export function useUser() {
+export function useEcoUser() {
   const [user, setUser] = useState<User | null>(null);
 
   const refresh = useCallback(() => {
