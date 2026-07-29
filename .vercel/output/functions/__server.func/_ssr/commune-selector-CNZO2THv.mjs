@@ -1,4 +1,4 @@
-import { l as COMMUNES } from "./access-store-ohDhqBrz.mjs";
+import { a as COMMUNES } from "./data-BCSEOeCK.mjs";
 import { A as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/commune-selector-CNZO2THv.js
 var import_jsx_runtime = require_jsx_runtime();

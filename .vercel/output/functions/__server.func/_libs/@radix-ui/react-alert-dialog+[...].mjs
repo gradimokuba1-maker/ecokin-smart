@@ -73,6 +73,100 @@ function useComposedRefs(...refs) {
 	return import_react.useCallback(composeRefs(...refs), refs);
 }
 //#endregion
+//#region node_modules/@radix-ui/react-slot/dist/index.mjs
+// @__NO_SIDE_EFFECTS__
+function createSlot(ownerName) {
+	const Slot2 = import_react.forwardRef((props, forwardedRef) => {
+		let { children, ...slotProps } = props;
+		let slottableElement = null;
+		let hasSlottable = false;
+		const newChildren = [];
+		if (isLazyComponent(children) && typeof use === "function") children = use(children._payload);
+		import_react.Children.forEach(children, (maybeSlottable) => {
+			if (isSlottable(maybeSlottable)) {
+				hasSlottable = true;
+				const slottable = maybeSlottable;
+				let child = "child" in slottable.props ? slottable.props.child : slottable.props.children;
+				if (isLazyComponent(child) && typeof use === "function") child = use(child._payload);
+				slottableElement = getSlottableElementFromSlottable(slottable, child);
+				newChildren.push(slottableElement?.props?.children);
+			} else newChildren.push(maybeSlottable);
+		});
+		if (slottableElement) slottableElement = import_react.cloneElement(slottableElement, void 0, newChildren);
+		else if (!hasSlottable && import_react.Children.count(children) === 1 && import_react.isValidElement(children)) slottableElement = children;
+		const slottableElementRef = slottableElement ? getElementRef$1(slottableElement) : void 0;
+		const composedRef = useComposedRefs(forwardedRef, slottableElementRef);
+		if (!slottableElement) {
+			if (children || children === 0) throw new Error(hasSlottable ? createSlottableError(ownerName) : createSlotError(ownerName));
+			return children;
+		}
+		const mergedProps = mergeProps(slotProps, slottableElement.props ?? {});
+		if (slottableElement.type !== import_react.Fragment) mergedProps.ref = forwardedRef ? composedRef : slottableElementRef;
+		return import_react.cloneElement(slottableElement, mergedProps);
+	});
+	Slot2.displayName = `${ownerName}.Slot`;
+	return Slot2;
+}
+var Slot$1 = /* @__PURE__ */ createSlot("Slot");
+var SLOTTABLE_IDENTIFIER = Symbol.for("radix.slottable");
+var getSlottableElementFromSlottable = (slottable, child) => {
+	if ("child" in slottable.props) {
+		const child2 = slottable.props.child;
+		if (!import_react.isValidElement(child2)) return null;
+		return import_react.cloneElement(child2, void 0, slottable.props.children(child2.props.children));
+	}
+	return import_react.isValidElement(child) ? child : null;
+};
+function mergeProps(slotProps, childProps) {
+	const overrideProps = { ...childProps };
+	for (const propName in childProps) {
+		const slotPropValue = slotProps[propName];
+		const childPropValue = childProps[propName];
+		if (/^on[A-Z]/.test(propName)) {
+			if (slotPropValue && childPropValue) overrideProps[propName] = (...args) => {
+				const result = childPropValue(...args);
+				slotPropValue(...args);
+				return result;
+			};
+			else if (slotPropValue) overrideProps[propName] = slotPropValue;
+		} else if (propName === "style") overrideProps[propName] = {
+			...slotPropValue,
+			...childPropValue
+		};
+		else if (propName === "className") overrideProps[propName] = [slotPropValue, childPropValue].filter(Boolean).join(" ");
+	}
+	return {
+		...slotProps,
+		...overrideProps
+	};
+}
+function getElementRef$1(element) {
+	let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
+	let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+	if (mayWarn) return element.ref;
+	getter = Object.getOwnPropertyDescriptor(element, "ref")?.get;
+	mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
+	if (mayWarn) return element.props.ref;
+	return element.props.ref || element.ref;
+}
+function isSlottable(child) {
+	return import_react.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER;
+}
+var REACT_LAZY_TYPE = Symbol.for("react.lazy");
+function isLazyComponent(element) {
+	return element != null && typeof element === "object" && "$$typeof" in element && element.$$typeof === REACT_LAZY_TYPE && "_payload" in element && isPromiseLike(element._payload);
+}
+function isPromiseLike(value) {
+	return typeof value === "object" && value !== null && "then" in value;
+}
+var createSlotError = (ownerName) => {
+	return `${ownerName} failed to slot onto its children. Expected a single React element child or \`Slottable\`.`;
+};
+var createSlottableError = (ownerName) => {
+	return `${ownerName} failed to slot onto its \`Slottable\`. Expected \`Slottable\` to receive a single React element child.`;
+};
+var use = import_react[" use ".trim().toString()];
+//#endregion
 //#region node_modules/@radix-ui/react-context/dist/index.mjs
 function createContextScope(scopeName, createContextScopeDeps = []) {
 	let defaultContexts = [];
@@ -206,102 +300,8 @@ function isFunction(value) {
 	return typeof value === "function";
 }
 //#endregion
-//#region node_modules/@radix-ui/react-slot/dist/index.mjs
-var import_react_dom = /* @__PURE__ */ __toESM(require_react_dom(), 1);
-// @__NO_SIDE_EFFECTS__
-function createSlot(ownerName) {
-	const Slot2 = import_react.forwardRef((props, forwardedRef) => {
-		let { children, ...slotProps } = props;
-		let slottableElement = null;
-		let hasSlottable = false;
-		const newChildren = [];
-		if (isLazyComponent(children) && typeof use === "function") children = use(children._payload);
-		import_react.Children.forEach(children, (maybeSlottable) => {
-			if (isSlottable(maybeSlottable)) {
-				hasSlottable = true;
-				const slottable = maybeSlottable;
-				let child = "child" in slottable.props ? slottable.props.child : slottable.props.children;
-				if (isLazyComponent(child) && typeof use === "function") child = use(child._payload);
-				slottableElement = getSlottableElementFromSlottable(slottable, child);
-				newChildren.push(slottableElement?.props?.children);
-			} else newChildren.push(maybeSlottable);
-		});
-		if (slottableElement) slottableElement = import_react.cloneElement(slottableElement, void 0, newChildren);
-		else if (!hasSlottable && import_react.Children.count(children) === 1 && import_react.isValidElement(children)) slottableElement = children;
-		const slottableElementRef = slottableElement ? getElementRef$1(slottableElement) : void 0;
-		const composedRef = useComposedRefs(forwardedRef, slottableElementRef);
-		if (!slottableElement) {
-			if (children || children === 0) throw new Error(hasSlottable ? createSlottableError(ownerName) : createSlotError(ownerName));
-			return children;
-		}
-		const mergedProps = mergeProps(slotProps, slottableElement.props ?? {});
-		if (slottableElement.type !== import_react.Fragment) mergedProps.ref = forwardedRef ? composedRef : slottableElementRef;
-		return import_react.cloneElement(slottableElement, mergedProps);
-	});
-	Slot2.displayName = `${ownerName}.Slot`;
-	return Slot2;
-}
-var Slot$1 = /* @__PURE__ */ createSlot("Slot");
-var SLOTTABLE_IDENTIFIER = Symbol.for("radix.slottable");
-var getSlottableElementFromSlottable = (slottable, child) => {
-	if ("child" in slottable.props) {
-		const child2 = slottable.props.child;
-		if (!import_react.isValidElement(child2)) return null;
-		return import_react.cloneElement(child2, void 0, slottable.props.children(child2.props.children));
-	}
-	return import_react.isValidElement(child) ? child : null;
-};
-function mergeProps(slotProps, childProps) {
-	const overrideProps = { ...childProps };
-	for (const propName in childProps) {
-		const slotPropValue = slotProps[propName];
-		const childPropValue = childProps[propName];
-		if (/^on[A-Z]/.test(propName)) {
-			if (slotPropValue && childPropValue) overrideProps[propName] = (...args) => {
-				const result = childPropValue(...args);
-				slotPropValue(...args);
-				return result;
-			};
-			else if (slotPropValue) overrideProps[propName] = slotPropValue;
-		} else if (propName === "style") overrideProps[propName] = {
-			...slotPropValue,
-			...childPropValue
-		};
-		else if (propName === "className") overrideProps[propName] = [slotPropValue, childPropValue].filter(Boolean).join(" ");
-	}
-	return {
-		...slotProps,
-		...overrideProps
-	};
-}
-function getElementRef$1(element) {
-	let getter = Object.getOwnPropertyDescriptor(element.props, "ref")?.get;
-	let mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
-	if (mayWarn) return element.ref;
-	getter = Object.getOwnPropertyDescriptor(element, "ref")?.get;
-	mayWarn = getter && "isReactWarning" in getter && getter.isReactWarning;
-	if (mayWarn) return element.props.ref;
-	return element.props.ref || element.ref;
-}
-function isSlottable(child) {
-	return import_react.isValidElement(child) && typeof child.type === "function" && "__radixId" in child.type && child.type.__radixId === SLOTTABLE_IDENTIFIER;
-}
-var REACT_LAZY_TYPE = Symbol.for("react.lazy");
-function isLazyComponent(element) {
-	return element != null && typeof element === "object" && "$$typeof" in element && element.$$typeof === REACT_LAZY_TYPE && "_payload" in element && isPromiseLike(element._payload);
-}
-function isPromiseLike(value) {
-	return typeof value === "object" && value !== null && "then" in value;
-}
-var createSlotError = (ownerName) => {
-	return `${ownerName} failed to slot onto its children. Expected a single React element child or \`Slottable\`.`;
-};
-var createSlottableError = (ownerName) => {
-	return `${ownerName} failed to slot onto its \`Slottable\`. Expected \`Slottable\` to receive a single React element child.`;
-};
-var use = import_react[" use ".trim().toString()];
-//#endregion
 //#region node_modules/@radix-ui/react-primitive/dist/index.mjs
+var import_react_dom = /* @__PURE__ */ __toESM(require_react_dom(), 1);
 var Primitive = [
 	"a",
 	"button",
@@ -2140,4 +2140,4 @@ var Cancel = AlertDialogCancel;
 var Title2 = AlertDialogTitle;
 var Description2 = AlertDialogDescription;
 //#endregion
-export { require_jsx_runtime as A, Slot$1 as C, useLayoutEffect2 as D, useId as E, createContextScope as O, Primitive as S, useControllableState as T, Presence as _, Overlay2 as a, DismissableLayer as b, Title2 as c, DialogContent as d, DialogDescription as f, useFocusGuards as g, DialogTitle as h, Description2 as i, useComposedRefs as k, Dialog as l, DialogPortal as m, Cancel as n, Portal2 as o, DialogOverlay as p, Content2 as r, Root2 as s, Action as t, DialogClose as u, Portal as v, createSlot as w, useCallbackRef$1 as x, FocusScope as y };
+export { require_jsx_runtime as A, useControllableState as C, Slot$1 as D, createContextScope as E, createSlot as O, Primitive as S, useLayoutEffect2 as T, Presence as _, Overlay2 as a, DismissableLayer as b, Title2 as c, DialogContent as d, DialogDescription as f, useFocusGuards as g, DialogTitle as h, Description2 as i, useComposedRefs as k, Dialog as l, DialogPortal as m, Cancel as n, Portal2 as o, DialogOverlay as p, Content2 as r, Root2 as s, Action as t, DialogClose as u, Portal as v, useId as w, useCallbackRef$1 as x, FocusScope as y };
