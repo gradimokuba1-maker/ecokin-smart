@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Payments } from "@/components/payments";
+import { COLLECTION_SCHEDULE, SORT_TIPS } from "@/lib/household-store";
 
 export const Route = createFileRoute("/menage")({
   component: MenageRoute,
@@ -55,9 +56,66 @@ function MenageRoute() {
           )}
           {view === "zones" && <CollectionZones />}
           {view === "payments" && <Payments />}
+          {view === "settings" && <HouseholdSettings />}
         </main>
         <SiteFooter />
       </div>
+    </div>
+  );
+}
+
+function HouseholdSettings() {
+  const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
+  const schedule = COLLECTION_SCHEDULE.default;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Card>
+        <CardHeader>
+          <CardTitle>Parametres de collecte</CardTitle>
+          <CardDescription>Configuration active pour la demonstration.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <div className="rounded-lg border p-3">
+            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Passage hebdomadaire
+            </div>
+            <div className="mt-1 font-semibold">
+              {schedule.days.map((day) => days[day]).join(" et ")} - {schedule.window}
+            </div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Bacs standards
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {["120L", "240L", "660L"].map((bin) => (
+                <span key={bin} className="rounded-full bg-eco/10 px-3 py-1 text-xs font-bold text-eco">
+                  {bin}
+                </span>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Consignes de tri</CardTitle>
+          <CardDescription>Rappels visibles par les agents et les menages.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          {SORT_TIPS.slice(0, 4).map((tip) => (
+            <div key={tip.id} className="rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <span className="size-3 rounded-full" style={{ backgroundColor: tip.color }} />
+                <div className="font-semibold">{tip.label}</div>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{tip.tips[0]}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }

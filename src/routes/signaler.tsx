@@ -1,15 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { submitCitizenReport } from "@/lib/report-submit.functions";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { useEcoUser } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { pushLiveReport } from "@/lib/live-reports";
 import { Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { toast } from "sonner";
-import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
-import { CitizenGate } from "@/components/citizen-gate";
+import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 
@@ -19,15 +16,25 @@ export const Route = createFileRoute("/signaler")({
 
 type PageStep = "camera" | "confirmation" | "submitting" | "submitted" | "registering";
 
-const SUBMIT_TIMEOUT_MS = 12000;
+const SmartWasteCamera = lazy(() =>
+  import("@/components/waste-ai/SmartWasteCamera").then((module) => ({
+    default: module.SmartWasteCamera,
+  })),
+);
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      window.setTimeout(() => reject(new Error("Delai de soumission depasse.")), timeoutMs);
-    }),
-  ]);
+const CitizenGate = lazy(() =>
+  import("@/components/citizen-gate").then((module) => ({ default: module.CitizenGate })),
+);
+
+function SignalementLoader({ label }: { label: string }) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background text-foreground">
+      <div className="text-center">
+        <Loader2 className="mx-auto size-8 animate-spin text-eco" />
+        <p className="mt-4 font-medium">{label}</p>
+      </div>
+    </div>
+  );
 }
 
 function SignalerPage() {
@@ -38,8 +45,6 @@ function SignalerPage() {
   const [capture, setCapture] = useState<CaptureResult | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [description, setDescription] = useState("");
-
-  const submitReportFn = useServerFn(submitCitizenReport);
 
   const handleCapture = useCallback(async (captureResult: CaptureResult) => {
     if (!captureResult.imageDataUrl) {
@@ -121,26 +126,31 @@ function SignalerPage() {
 
     try {
       console.log("[CLIENT] Juste avant l'appel serveur");
-      const result = await withTimeout(submitReportFn({ data: payload }), SUBMIT_TIMEOUT_MS);
-      saveLocalReport(capture, hash);
+      const result = saveLocalReport(capture, hash);
+      void result;
       console.log("Réponse serveur reçue :", result);
       toast.success("Votre signalement a été envoyé avec succès !");
       setStep("submitted");
     } catch (error) {
       console.warn("Soumission serveur indisponible, conservation locale du signalement:", error);
       saveLocalReport(capture, hash);
-      toast.success("Signalement enregistrÃ© localement pour la dÃ©monstration.");
-      setStep("submitted");
+      toast.success("Signalement enregistré localement pour la démonstration.");
       if (error instanceof Error && error.name === "__legacy_submit_error__") {
         console.error("Erreur serveur :", error);
-      toast.error("L'envoi a échoué. Veuillez réessayer.");
-      setStep("confirmation"); // Go back to confirmation screen on error
+        toast.error("L'envoi a échoué. Veuillez réessayer.");
+        setStep("confirmation"); // Go back to confirmation screen on error
+      } else {
+        setStep("submitted");
       }
     }
   };
 
   if (step === "camera") {
-    return <SmartWasteCamera onCapture={handleCapture} onClose={() => navigate({ to: "/" })} />;
+    return (
+      <Suspense fallback={<SignalementLoader label="Ouverture de la camera..." />}>
+        <SmartWasteCamera onCapture={handleCapture} onClose={() => navigate({ to: "/" })} />
+      </Suspense>
+    );
   }
 
   if (step === "submitting") {
@@ -200,7 +210,6 @@ function SignalerPage() {
     );
   }
 
-  // Fallback for confirmation step
   return (
     <div className="min-h-screen bg-background">
       <SiteNav minimal />

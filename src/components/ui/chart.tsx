@@ -122,10 +122,7 @@ type ChartTooltipContentProps = React.ComponentProps<"div"> & {
   labelClassName?: string;
 };
 
-const ChartTooltipContent = React.forwardRef<
-  HTMLDivElement,
-  ChartTooltipContentProps
->(
+const ChartTooltipContent = React.forwardRef<HTMLDivElement, ChartTooltipContentProps>(
   (
     {
       active,

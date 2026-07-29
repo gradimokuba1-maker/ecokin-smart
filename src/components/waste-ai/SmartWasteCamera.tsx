@@ -27,6 +27,7 @@ const MAX_VIDEO_SECONDS = 12;
 const MULTI_PHOTO_COUNT = 3;
 const MAX_ANALYSIS_IMAGE_EDGE = 1600;
 const JPEG_QUALITY = 0.88;
+const CAMERA_START_TIMEOUT_MS = 12000;
 
 function stopStream(stream: MediaStream | null | undefined) {
   stream?.getTracks().forEach((track) => track.stop());
@@ -61,6 +62,18 @@ async function requestPreferredCameraStream(): Promise<MediaStream> {
       throw fallbackError;
     }
   }
+}
+
+function withCameraTimeout(promise: Promise<MediaStream>): Promise<MediaStream> {
+  return Promise.race([
+    promise,
+    new Promise<MediaStream>((_, reject) => {
+      window.setTimeout(
+        () => reject(new DOMException("La camera ne repond pas.", "TimeoutError")),
+        CAMERA_START_TIMEOUT_MS,
+      );
+    }),
+  ]);
 }
 
 function cameraErrorMessage(error: unknown) {
@@ -173,7 +186,7 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
       setDiag({ status: "Requesting permissions..." });
 
       try {
-        const stream = await requestPreferredCameraStream();
+        const stream = await withCameraTimeout(requestPreferredCameraStream());
         if (isCancelled) {
           stopStream(stream);
           return;

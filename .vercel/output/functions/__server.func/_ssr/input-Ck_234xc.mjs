@@ -4,7 +4,7 @@ import { t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { n as useEcoUser, r as cn } from "./site-nav-B-Or7zPf.mjs";
 import { A as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
 import { t as Root } from "../_libs/radix-ui__react-label.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/household-store-Cede4ZHx.js
+//#region node_modules/.nitro/vite/services/ssr/assets/household-store-BjwTeWBW.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var K_HH = "ecokin_household_v1";
 var K_REQ = "ecokin_collection_requests_v1";
@@ -149,6 +149,48 @@ function useHouseholds() {
 		}
 	};
 }
+var COLLECTION_SCHEDULE = { default: {
+	days: [1, 4],
+	window: "06:00 – 12:00"
+} };
+var SORT_TIPS = [
+	{
+		id: "organique",
+		label: "Déchets organiques",
+		color: "#84cc16",
+		tips: ["Épluchures, restes de repas, marc de café → bac vert (compostable)", "Éviter de mélanger avec du plastique ou du verre"]
+	},
+	{
+		id: "plastique",
+		label: "Plastiques & PET",
+		color: "#0ea5e9",
+		tips: ["Rincer les bouteilles, écraser pour gagner de la place", "Séparer les bouchons et étiquettes lorsqu'ils sont amovibles"]
+	},
+	{
+		id: "papier",
+		label: "Papier & carton",
+		color: "#f59e0b",
+		tips: ["Aplatir les cartons pour optimiser le volume", "Éviter les papiers gras ou souillés (à composter)"]
+	},
+	{
+		id: "verre",
+		label: "Verre",
+		color: "#10b981",
+		tips: ["Bocaux et bouteilles rincés", "Ne pas jeter d'ampoules ni de vaisselle dans ce bac"]
+	},
+	{
+		id: "deee",
+		label: "Déchets électroniques (DEEE)",
+		color: "#8b5cf6",
+		tips: ["Rapporter piles, chargeurs, téléphones aux points de collecte partenaires", "Ne jamais mélanger avec les ordures ménagères"]
+	},
+	{
+		id: "dangereux",
+		label: "Déchets dangereux",
+		color: "#ef4444",
+		tips: ["Médicaments périmés → pharmacie", "Peintures, solvants, huiles → collecte spéciale sur demande"]
+	}
+];
 //#endregion
 //#region node_modules/.nitro/vite/services/ssr/assets/input-Ck_234xc.js
 var import_jsx_runtime = require_jsx_runtime();
@@ -169,4 +211,4 @@ var Input = import_react.forwardRef(({ className, type, ...props }, ref) => {
 });
 Input.displayName = "Input";
 //#endregion
-export { Label as n, useHouseholds as r, Input as t };
+export { useHouseholds as a, SORT_TIPS as i, Label as n, COLLECTION_SCHEDULE as r, Input as t };

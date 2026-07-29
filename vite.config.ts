@@ -15,7 +15,4 @@ export default defineConfig({
   nitro: {
     preset: "vercel",
   },
-  resolve: {
-    alias: [{ find: /^recharts$/, replacement: "recharts/lib/index.js" }],
-  },
 });

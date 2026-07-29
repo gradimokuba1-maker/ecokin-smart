@@ -32,7 +32,7 @@ export function CollectionZones() {
     ? zones.filter((z) => z.quartier === selectedQuartier)
     : selectedCommune
       ? zones.filter((z) => z.commune === selectedCommune)
-      : [];
+      : zones;
 
   return (
     <Card>
@@ -50,7 +50,7 @@ export function CollectionZones() {
             value={selectedCommune || ""}
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Commune" />
+              <SelectValue placeholder="Toutes les communes" />
             </SelectTrigger>
             <SelectContent>
               {KINSHASA_COMMUNES.filter((c) => communesWithZones.includes(c.name)).map((c) => (
@@ -80,7 +80,7 @@ export function CollectionZones() {
           {filteredZones.length > 0 ? (
             <MapContainer
               center={[filteredZones[0].position.lat, filteredZones[0].position.lon]}
-              zoom={14}
+              zoom={selectedCommune ? 14 : 11}
               scrollWheelZoom={false}
               style={{ height: "100%", width: "100%" }}
             >
