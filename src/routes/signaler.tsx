@@ -6,10 +6,7 @@ import { useEcoUser } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { toast } from "sonner";
-import {
-  SmartWasteCamera,
-  type CaptureResult,
-} from "@/components/waste-ai/SmartWasteCamera";
+import { SmartWasteCamera, type CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { CitizenGate } from "@/components/citizen-gate";
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
@@ -18,12 +15,7 @@ export const Route = createFileRoute("/signaler")({
   component: SignalerPage,
 });
 
-type PageStep =
-  | "camera"
-  | "confirmation"
-  | "submitting"
-  | "submitted"
-  | "registering";
+type PageStep = "camera" | "confirmation" | "submitting" | "submitted" | "registering";
 
 function SignalerPage() {
   const navigate = useNavigate({ from: "/signaler" });
@@ -86,12 +78,7 @@ function SignalerPage() {
   };
 
   if (step === "camera") {
-    return (
-      <SmartWasteCamera
-        onCapture={handleCapture}
-        onClose={() => navigate({ to: "/" })}
-      />
-    );
+    return <SmartWasteCamera onCapture={handleCapture} onClose={() => navigate({ to: "/" })} />;
   }
 
   if (step === "submitting") {
@@ -99,9 +86,7 @@ function SignalerPage() {
       <div className="fixed inset-0 z-50 grid place-items-center bg-background text-foreground">
         <div className="text-center">
           <Loader2 className="mx-auto size-8 animate-spin text-eco" />
-          <p className="mt-4 font-bold text-lg">
-            Envoi de votre signalement...
-          </p>
+          <p className="mt-4 font-bold text-lg">Envoi de votre signalement...</p>
           <p className="mt-1 text-muted-foreground">Merci de patienter.</p>
         </div>
       </div>
@@ -116,9 +101,7 @@ function SignalerPage() {
           {step === "submitted" ? (
             <>
               <ShieldCheck className="mx-auto size-14 text-emerald-500" />
-              <h1 className="mt-4 font-display text-3xl font-bold">
-                Signalement enregistré !
-              </h1>
+              <h1 className="mt-4 font-display text-3xl font-bold">Signalement enregistré !</h1>
               <p className="mt-2 text-lg text-muted-foreground">
                 Merci de contribuer à un environnement plus propre.
               </p>
@@ -126,14 +109,11 @@ function SignalerPage() {
               <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/50 p-6">
                 <div className="flex items-center justify-center gap-3">
                   <Trophy className="size-6 text-amber-400" />
-                  <h3 className="font-display text-xl font-bold">
-                    Gagnez des Green Points !
-                  </h3>
+                  <h3 className="font-display text-xl font-bold">Gagnez des Green Points !</h3>
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Créez un compte gratuit pour suivre vos signalements, recevoir
-                  des notifications et accumuler des points pour chaque action
-                  positive.
+                  Créez un compte gratuit pour suivre vos signalements, recevoir des notifications
+                  et accumuler des points pour chaque action positive.
                 </p>
                 <Button
                   onClick={() => setStep("registering")}
@@ -143,11 +123,7 @@ function SignalerPage() {
                   Créer un compte citoyen
                 </Button>
               </div>
-              <Button
-                onClick={() => navigate({ to: "/" })}
-                variant="ghost"
-                className="mt-8"
-              >
+              <Button onClick={() => navigate({ to: "/" })} variant="ghost" className="mt-8">
                 Continuer anonymement
               </Button>
             </>
@@ -169,15 +145,12 @@ function SignalerPage() {
       <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
           <header>
-            <p className="text-xs font-bold uppercase tracking-widest text-eco">
-              Confirmation
-            </p>
+            <p className="text-xs font-bold uppercase tracking-widest text-eco">Confirmation</p>
             <h1 className="mt-2 font-display text-3xl font-bold tracking-tight">
               Vérifier et soumettre
             </h1>
             <p className="mt-2 text-muted-foreground">
-              Votre photo est prête. Ajoutez un commentaire si vous le
-              souhaitez, puis envoyez.
+              Votre photo est prête. Ajoutez un commentaire si vous le souhaitez, puis envoyez.
             </p>
           </header>
 
@@ -190,10 +163,7 @@ function SignalerPage() {
           )}
 
           <section>
-            <label
-              htmlFor="description"
-              className="text-sm font-bold text-foreground"
-            >
+            <label htmlFor="description" className="text-sm font-bold text-foreground">
               Ajouter un commentaire (optionnel)
             </label>
             <textarea
@@ -208,11 +178,7 @@ function SignalerPage() {
           </section>
 
           <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={handleRetry}
-              className="w-full sm:w-auto"
-            >
+            <Button variant="outline" onClick={handleRetry} className="w-full sm:w-auto">
               Reprendre la photo
             </Button>
             <Button

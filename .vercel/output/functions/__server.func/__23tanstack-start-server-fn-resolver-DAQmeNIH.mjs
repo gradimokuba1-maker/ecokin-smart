@@ -1,8 +1,8 @@
-//#region node_modules/.nitro/vite/services/ssr/assets/__23tanstack-start-server-fn-resolver-Du6-L-fi.js
+//#region node_modules/.nitro/vite/services/ssr/assets/__23tanstack-start-server-fn-resolver-DAQmeNIH.js
 var manifest = {
 	"050133e91a1e4a97dcedd938d4044b9fb1fd5b2fe15f957e82ef1fc0bc47591e": {
 		functionName: "submitCitizenReport_createServerFn_handler",
-		importer: () => import("./_ssr/report-submit.functions-Dp5BgyIa.mjs")
+		importer: () => import("./_ssr/report-submit.functions-B4aBOpGF.mjs")
 	},
 	"4c2db2826bb73273e13ed421258788e28df030ab007357adaa5ed3497af7f168": {
 		functionName: "analyzeWastePhotoAdvanced_createServerFn_handler",
@@ -10,7 +10,7 @@ var manifest = {
 	},
 	"9c343534c8711b23a2a610cf4e1540de1cd5008af978988eb5af527e5830e0ef": {
 		functionName: "commitReportHash_createServerFn_handler",
-		importer: () => import("./_ssr/report-submit.functions-Dp5BgyIa.mjs")
+		importer: () => import("./_ssr/report-submit.functions-B4aBOpGF.mjs")
 	},
 	"c0cce0f56c7b933e57d0cd361b6c6457b03d9781b997919a2844ac1f3dabd2b8": {
 		functionName: "analyzeWastePhoto_createServerFn_handler",
@@ -22,7 +22,7 @@ var manifest = {
 	},
 	"f53ea3a397a2ec958fd3cc3acde690afe7d6a4a8048c8c4751b16269bdb4f399": {
 		functionName: "validateReportHash_createServerFn_handler",
-		importer: () => import("./_ssr/report-submit.functions-Dp5BgyIa.mjs")
+		importer: () => import("./_ssr/report-submit.functions-B4aBOpGF.mjs")
 	}
 };
 async function getServerFnById(id, access) {

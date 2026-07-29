@@ -6,7 +6,7 @@ import { t as Toaster } from "../_libs/sonner.mjs";
 import { t as Route$27 } from "./connexion-BF3NeK1e.mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
 import { t as QueryClientProvider } from "../_libs/tanstack__react-query.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-DmmO4jYz.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-DpGAGW8x.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var styles_default = "/assets/styles-BZ6lyvYM.css";
@@ -205,7 +205,7 @@ var Route$24 = createFileRoute("/sitemap.xml")({ server: { handlers: { GET: asyn
 		"Cache-Control": "public, max-age=3600"
 	} });
 } } } });
-var $$splitComponentImporter$22 = () => import("./signaler-CYzvjpb1.mjs");
+var $$splitComponentImporter$22 = () => import("./signaler-ChdOPSeI.mjs");
 var Route$23 = createFileRoute("/signaler")({ component: lazyRouteComponent($$splitComponentImporter$22, "component") });
 var $$splitComponentImporter$21 = () => import("./sensibilisation-DH5a7JSy.mjs");
 var Route$22 = createFileRoute("/sensibilisation")({
@@ -340,7 +340,7 @@ var Route$5 = createFileRoute("/audit")({
 	}] }),
 	component: lazyRouteComponent($$splitComponentImporter$5, "component")
 });
-var $$splitComponentImporter$4 = () => import("./assistant-ia-4HGtPXiG.mjs");
+var $$splitComponentImporter$4 = () => import("./assistant-ia-BLQeoJFI.mjs");
 var Route$4 = createFileRoute("/assistant-ia")({
 	head: () => ({ meta: [{ title: "Assistant IA des décideurs — EcoKin Smart" }, {
 		name: "description",

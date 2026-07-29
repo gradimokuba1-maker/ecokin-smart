@@ -1,10 +1,10 @@
-import { h as DEFAULT_CITY, v as detectCityCommune } from "./ecokin-db-BKLrlUs1.mjs";
+import { h as DEFAULT_CITY, l as updateReport, v as detectCityCommune } from "./ecokin-db-BKLrlUs1.mjs";
 import { i as pushLiveReport } from "./live-reports-Bt4dbIW_.mjs";
 import { l as createServerFn } from "./esm-CuMU5gNd.mjs";
-import { t as createSsrRpc } from "./createSsrRpc-eFwtrJVq.mjs";
+import { t as createSsrRpc } from "./createSsrRpc-BdlII7Sc.mjs";
 import { a as objectType, i as numberType, n as arrayType, o as stringType, r as enumType, t as anyType } from "../_libs/zod.mjs";
 import { t as createServerRpc } from "./createServerRpc-Dn9IlLzZ.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/report-submit.functions-Dp5BgyIa.js
+//#region node_modules/.nitro/vite/services/ssr/assets/report-submit.functions-B4aBOpGF.js
 var InputSchema = objectType({
 	imageDataUrl: stringType().min(20),
 	additionalImages: arrayType(stringType()).optional(),
@@ -150,7 +150,6 @@ var submitCitizenReport = createServerFn({ method: "POST" }).validator((d) => Ci
 			lat: capture.location.lat,
 			lng: capture.location.lng,
 			photoUrl: capture.imageDataUrl,
-			status: "pending_analysis",
 			cameraCapability: capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore" ? capture.cameraCapability : "basic"
 		});
 		await commitReportHash({ data: {
@@ -160,19 +159,46 @@ var submitCitizenReport = createServerFn({ method: "POST" }).validator((d) => Ci
 			reportId: item.id,
 			category: "mixte"
 		} });
-		await analyzeWastePhotoAdvanced({ data: {
-			imageDataUrl: capture.imageDataUrl,
-			additionalImages: capture.additionalImages,
-			lat: capture.location?.lat,
-			lng: capture.location?.lng,
-			accuracy: capture.location?.accuracy,
-			altitudeM: capture.location?.altitudeM,
-			capturedAt: capture.capturedAt,
-			cameraCapability: capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore" ? capture.cameraCapability : "basic",
-			depthData: capture.depthData
-		} });
-		console.log("[9] Analyse IA terminée");
-		console.log("[10] Fin submitCitizenReport");
+		(async () => {
+			try {
+				const analysisResult = await analyzeWastePhotoAdvanced({ data: {
+					imageDataUrl: capture.imageDataUrl,
+					additionalImages: capture.additionalImages,
+					lat: capture.location?.lat,
+					lng: capture.location?.lng,
+					accuracy: capture.location?.accuracy,
+					altitudeM: capture.location?.altitudeM,
+					capturedAt: capture.capturedAt,
+					cameraCapability: capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore" ? capture.cameraCapability : "basic",
+					depthData: capture.depthData
+				} });
+				const patch = {
+					category: analysisResult.mainCategory,
+					description: analysisResult.description || item.description,
+					volumeM3: analysisResult.dimensions?.volumeM3,
+					priorityScore: analysisResult.priorityScore,
+					priorityLevel: analysisResult.priorityLevel,
+					analysisConfidence: analysisResult.analysisConfidence,
+					dimensions: analysisResult.dimensions,
+					cameraCapability: analysisResult.cameraCapability ?? item.cameraCapability,
+					model3DAvailable: analysisResult.model3DAvailable ?? item.model3DAvailable,
+					healthRisk: analysisResult.healthRisk,
+					floodRisk: analysisResult.floodRisk,
+					interventionUrgent: analysisResult.interventionUrgent,
+					composition: analysisResult.composition?.map((c) => ({
+						material: c.material,
+						percentage: c.percentage
+					})),
+					aiAnalysis: analysisResult,
+					...analysisResult.interventionUrgent || analysisResult.priorityLevel === "critique" ? { status: "assignee" } : {}
+				};
+				updateReport(item.id, patch, "Analyse IA terminée");
+				console.log("[9] Analyse IA terminée (background)");
+			} catch (analysisError) {
+				console.error("Analyse IA en arrière-plan échouée pour le signalement :", analysisError instanceof Error ? analysisError.message : analysisError);
+			}
+		})();
+		console.log("[9] Enregistrement du signalement terminé");
 		return {
 			success: true,
 			reportId: item.id

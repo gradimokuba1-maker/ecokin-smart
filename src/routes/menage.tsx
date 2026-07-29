@@ -10,144 +10,160 @@ import { FleetMap } from "@/components/fleet-map";
 import { CollectionZones } from "@/components/collection-zones";
 import { OperationalDashboard } from "@/components/operational-dashboard";
 import { useEcoUser, type User, type UserRole } from "@/lib/user-store";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Payments } from "@/components/payments";
 
 export const Route = createFileRoute("/menage")({
-    component: MenageRoute,
+  component: MenageRoute,
 });
 
 type View = "dashboard" | "list" | "form" | "zones" | "settings" | "fleet" | "payments";
 
 function MenageRoute() {
-    const [view, setView] = useState<View>("dashboard");
-    const { user, login } = useEcoUser();
+  const [view, setView] = useState<View>("dashboard");
+  const { user, login } = useEcoUser();
 
-    return (
-        <div className="flex min-h-screen w-full flex-col bg-muted/40">
-            <AppSidebar view={view} setView={setView} user={user} login={login} />
-            <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-                <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-                    <SiteNav minimal />
-                </header>
-                <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-                    {view === "dashboard" && <OperationalDashboard />}
-                    {view === "list" && <HouseholdList setView={setView} />}
-                    {view === "form" && <HouseholdForm />}
-                    {view === "fleet" && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Suivi de la flotte</CardTitle>
-                                <CardDescription>
-                                    Localisation en temps réel des véhicules de collecte.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-[500px]">
-                                <FleetMap />
-                            </CardContent>
-                        </Card>
-                    )}
-                    {view === "zones" && <CollectionZones />}
-                    {view === "payments" && <Payments />}
-                </main>
-                <SiteFooter />
-            </div>
-        </div>
-    );
+  return (
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <AppSidebar view={view} setView={setView} user={user} login={login} />
+      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+          <SiteNav minimal />
+        </header>
+        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+          {view === "dashboard" && <OperationalDashboard />}
+          {view === "list" && <HouseholdList setView={setView} />}
+          {view === "form" && <HouseholdForm />}
+          {view === "fleet" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Suivi de la flotte</CardTitle>
+                <CardDescription>
+                  Localisation en temps réel des véhicules de collecte.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[500px]">
+                <FleetMap />
+              </CardContent>
+            </Card>
+          )}
+          {view === "zones" && <CollectionZones />}
+          {view === "payments" && <Payments />}
+        </main>
+        <SiteFooter />
+      </div>
+    </div>
+  );
 }
 
-function AppSidebar({ view, setView, user, login }: { view: View; setView: (view: View) => void; user: User | null; login: (user: User) => void }) {
-    return (
-        <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-            <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-                <a
-                    href="#"
-                    className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-                >
-                    <Trash2 className="h-4 w-4 transition-all group-hover:scale-110" />
-                    <span className="sr-only">EcoKin Smart</span>
-                </a>
-                <a
-                    href="#"
-                    onClick={() => setView("dashboard")}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "dashboard" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-                >
-                    <Home className="h-5 w-5" />
-                    <span className="sr-only">Dashboard</span>
-                </a>
-                <a
-                    href="#"
-                    onClick={() => setView("list")}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "list" || view === "form" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-                >
-                    <Users className="h-5 w-5" />
-                    <span className="sr-only">Households</span>
-                </a>
-                <a
-                    href="#"
-                    onClick={() => setView("fleet")}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "fleet" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-                >
-                    <Truck className="h-5 w-5" />
-                    <span className="sr-only">Suivi des véhicules</span>
-                </a>
-                <a
-                    href="#"
-                    onClick={() => setView("zones")}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "zones" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-                >
-                    <Map className="h-5 w-5" />
-                    <span className="sr-only">Collection Zones</span>
-                </a>
-                <a
-                    href="#"
-                    onClick={() => setView("payments")}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "payments" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-                >
-                    <CreditCard className="h-5 w-5" />
-                    <span className="sr-only">Paiements</span>
-                </a>
-            </nav>
-            <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-                <div className="w-full px-2">
-                    <Select
-                        value={user?.role}
-                        onValueChange={(role) => {
-                            const newUser: User = {
-                                id: user?.id || "U-1",
-                                name: role,
-                                role: role as UserRole,
-                                points: user?.points ?? 0,
-                                reports: user?.reports ?? 0,
-                                badges: user?.badges ?? [],
-                                registered: user?.registered ?? false,
-                            };
-                            if (role === "bourgmestre") {
-                                newUser.commune = "Kalamu";
-                            }
-                            login(newUser);
-                        }}
-                    >
-                        <SelectTrigger className="w-full h-8">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="citoyen">Citoyen</SelectItem>
-                            <SelectItem value="bourgmestre">Bourgmestre</SelectItem>
-                            <SelectItem value="gouverneur">Gouverneur</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <a
-                    href="#"
-                    onClick={() => setView("settings")}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "settings" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-                >
-                    <Settings className="h-5 w-5" />
-                    <span className="sr-only">Settings</span>
-                </a>
-            </nav>
-        </aside>
-    )
+function AppSidebar({
+  view,
+  setView,
+  user,
+  login,
+}: {
+  view: View;
+  setView: (view: View) => void;
+  user: User | null;
+  login: (user: User) => void;
+}) {
+  return (
+    <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
+      <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
+        <a
+          href="#"
+          className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
+        >
+          <Trash2 className="h-4 w-4 transition-all group-hover:scale-110" />
+          <span className="sr-only">EcoKin Smart</span>
+        </a>
+        <a
+          href="#"
+          onClick={() => setView("dashboard")}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "dashboard" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
+        >
+          <Home className="h-5 w-5" />
+          <span className="sr-only">Dashboard</span>
+        </a>
+        <a
+          href="#"
+          onClick={() => setView("list")}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "list" || view === "form" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
+        >
+          <Users className="h-5 w-5" />
+          <span className="sr-only">Households</span>
+        </a>
+        <a
+          href="#"
+          onClick={() => setView("fleet")}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "fleet" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
+        >
+          <Truck className="h-5 w-5" />
+          <span className="sr-only">Suivi des véhicules</span>
+        </a>
+        <a
+          href="#"
+          onClick={() => setView("zones")}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "zones" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
+        >
+          <Map className="h-5 w-5" />
+          <span className="sr-only">Collection Zones</span>
+        </a>
+        <a
+          href="#"
+          onClick={() => setView("payments")}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "payments" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
+        >
+          <CreditCard className="h-5 w-5" />
+          <span className="sr-only">Paiements</span>
+        </a>
+      </nav>
+      <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
+        <div className="w-full px-2">
+          <Select
+            value={user?.role}
+            onValueChange={(role) => {
+              const newUser: User = {
+                id: user?.id || "U-1",
+                name: role,
+                role: role as UserRole,
+                points: user?.points ?? 0,
+                reports: user?.reports ?? 0,
+                badges: user?.badges ?? [],
+                registered: user?.registered ?? false,
+              };
+              if (role === "bourgmestre") {
+                newUser.commune = "Kalamu";
+              }
+              login(newUser);
+            }}
+          >
+            <SelectTrigger className="w-full h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="citoyen">Citoyen</SelectItem>
+              <SelectItem value="bourgmestre">Bourgmestre</SelectItem>
+              <SelectItem value="gouverneur">Gouverneur</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <a
+          href="#"
+          onClick={() => setView("settings")}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "settings" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
+        >
+          <Settings className="h-5 w-5" />
+          <span className="sr-only">Settings</span>
+        </a>
+      </nav>
+    </aside>
+  );
 }

@@ -5,7 +5,7 @@ import { C as getScriptPreloadAttrs, D as executeRewriteInput, E as resolveManif
 import { i as mergeHeaders, n as getNormalizedURL, o as createRawStreamRPCPlugin, r as getOrigin, s as createSerializationAdapter, t as attachRouterServerSsrUtils } from "../_libs/@tanstack/router-core+[...].mjs";
 import { A as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
 import { a as X_TSS_RAW_RESPONSE, c as createNullProtoObject, d as getDefaultSerovalPlugins, f as safeObjectMerge, i as TSS_SERVER_FUNCTION, n as TSS_CONTENT_TYPE_FRAMED_VERSIONED, o as X_TSS_SERIALIZED, r as TSS_FORMDATA_CONTEXT, s as createCsrfMiddleware, t as FrameType, u as flattenMiddlewares } from "./esm-CuMU5gNd.mjs";
-import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-Du6-L-fi.mjs";
+import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-DAQmeNIH.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 require_react();
 var import_jsx_runtime = require_jsx_runtime();
@@ -2932,7 +2932,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-DmmO4jYz.mjs"),
+		import("./router-DpGAGW8x.mjs"),
 		import("./start-Ok9K6Nid.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);

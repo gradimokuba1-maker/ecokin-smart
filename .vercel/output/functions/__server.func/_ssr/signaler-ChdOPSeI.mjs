@@ -9,9 +9,9 @@ import { t as Button } from "./button-Bk-W14TZ.mjs";
 import { n as toast } from "../_libs/sonner.mjs";
 import { l as createServerFn } from "./esm-CuMU5gNd.mjs";
 import { t as useServerFn } from "./useServerFn-CrZF2pjq.mjs";
-import { t as createSsrRpc } from "./createSsrRpc-eFwtrJVq.mjs";
+import { t as createSsrRpc } from "./createSsrRpc-BdlII7Sc.mjs";
 import { a as objectType, i as numberType, o as stringType, t as anyType } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/signaler-CYzvjpb1.js
+//#region node_modules/.nitro/vite/services/ssr/assets/signaler-ChdOPSeI.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var HashSchema = stringType().regex(/^[0-9a-f]{16}$/i, "Empreinte invalide");

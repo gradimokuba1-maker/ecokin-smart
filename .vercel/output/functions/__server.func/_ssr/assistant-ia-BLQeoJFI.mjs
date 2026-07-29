@@ -8,9 +8,9 @@ import { t as SiteFooter } from "./site-footer-BJ1tNBrS.mjs";
 import { t as AccessGate } from "./access-gate-C5rR_hvD.mjs";
 import { l as createServerFn } from "./esm-CuMU5gNd.mjs";
 import { t as useServerFn } from "./useServerFn-CrZF2pjq.mjs";
-import { t as createSsrRpc } from "./createSsrRpc-eFwtrJVq.mjs";
+import { t as createSsrRpc } from "./createSsrRpc-BdlII7Sc.mjs";
 import { a as objectType, i as numberType, n as arrayType, o as stringType, r as enumType } from "../_libs/zod.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/assistant-ia-4HGtPXiG.js
+//#region node_modules/.nitro/vite/services/ssr/assets/assistant-ia-BLQeoJFI.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var AnalyzeInputSchema = objectType({ imageDataUrl: stringType().min(20) });
