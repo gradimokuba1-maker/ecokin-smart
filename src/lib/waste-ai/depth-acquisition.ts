@@ -8,20 +8,21 @@ export type DepthSource = "lidar" | "tof" | "arcore" | "arkit" | "ai";
 // - window.ApplePaySession (as a proxy for Apple devices that might have ARKit)
 // - Specific device models known to have ToF/LiDAR sensors.
 async function detectDepthSensor(): Promise<DepthAcquisition> {
-  if (typeof window === "undefined" || typeof navigator === "undefined" || !navigator.xr) {
+  const nav = typeof navigator !== "undefined" ? (navigator as any) : undefined;
+  if (typeof window === "undefined" || !nav || !("xr" in nav)) {
     return { source: "ai", label: "IA (serveur/sans-XR)", supported: true };
   }
 
   // Use WebXR Device API to detect depth sensing capabilities
   try {
-    if (await navigator.xr.isSessionSupported("immersive-ar")) {
+    if (await nav.xr.isSessionSupported("immersive-ar")) {
       // isSessionSupported is not enough, we need to check for the feature.
       // A real session request is more reliable.
-      const session = await navigator.xr.requestSession("immersive-ar", { requiredFeatures: ['depth-sensing'] }).catch(() => null);
+      const session = await nav.xr.requestSession("immersive-ar", { requiredFeatures: ['depth-sensing'] }).catch(() => null);
       if (session) {
         // We must end the session immediately as we are only detecting capabilities.
         session.end();
-        
+
         // Let's check if it's likely ARKit or ARCore
         const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
         const source: DepthSource = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream ? "arkit" : "arcore";

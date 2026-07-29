@@ -16,7 +16,7 @@ export type LiveReport = {
   createdAt: string;
   author: string;
   authorId?: string;
-  authorRole?: EcokinRole;
+  authorRole?: EcokinRole | "anonyme";
   province?: string;
   city?: string;
   commune: string;

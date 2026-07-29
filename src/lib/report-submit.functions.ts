@@ -133,9 +133,9 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
       if (!capture.location) {
         throw new Error("Localisation GPS manquante.");
       }
-      
+
       console.log("[2] Vérification anti-fraude");
-      const duplicateCheck = await validateReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng }});
+      const duplicateCheck = await validateReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng } });
       console.log("[3] Validation anti-fraude terminée");
       if (duplicateCheck.duplicate) {
         console.log(`Duplicate report detected (similarity: ${duplicateCheck.similarity}%), proceeding anyway but could be flagged.`);
@@ -144,33 +144,37 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
       const preliminaryCommune = detectCityCommune(DEFAULT_CITY, capture.location.lat, capture.location.lng).id;
 
       const preliminaryReport = {
-          author: "Citoyen Anonyme",
-          authorId: "anonyme",
-          authorRole: "anonyme" as const,
-          province: "Kinshasa",
-          city: "Kinshasa",
-          commune: preliminaryCommune,
-          category: "mixte" as const,
-          urgency: 3, // Default urgency
-          description: description || "Signalement citoyen rapide.",
+        author: "Citoyen Anonyme",
+        authorId: "anonyme",
+        authorRole: "anonyme" as const,
+        province: "Kinshasa",
+        city: "Kinshasa",
+        commune: preliminaryCommune,
+        category: "mixte" as const,
+        urgency: "moyen" as const,
+        description: description || "Signalement citoyen rapide.",
+        lat: capture.location.lat,
+        lng: capture.location.lng,
+        photoUrl: capture.imageDataUrl,
+        status: "pending_analysis" as const,
+        cameraCapability:
+          capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
+            ? capture.cameraCapability
+            : "basic",
+      } as const;
+
+      const item = pushLiveReport(preliminaryReport);
+
+      await commitReportHash({
+        data: {
+          hash,
           lat: capture.location.lat,
           lng: capture.location.lng,
-          photoUrl: capture.imageDataUrl,
-          status: "pending_analysis" as const,
-          cameraCapability: capture.cameraCapability,
-          capturedAt: capture.capturedAt,
-          greenPointsAwarded: 0,
-      };
-      
-      console.log("[4] Création du signalement");
-      const item = pushLiveReport(preliminaryReport);
-      console.log("[5] Signalement créé, ID:", item.id);
-      
-      console.log("[6] Commit du hash");
-      await commitReportHash({ data: { hash, lat: capture.location.lat, lng: capture.location.lng, reportId: item.id, category: 'mixte' }});
-      console.log("[7] Commit terminé");
-      
-      console.log("[8] Début analyse IA");
+          reportId: item.id,
+          category: "mixte",
+        },
+      });
+
       const analysisResult = await analyzeWastePhotoAdvanced({
         data: {
           imageDataUrl: capture.imageDataUrl,
@@ -180,28 +184,16 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
           accuracy: capture.location?.accuracy,
           altitudeM: capture.location?.altitudeM,
           capturedAt: capture.capturedAt,
-          cameraCapability: capture.cameraCapability,
+          cameraCapability:
+            capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
+              ? capture.cameraCapability
+              : "basic",
           depthData: capture.depthData,
         },
       });
-      console.log("[9] Analyse IA terminée");
-      
-      // Now, update the report with the full analysis
-      console.log("[10] Mise à jour du signalement");
-      item.category = analysisResult.mainCategory;
-      item.urgency = urgencyFromSeverity(severityFromAnalysis(analysisResult), analysisResult.floodRisk);
-      item.volumeM3 = analysisResult.dimensions.volumeM3;
-      item.priorityScore = priorityScoreFromAnalysis(analysisResult, item.commune);
-      item.composition = analysisResult.composition;
-      item.weightTons = analysisResult.weight.weightTons;
-      item.dimensions = analysisResult.dimensions;
-      item.priorityLevel = analysisResult.priorityLevel;
-      item.healthRisk = analysisResult.healthRisk;
-      item.aiAnalysis = analysisResult;
-      item.status = 'en_attente'; // Analysis complete, ready for authority review
-      console.log("[11] Mise à jour terminée");
 
-      console.log("[12] Fin submitCitizenReport");
+      console.log("[9] Analyse IA terminée");
+      console.log("[10] Fin submitCitizenReport");
       return { success: true, reportId: item.id };
     } catch (error) {
       console.error("Erreur détaillée dans submitCitizenReport:", error instanceof Error ? error.message : error);

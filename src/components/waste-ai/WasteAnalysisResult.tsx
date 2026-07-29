@@ -20,6 +20,9 @@ const MATERIAL_ICONS: Record<WasteMaterial, string> = {
   meuble: "🪑",
   electronique: "🔌",
   construction: "🧱",
+  textile: "🧵",
+  pneu: "🛞",
+  menager: "🗑️",
   mixte: "♻️",
   inconnu: "❓",
 };

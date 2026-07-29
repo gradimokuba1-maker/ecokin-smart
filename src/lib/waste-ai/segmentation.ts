@@ -74,7 +74,7 @@ async function getSam2(onProgress?: (message: string) => void) {
       return {
         model: model as unknown as SamRuntime["model"],
         processor: processor as unknown as SamRuntime["processor"],
-        postProcess: (processor as { post_process_masks: (...args: unknown[]) => unknown }).post_process_masks.bind(processor),
+        postProcess: (processor as unknown as { post_process_masks: (...args: unknown[]) => unknown }).post_process_masks.bind(processor),
         readImage: runtime.RawImage.read,
       };
     });

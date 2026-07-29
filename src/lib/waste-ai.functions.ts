@@ -209,7 +209,20 @@ export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
     const heightAvgM = parseFloat((volumeM3 / surfaceM2).toFixed(2));
 
     // 3. Dynamic Weight (based on category density)
-    const densities: Record<WasteMaterial, number> = { plastique: 60, organique: 450, papier: 90, metal: 300, verre: 600, construction: 1200, mixte: 150, inconnu: 150, dangereux: 200, meuble: 180, electronique: 250 };
+    const densities: Record<WasteMaterial, number> = {
+      plastique: 60,
+      carton: 100,
+      organique: 450,
+      papier: 90,
+      metal: 300,
+      verre: 600,
+      construction: 1200,
+      mixte: 150,
+      inconnu: 150,
+      dangereux: 200,
+      meuble: 180,
+      electronique: 250,
+    };
     const densityUsed = densities[mainCategory] ?? 150;
     const weightKg = Math.round(volumeM3 * densityUsed);
 

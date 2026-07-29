@@ -7,7 +7,7 @@
  */
 
 import { quantifyWaste } from "./quantification-pipeline";
-import { estimateDepthWithAI } from "./depth-acquisition";
+import { getDepthAcquisition } from "./depth-acquisition";
 import { mergeMultiViewCompositions } from "./multi-view";
 import {
   calculatePriorityLevel,
@@ -61,12 +61,12 @@ function locationFromCapture(capture: WasteCaptureForAnalysis): LocationInfo {
   throw new Error("GPS location is required for waste analysis");
 }
 
-function recommendationFor(risks: { health: RiskLevel; environmental: RiskLevel; pollution: RiskLevel; fire: RiskLevel; flood: boolean }) {
+function recommendationFor(risks: { health: RiskLevel; environmental: RiskLevel; pollution: RiskLevel; fire: RiskLevel; obstruction: RiskLevel; floodRisk: boolean }) {
   const recommendations = ["Transmettre le signalement à l’équipe de collecte compétente."];
   if (risks.health === "eleve") recommendations.unshift("Prévoir des EPI et isoler la zone avant la collecte.");
   if (risks.pollution === "eleve") recommendations.unshift("Éviter tout écoulement vers les caniveaux et sécuriser les déchets dangereux.");
   if (risks.fire === "eleve") recommendations.unshift("Éloigner les sources de chaleur et demander une vérification incendie.");
-  if (risks.flood) recommendations.push("Dégager le caniveau ou l’accès hydraulique en priorité.");
+  if (risks.floodRisk) recommendations.push("Dégager le caniveau ou l’accès hydraulique en priorité.");
   return recommendations.slice(0, 4);
 }
 
@@ -116,8 +116,8 @@ export async function analyzeWasteCapture(
 ): Promise<WasteAnalysisResult> {
   let depthData = capture.depthData;
   if (!depthData) {
-    const depth = await estimateDepthWithAI(capture.imageDataUrl, onProgress);
-    depthData = depth.depthData;
+    const depth = await getDepthAcquisition();
+    depthData = typeof depth.depthData === "string" ? depth.depthData : undefined;
   }
 
   let quantified = await quantifyWaste(capture.imageDataUrl, {

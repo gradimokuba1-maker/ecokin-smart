@@ -8,12 +8,16 @@ import { NotificationBell } from "@/components/notification-bell";
 
 type NavLink = { to: string; label: string; icon: typeof HomeIcon };
 
+type SiteNavProps = {
+  minimal?: boolean;
+};
+
 const NAV: NavLink[] = [
   { to: "/menagers", label: "Déchets ménagers", icon: HomeIcon },
   { to: "/signaler", label: "Dépôts sauvages", icon: Trash2 },
 ];
 
-export function SiteNav() {
+export function SiteNav({ minimal }: SiteNavProps = {}) {
   const router = useRouter();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { user } = useEcoUser();
@@ -29,7 +33,7 @@ export function SiteNav() {
           ? { to: "/admin", label: "Administration", icon: ShieldCheck }
           : session.role === "agent"
             ? { to: "/agent", label: "Espace Agent", icon: ShieldCheck }
-          : null;
+            : null;
   const links = isAuthority ? (authorityLink ? [authorityLink] : []) : NAV;
 
   const handleBack = () => {
@@ -42,6 +46,25 @@ export function SiteNav() {
 
   if (pathname === "/") {
     return null;
+  }
+
+  if (minimal) {
+    return (
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground"
+          >
+            <ArrowLeft className="size-4" /> Retour
+          </button>
+          <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground">
+            <House className="size-4" /> Accueil
+          </Link>
+        </div>
+      </nav>
+    );
   }
 
   return (
