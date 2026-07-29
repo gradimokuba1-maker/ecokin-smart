@@ -202,14 +202,17 @@ export const MATERIAL_DENSITIES: Record<WasteMaterial, number> = {
  * @param composition - Un tableau de la composition des matériaux et leurs pourcentages.
  * @returns Un objet WeightEstimate.
  */
-export function calculateWeightFromVolume(volumeM3: number, composition: CompositionEntry[]): WeightEstimate {
+export function calculateWeightFromVolume(
+  volumeM3: number,
+  composition: CompositionEntry[],
+): WeightEstimate {
   let weightedDensity = 0;
   if (composition.length === 0) {
     // Si la composition est inconnue, on utilise la densité du 'mixte'
     weightedDensity = MATERIAL_DENSITIES.mixte;
   } else {
     // Calcul de la densité pondérée
-    composition.forEach(c => {
+    composition.forEach((c) => {
       const density = MATERIAL_DENSITIES[c.material] || MATERIAL_DENSITIES.mixte;
       weightedDensity += density * (c.percentage / 100);
     });
@@ -217,7 +220,7 @@ export function calculateWeightFromVolume(volumeM3: number, composition: Composi
 
   const weightKg = volumeM3 * weightedDensity;
   const uncertainty = 0.35; // 35% d'incertitude sur l'estimation de poids
-  
+
   return {
     weightKg: Math.round(weightKg),
     weightTons: Number((weightKg / 1000).toFixed(2)),

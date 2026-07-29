@@ -81,7 +81,9 @@ function CartePage() {
       <SiteNav />
       <header className="border-b border-border bg-secondary/40">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <p className="text-xs font-bold uppercase tracking-widest text-eco">Carte SIG · 24 communes</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-eco">
+            Carte SIG · 24 communes
+          </p>
           <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">
             Cartographie SIG de Kinshasa
           </h1>
@@ -108,7 +110,9 @@ function CartePage() {
                 key={id}
                 onClick={() => setStatus(id)}
                 className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-widest transition-colors ${
-                  status === id ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                  status === id
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {label}

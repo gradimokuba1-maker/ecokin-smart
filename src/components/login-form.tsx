@@ -33,7 +33,9 @@ export function LoginForm({ role, title, onSubmit }: Props) {
   return (
     <form onSubmit={handleSubmit} className="mt-5 space-y-3">
       <div>
-        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Identifiant</label>
+        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          Identifiant
+        </label>
         <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
           <User className="size-4 text-muted-foreground" />
           <input
@@ -47,7 +49,9 @@ export function LoginForm({ role, title, onSubmit }: Props) {
         </div>
       </div>
       <div>
-        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Mot de passe</label>
+        <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          Mot de passe
+        </label>
         <div className="mt-1 flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
           <Lock className="size-4 text-muted-foreground" />
           <input

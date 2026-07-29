@@ -6,11 +6,17 @@ import { useEffect, useState, type ReactNode } from "react";
  * @param {React.ReactNode} props.children The children to render on the client.
  * @param {React.ReactNode} [props.fallback=null] The fallback to render on the server.
  */
-export function ClientOnly({ children, fallback = null }: { children: ReactNode; fallback?: ReactNode }) {
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+export function ClientOnly({
+  children,
+  fallback = null,
+}: {
+  children: ReactNode;
+  fallback?: ReactNode;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-    return mounted ? <>{children}</> : fallback;
+  return mounted ? <>{children}</> : fallback;
 }

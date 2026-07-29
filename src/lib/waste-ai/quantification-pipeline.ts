@@ -5,7 +5,11 @@
 // Retourne: catégories de déchets, volume estimé, poids estimé, score de confiance
 
 import type { WasteMaterial, CompositionEntry, Dimensions3D, WeightEstimate } from "./types";
-import { detectWasteObjects, calculateCompositionFromDetections, type DetectionResult } from "./detection";
+import {
+  detectWasteObjects,
+  calculateCompositionFromDetections,
+  type DetectionResult,
+} from "./detection";
 import type { DetectedObject } from "./detection";
 import { segmentWasteAreas, type SegmentationResult, type SegmentMask } from "./segmentation";
 import { estimateWasteVolume, type DepthEstimate } from "./volume-estimator";
@@ -32,10 +36,10 @@ export type QuantificationResult = {
   weight: WeightEstimate;
   // Scores de confiance
   confidence: {
-    detection: number;     // confiance de la détection YOLO
-    segmentation: number;  // confiance de la segmentation SAM 2
-    volume: number;        // confiance de l'estimation de volume
-    overall: number;       // confiance globale combinée
+    detection: number; // confiance de la détection YOLO
+    segmentation: number; // confiance de la segmentation SAM 2
+    volume: number; // confiance de l'estimation de volume
+    overall: number; // confiance globale combinée
   };
 
   // Métadonnées
@@ -74,7 +78,7 @@ export type QuantificationOptions = {
  */
 export async function quantifyWaste(
   imageDataUrl: string,
-  options?: QuantificationOptions
+  options?: QuantificationOptions,
 ): Promise<QuantificationResult> {
   const startTime = performance.now();
 
@@ -89,14 +93,18 @@ export async function quantifyWaste(
   const compositionFromDetections = calculateCompositionFromDetections(detectionResult.objects);
 
   // Étape 2: SEGMENTATION SAM 2
-  const detectionHints = detectionResult.objects.map(obj => ({
+  const detectionHints = detectionResult.objects.map((obj) => ({
     bbox: obj.bbox,
     label: obj.label,
     displayLabel: obj.displayLabel,
     confidence: obj.confidence,
   }));
 
-  const segmentationResult = await segmentWasteAreas(imageDataUrl, detectionHints, options?.onProgress);
+  const segmentationResult = await segmentWasteAreas(
+    imageDataUrl,
+    detectionHints,
+    options?.onProgress,
+  );
 
   // Étape 3: ESTIMATION DE VOLUME
   const volumeResult = await estimateWasteVolume(imageDataUrl, segmentationResult.segments, {
@@ -111,13 +119,14 @@ export async function quantifyWaste(
   // Fusionner la composition des détections et des segmentations
   const mergedComposition = mergeComposition(
     compositionFromDetections,
-    segmentationResult.segments
+    segmentationResult.segments,
   );
 
   // Déterminer la catégorie principale et secondaire
   const sortedComposition = [...mergedComposition].sort((a, b) => b.percentage - a.percentage);
   const mainCategory = sortedComposition[0]?.material ?? "inconnu";
-  const secondaryCategory = sortedComposition.length > 1 ? sortedComposition[1].material : undefined;
+  const secondaryCategory =
+    sortedComposition.length > 1 ? sortedComposition[1].material : undefined;
 
   const weight = estimateWasteWeight(
     volumeResult.dimensions.volumeM3,
@@ -133,9 +142,7 @@ export async function quantifyWaste(
 
   // Confiance globale: moyenne pondérée
   const overallConfidence =
-    detectionConfidence * 0.34 +
-    segmentationConfidence * 0.33 +
-    volumeConfidence * 0.33;
+    detectionConfidence * 0.34 + segmentationConfidence * 0.33 + volumeConfidence * 0.33;
 
   const processingTimeMs = Math.round(performance.now() - startTime);
 
@@ -179,7 +186,7 @@ export async function quantifyWaste(
  */
 function mergeComposition(
   detectionComposition: CompositionEntry[],
-  segments: SegmentMask[]
+  segments: SegmentMask[],
 ): CompositionEntry[] {
   if (segments.length === 0) return detectionComposition;
   if (detectionComposition.length === 0) {
@@ -226,7 +233,7 @@ function mergeComposition(
       material,
       percentage: Math.round((value / total) * 100),
     }))
-    .filter(e => e.percentage > 0)
+    .filter((e) => e.percentage > 0)
     .sort((a, b) => b.percentage - a.percentage);
 
   // Ajuster à 100%
@@ -271,7 +278,7 @@ function segmentsToComposition(segments: SegmentMask[]): CompositionEntry[] {
  */
 export async function quickQuantify(
   imageDataUrl: string,
-  options?: QuantificationOptions
+  options?: QuantificationOptions,
 ): Promise<QuantificationResult> {
   const startTime = performance.now();
 
@@ -290,7 +297,9 @@ export async function quickQuantify(
   const sensorHeight = options?.sensorHeight ?? 4.55;
 
   // Distance estimée basée sur la taille des objets détectés
-  const distanceM = options?.knownDistance ?? estimateQuickDistance(detectionResult, focalLength, img.width, img.height);
+  const distanceM =
+    options?.knownDistance ??
+    estimateQuickDistance(detectionResult, focalLength, img.width, img.height);
 
   // Dimensions estimées
   const fovHorizontal = 2 * Math.atan(sensorWidth / (2 * focalLength));
@@ -300,9 +309,13 @@ export async function quickQuantify(
   const heightAtDistance = 2 * distanceM * Math.tan(fovVertical / 2);
 
   // Ratio de l'image occupé par les déchets
-  const wasteRatio = detectionResult.objects.length > 0
-    ? Math.min(1, detectionResult.objects.reduce((sum, o) => sum + o.area, 0))
-    : 0.5;
+  const wasteRatio =
+    detectionResult.objects.length > 0
+      ? Math.min(
+          1,
+          detectionResult.objects.reduce((sum, o) => sum + o.area, 0),
+        )
+      : 0.5;
 
   const wasteWidth = widthAtDistance * Math.sqrt(wasteRatio);
   const wasteHeight = heightAtDistance * Math.sqrt(wasteRatio);
@@ -323,12 +336,16 @@ export async function quickQuantify(
 
   const sortedComposition = [...composition].sort((a, b) => b.percentage - a.percentage);
   const mainCategory = sortedComposition[0]?.material ?? "inconnu";
-  const secondaryCategory = sortedComposition.length > 1 ? sortedComposition[1].material : undefined;
+  const secondaryCategory =
+    sortedComposition.length > 1 ? sortedComposition[1].material : undefined;
 
-  const overallConfidence =
-    detectionResult.confidence * 0.55 +
-    dimensions.confidence * 0.45;
-  const weight = estimateWasteWeight(volumeM3, sortedComposition, dimensions.confidence, detectionResult.confidence);
+  const overallConfidence = detectionResult.confidence * 0.55 + dimensions.confidence * 0.45;
+  const weight = estimateWasteWeight(
+    volumeM3,
+    sortedComposition,
+    dimensions.confidence,
+    detectionResult.confidence,
+  );
 
   return {
     objects: detectionResult.objects,
@@ -371,14 +388,12 @@ function estimateQuickDistance(
   detection: DetectionResult,
   focalLength: number,
   imageWidth: number,
-  imageHeight: number
+  imageHeight: number,
 ): number {
   if (detection.objects.length === 0) return 3;
 
   // Prendre l'objet le plus grand et le plus confiant
-  const bestObj = detection.objects.reduce((best, obj) =>
-    obj.area > best.area ? obj : best
-  );
+  const bestObj = detection.objects.reduce((best, obj) => (obj.area > best.area ? obj : best));
 
   // Taille typique basée sur la catégorie
   const typicalSizes: Record<string, number> = {

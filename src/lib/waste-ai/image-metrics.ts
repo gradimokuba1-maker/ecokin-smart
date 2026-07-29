@@ -49,7 +49,11 @@ export function normalizedSpanToMeters(
   sensorSizeMm: number,
   imageSizePx: number,
 ): number {
-  return normalizedSpan * imageSizePx * metersPerPixel(distanceM, focalLengthMm, sensorSizeMm, imageSizePx);
+  return (
+    normalizedSpan *
+    imageSizePx *
+    metersPerPixel(distanceM, focalLengthMm, sensorSizeMm, imageSizePx)
+  );
 }
 
 function loadImage(dataUrl: string): Promise<HTMLImageElement> {
@@ -73,7 +77,11 @@ function samplePixels(image: HTMLImageElement): {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Canvas 2D unavailable");
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return { width: canvas.width, height: canvas.height, data: ctx.getImageData(0, 0, canvas.width, canvas.height).data };
+  return {
+    width: canvas.width,
+    height: canvas.height,
+    data: ctx.getImageData(0, 0, canvas.width, canvas.height).data,
+  };
 }
 
 function isWasteLikePixel(r: number, g: number, b: number): boolean {
@@ -131,7 +139,10 @@ function normalizeComposition(entries: CompositionEntry[]): CompositionEntry[] {
   const total = entries.reduce((sum, entry) => sum + entry.percentage, 0);
   if (total <= 0) return [{ material: "inconnu", percentage: 100 }];
   const normalized = entries
-    .map((entry) => ({ material: entry.material, percentage: Math.round((entry.percentage / total) * 100) }))
+    .map((entry) => ({
+      material: entry.material,
+      percentage: Math.round((entry.percentage / total) * 100),
+    }))
     .filter((entry) => entry.percentage > 0)
     .sort((a, b) => b.percentage - a.percentage);
   const pctTotal = normalized.reduce((sum, entry) => sum + entry.percentage, 0);
@@ -205,13 +216,17 @@ export async function analyzeImageContent(imageDataUrl: string): Promise<ImageCo
   const contrast = clamp(Math.sqrt(Math.max(0, variance)) / 80, 0, 1);
   const brightness = clamp(meanLum / 255, 0, 1);
   const sharpness = computeSharpness(data, width, height);
-  const qualityScore = clamp(sharpness * 0.45 + contrast * 0.3 + (1 - Math.abs(brightness - 0.5) * 2) * 0.25, 0, 1);
+  const qualityScore = clamp(
+    sharpness * 0.45 + contrast * 0.3 + (1 - Math.abs(brightness - 0.5) * 2) * 0.25,
+    0,
+    1,
+  );
 
   let wasteBoundingBox: BoundingBox;
   if (wastePixels > totalPixels * 0.02 && maxX > minX && maxY > minY) {
     wasteBoundingBox = {
-      x: ((minX + maxX) / 2) / width,
-      y: ((minY + maxY) / 2) / height,
+      x: (minX + maxX) / 2 / width,
+      y: (minY + maxY) / 2 / height,
       width: (maxX - minX + 1) / width,
       height: (maxY - minY + 1) / height,
     };

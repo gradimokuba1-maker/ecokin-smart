@@ -135,7 +135,8 @@ const DEFAULT_SETTINGS: AdminSettings = {
   },
   platform: {
     platformName: "EcoKin Smart",
-    platformDescription: "Plateforme Smart City pour la gestion intelligente des déchets sur les 24 communes de Kinshasa.",
+    platformDescription:
+      "Plateforme Smart City pour la gestion intelligente des déchets sur les 24 communes de Kinshasa.",
     contactEmail: "contact@ecokin.cd",
     contactPhone: "+243 800 000 000",
     address: "Kinshasa, République Démocratique du Congo",
@@ -281,22 +282,25 @@ export function useAdminSettings() {
     });
   }, []);
 
-  const updateSection = useCallback(<K extends keyof AdminSettings>(section: K, values: Partial<AdminSettings[K]>) => {
-    setSettings((prev) => {
-      const next = {
-        ...prev,
-        [section]: { ...prev[section], ...values },
-      };
-      write(next);
-      logAudit({
-        user: "Administrateur",
-        role: "admin",
-        action: "settings_update",
-        details: `Mise à jour: ${section}`,
+  const updateSection = useCallback(
+    <K extends keyof AdminSettings>(section: K, values: Partial<AdminSettings[K]>) => {
+      setSettings((prev) => {
+        const next = {
+          ...prev,
+          [section]: { ...prev[section], ...values },
+        };
+        write(next);
+        logAudit({
+          user: "Administrateur",
+          role: "admin",
+          action: "settings_update",
+          details: `Mise à jour: ${section}`,
+        });
+        return next;
       });
-      return next;
-    });
-  }, []);
+    },
+    [],
+  );
 
   const resetSettings = useCallback(() => {
     write(DEFAULT_SETTINGS);

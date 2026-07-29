@@ -9,7 +9,16 @@ export type Commune = {
   color: string;
 };
 
-const COMMUNE_COLORS = ["#10b981", "#0ea5e9", "#f59e0b", "#6366f1", "#ef4444", "#14b8a6", "#8b5cf6", "#84cc16"];
+const COMMUNE_COLORS = [
+  "#10b981",
+  "#0ea5e9",
+  "#f59e0b",
+  "#6366f1",
+  "#ef4444",
+  "#14b8a6",
+  "#8b5cf6",
+  "#84cc16",
+];
 
 export const COMMUNES: Commune[] = KINSHASA_COMMUNES.map((commune, index) => ({
   ...commune,
@@ -56,16 +65,23 @@ export type Report = {
   points: number;
 };
 
-const r = (lat: number, lng: number, spread = 0.012) => [
-  lat + (Math.random() - 0.5) * spread,
-  lng + (Math.random() - 0.5) * spread,
-] as [number, number];
+const r = (lat: number, lng: number, spread = 0.012) =>
+  [lat + (Math.random() - 0.5) * spread, lng + (Math.random() - 0.5) * spread] as [number, number];
 
 function seed(commune: Commune, count: number, baseId: number): Report[] {
   const types: WasteType[] = ["plastique", "plastique", "plastique", "organique", "metal", "mixte"];
   const sevs: Severity[] = ["faible", "modere", "modere", "critique"];
   const statuses: Report["status"][] = ["nouveau", "en_cours", "resolu"];
-  const authors = ["M. Kabasele", "S. Malu", "F. Bilonda", "J. Mukendi", "P. Tshibanda", "A. Nzuzi", "C. Mbuyi", "D. Lwamba"];
+  const authors = [
+    "M. Kabasele",
+    "S. Malu",
+    "F. Bilonda",
+    "J. Mukendi",
+    "P. Tshibanda",
+    "A. Nzuzi",
+    "C. Mbuyi",
+    "D. Lwamba",
+  ];
   return Array.from({ length: count }, (_, i) => {
     const [lat, lng] = r(commune.center[0], commune.center[1]);
     const type = types[i % types.length];
@@ -95,7 +111,8 @@ function seed(commune: Commune, count: number, baseId: number): Report[] {
 export const REPORTS: Report[] = [];
 void seed;
 
-export type InfrastructureKind = "transfert" | "regroupement" | "valorisation" | "traitement" | "collecte" | "tri" | "recyclage";
+export type InfrastructureKind =
+  "transfert" | "regroupement" | "valorisation" | "traitement" | "collecte" | "tri" | "recyclage";
 
 export const COLLECTION_POINTS: {
   id: string;
@@ -164,7 +181,14 @@ export const COLLECTION_POINTS: {
 });
 
 // Classement citoyens — alimenté par les vrais signalements après réinitialisation.
-export const LEADERBOARD: { rank: number; name: string; commune: string; points: number; reports: number; badges: string[] }[] = [];
+export const LEADERBOARD: {
+  rank: number;
+  name: string;
+  commune: string;
+  points: number;
+  reports: number;
+  badges: string[];
+}[] = [];
 
 export const REWARDS = [
   { id: "rw1", name: "Crédit Orange 1 000 CDF", cost: 500, kind: "telecom" },
@@ -176,7 +200,13 @@ export const REWARDS = [
 ];
 
 // Aucune alerte pré-remplie : les alertes seront calculées à partir des données terrain.
-export const ALERTS: { id: string; title: string; body: string; level: "critique" | "info"; date: string }[] = [];
+export const ALERTS: {
+  id: string;
+  title: string;
+  body: string;
+  level: "critique" | "info";
+  date: string;
+}[] = [];
 
 export const TIPS = [
   "Un sachet plastique met jusqu'à 400 ans à se décomposer dans nos caniveaux.",
@@ -187,41 +217,141 @@ export const TIPS = [
 ];
 
 // KPIs par commune — réinitialisés. Alimentés dynamiquement par les signalements réels.
-export const COMMUNE_KPIS: Record<string, { signalements: number; collecte_t: number; recyclage: number; risque: number }> = {};
+export const COMMUNE_KPIS: Record<
+  string,
+  { signalements: number; collecte_t: number; recyclage: number; risque: number }
+> = {};
 
 export const MONTHLY_TREND: { mois: string; signalements: number; collecte: number }[] = [];
 
 // Zones à risque d'inondation — calculées dynamiquement à partir des données météo & signalements.
-export const FLOOD_RISK_ZONES: { commune: string; lat: number; lng: number; radius: number; level: string }[] = [];
+export const FLOOD_RISK_ZONES: {
+  commune: string;
+  lat: number;
+  lng: number;
+  radius: number;
+  level: string;
+}[] = [];
 
 // ---------- SIG layers (équipements urbains) ----------
 export type PoiKind = "ecole" | "hopital" | "marche";
-export const POIS: { id: string; name: string; kind: PoiKind; lat: number; lng: number; commune: Commune["id"] }[] = [
-  { id: "ec1", name: "École Lumumba", kind: "ecole", lat: -4.382, lng: 15.330, commune: "matete" },
+export const POIS: {
+  id: string;
+  name: string;
+  kind: PoiKind;
+  lat: number;
+  lng: number;
+  commune: Commune["id"];
+}[] = [
+  { id: "ec1", name: "École Lumumba", kind: "ecole", lat: -4.382, lng: 15.33, commune: "matete" },
   { id: "ec2", name: "Lycée Bosangani", kind: "ecole", lat: -4.378, lng: 15.298, commune: "lemba" },
-  { id: "ec3", name: "Institut Kisenso", kind: "ecole", lat: -4.414, lng: 15.335, commune: "kisenso" },
-  { id: "ec4", name: "École Mokali", kind: "ecole", lat: -4.420, lng: 15.341, commune: "kisenso" },
-  { id: "hp1", name: "Hôpital général Matete", kind: "hopital", lat: -4.385, lng: 15.332, commune: "matete" },
-  { id: "hp2", name: "Centre médical Lemba", kind: "hopital", lat: -4.380, lng: 15.296, commune: "lemba" },
-  { id: "hp3", name: "Hôpital Kisenso", kind: "hopital", lat: -4.412, lng: 15.338, commune: "kisenso" },
+  {
+    id: "ec3",
+    name: "Institut Kisenso",
+    kind: "ecole",
+    lat: -4.414,
+    lng: 15.335,
+    commune: "kisenso",
+  },
+  { id: "ec4", name: "École Mokali", kind: "ecole", lat: -4.42, lng: 15.341, commune: "kisenso" },
+  {
+    id: "hp1",
+    name: "Hôpital général Matete",
+    kind: "hopital",
+    lat: -4.385,
+    lng: 15.332,
+    commune: "matete",
+  },
+  {
+    id: "hp2",
+    name: "Centre médical Lemba",
+    kind: "hopital",
+    lat: -4.38,
+    lng: 15.296,
+    commune: "lemba",
+  },
+  {
+    id: "hp3",
+    name: "Hôpital Kisenso",
+    kind: "hopital",
+    lat: -4.412,
+    lng: 15.338,
+    commune: "kisenso",
+  },
   { id: "mk1", name: "Marché Matete", kind: "marche", lat: -4.386, lng: 15.335, commune: "matete" },
-  { id: "mk2", name: "Marché Lemba-Terminus", kind: "marche", lat: -4.379, lng: 15.300, commune: "lemba" },
-  { id: "mk3", name: "Marché Kimpwanza", kind: "marche", lat: -4.417, lng: 15.340, commune: "kisenso" },
+  {
+    id: "mk2",
+    name: "Marché Lemba-Terminus",
+    kind: "marche",
+    lat: -4.379,
+    lng: 15.3,
+    commune: "lemba",
+  },
+  {
+    id: "mk3",
+    name: "Marché Kimpwanza",
+    kind: "marche",
+    lat: -4.417,
+    lng: 15.34,
+    commune: "kisenso",
+  },
 ];
 
 // Décharges sauvages & caniveaux obstrués — alimentés uniquement par les signalements terrain.
-export const ILLEGAL_DUMPS: { id: string; name: string; lat: number; lng: number; commune: string; volumeM3: number }[] = [];
+export const ILLEGAL_DUMPS: {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  commune: string;
+  volumeM3: number;
+}[] = [];
 
-export const BLOCKED_DRAINS: { id: string; name: string; lat: number; lng: number; commune: string; blockedPct: number }[] = [];
+export const BLOCKED_DRAINS: {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  commune: string;
+  blockedPct: number;
+}[] = [];
 
 export const MAIN_ROADS: { name: string; path: [number, number][] }[] = [
-  { name: "Bd Lumumba", path: [[-4.370, 15.290], [-4.385, 15.320], [-4.405, 15.345]] },
-  { name: "Av. By-Pass", path: [[-4.378, 15.295], [-4.392, 15.320], [-4.418, 15.342]] },
+  {
+    name: "Bd Lumumba",
+    path: [
+      [-4.37, 15.29],
+      [-4.385, 15.32],
+      [-4.405, 15.345],
+    ],
+  },
+  {
+    name: "Av. By-Pass",
+    path: [
+      [-4.378, 15.295],
+      [-4.392, 15.32],
+      [-4.418, 15.342],
+    ],
+  },
 ];
 
 export const RIVERS: { name: string; path: [number, number][] }[] = [
-  { name: "Rivière Matete", path: [[-4.378, 15.325], [-4.388, 15.334], [-4.400, 15.342]] },
-  { name: "Bassin Kisenso", path: [[-4.410, 15.330], [-4.418, 15.339], [-4.425, 15.348]] },
+  {
+    name: "Rivière Matete",
+    path: [
+      [-4.378, 15.325],
+      [-4.388, 15.334],
+      [-4.4, 15.342],
+    ],
+  },
+  {
+    name: "Bassin Kisenso",
+    path: [
+      [-4.41, 15.33],
+      [-4.418, 15.339],
+      [-4.425, 15.348],
+    ],
+  },
 ];
 
 // ---------- Flotte de camions (suivi GPS simulé) ----------
@@ -275,13 +405,28 @@ export type Intervention = {
 export const INTERVENTIONS: Intervention[] = [];
 
 // Budgets communaux — à saisir par les autorités.
-export const COMMUNE_BUDGET: Record<string, { hebdo: number; mensuel: number; cout_tonne: number }> = {};
+export const COMMUNE_BUDGET: Record<
+  string,
+  { hebdo: number; mensuel: number; cout_tonne: number }
+> = {};
 
-export const AI_RECOMMENDATIONS: { id: string; priorite: number; commune: string; titre: string; motif: string; camions: number; equipes: number; eta: string }[] = [];
+export const AI_RECOMMENDATIONS: {
+  id: string;
+  priorite: number;
+  commune: string;
+  titre: string;
+  motif: string;
+  camions: number;
+  equipes: number;
+  eta: string;
+}[] = [];
 
-export const PRIORITY_ALERTS: { id: string; level: "critique" | "eleve" | "modere"; commune: string; msg: string }[] = [];
-
-
+export const PRIORITY_ALERTS: {
+  id: string;
+  level: "critique" | "eleve" | "modere";
+  commune: string;
+  msg: string;
+}[] = [];
 
 // ---------- Hotspots prédictifs (analyse récurrente) ----------
 export type Hotspot = {
@@ -300,7 +445,16 @@ export const HOTSPOTS: Hotspot[] = [];
 
 // ---------- Performance des communes ----------
 // Les indicateurs sont calculés à partir des signalements et interventions réels.
-export const COMMUNE_PERFORMANCE: Record<string, { ipk: number; tauxCollecte: number; tauxResolution: number; tauxValorisation: number; tempsReponseH: number }> = {};
+export const COMMUNE_PERFORMANCE: Record<
+  string,
+  {
+    ipk: number;
+    tauxCollecte: number;
+    tauxResolution: number;
+    tauxValorisation: number;
+    tempsReponseH: number;
+  }
+> = {};
 
 // ---------- Mur des Décisions ----------
 export type Decision = {
@@ -319,10 +473,23 @@ export type Decision = {
 export const DECISIONS: Decision[] = [];
 
 // ---------- Historique des interventions résolues ----------
-export const INTERVENTION_HISTORY: { date: string; commune: string; type: string; duree_h: number; volume_m3: number; equipe: string }[] = [];
+export const INTERVENTION_HISTORY: {
+  date: string;
+  commune: string;
+  type: string;
+  duree_h: number;
+  volume_m3: number;
+  equipe: string;
+}[] = [];
 
 // ---------- Évolution mensuelle de la propreté ----------
-export const IPK_TREND: { mois: string; matete: number; lemba: number; kisenso: number; kinshasa: number }[] = [];
+export const IPK_TREND: {
+  mois: string;
+  matete: number;
+  lemba: number;
+  kisenso: number;
+  kinshasa: number;
+}[] = [];
 
 // ---------- Helpers ----------
 export function detectCommune(lat: number, lng: number): Commune["id"] {
@@ -351,15 +518,21 @@ export function priorityScore(input: {
     const d = Math.hypot(p.lat - input.lat, p.lng - input.lng);
     return d < 0.005; // ~550 m
   });
-  const prox =
-    pois.some((p) => p.kind === "hopital") ? 18 :
-    pois.some((p) => p.kind === "ecole") ? 14 :
-    pois.some((p) => p.kind === "marche") ? 10 : 0;
-  const flood = FLOOD_RISK_ZONES.some((z) => z.commune === input.commune &&
-    Math.hypot(z.lat - input.lat, z.lng - input.lng) * 111000 < z.radius)
-    ? 18 : 0;
-  const density =
-    input.commune === "kisenso" ? 8 : input.commune === "lemba" ? 6 : 5;
+  const prox = pois.some((p) => p.kind === "hopital")
+    ? 18
+    : pois.some((p) => p.kind === "ecole")
+      ? 14
+      : pois.some((p) => p.kind === "marche")
+        ? 10
+        : 0;
+  const flood = FLOOD_RISK_ZONES.some(
+    (z) =>
+      z.commune === input.commune &&
+      Math.hypot(z.lat - input.lat, z.lng - input.lng) * 111000 < z.radius,
+  )
+    ? 18
+    : 0;
+  const density = input.commune === "kisenso" ? 8 : input.commune === "lemba" ? 6 : 5;
   const signals = Math.min(8, (input.signalsCount ?? 0) / 3);
   return Math.min(100, Math.round(sev + prox + flood + density + signals));
 }
@@ -369,7 +542,10 @@ export function proximityAlerts(lat: number, lng: number): string[] {
   const out: string[] = [];
   POIS.forEach((p) => {
     const d = Math.hypot(p.lat - lat, p.lng - lng) * 111000; // m
-    if (d < 250) out.push(`${p.kind === "ecole" ? "École" : p.kind === "hopital" ? "Hôpital" : "Marché"} ${p.name} à ${Math.round(d)} m`);
+    if (d < 250)
+      out.push(
+        `${p.kind === "ecole" ? "École" : p.kind === "hopital" ? "Hôpital" : "Marché"} ${p.name} à ${Math.round(d)} m`,
+      );
   });
   return out;
 }

@@ -11,15 +11,19 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "./ui/button";
 
-export function HouseholdList({ setView }: { setView: (view: "list" | "form" | "dashboard" | "zones" | "settings") => void }) {
+export function HouseholdList({
+  setView,
+}: {
+  setView: (view: "list" | "form" | "dashboard" | "zones" | "settings") => void;
+}) {
   const { households } = useHouseholds();
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-            <CardTitle>Ménages</CardTitle>
-            <CardDescription>Liste des ménages enregistrés.</CardDescription>
+          <CardTitle>Ménages</CardTitle>
+          <CardDescription>Liste des ménages enregistrés.</CardDescription>
         </div>
         <Button onClick={() => setView("form")}>Ajouter un ménage</Button>
       </CardHeader>

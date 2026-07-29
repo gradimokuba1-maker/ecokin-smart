@@ -35,7 +35,16 @@ const MAX_TRACK = 200;
 function seed(): Vehicle[] {
   const c = KINSHASA.center;
   const now = new Date().toISOString();
-  const mk = (id: string, plate: string, driver: string, commune: string, off: [number, number], route: [number, number][], status: VehicleStatus, load: number): Vehicle => ({
+  const mk = (
+    id: string,
+    plate: string,
+    driver: string,
+    commune: string,
+    off: [number, number],
+    route: [number, number][],
+    status: VehicleStatus,
+    load: number,
+  ): Vehicle => ({
     id,
     plate,
     driver,
@@ -46,16 +55,97 @@ function seed(): Vehicle[] {
     lastFixAt: now,
     route,
     track: [],
-    current: { lat: c[0] + off[0], lng: c[1] + off[1], speedKmh: status === "en_circulation" ? 22 : 0, headingDeg: 90, at: now },
+    current: {
+      lat: c[0] + off[0],
+      lng: c[1] + off[1],
+      speedKmh: status === "en_circulation" ? 22 : 0,
+      headingDeg: 90,
+      at: now,
+    },
     deviationMeters: 0,
   });
   return [
-    mk("T-01", "CD-2041-AA", "B. Kasongo", "Gombe", [0.01, -0.02], [[-4.315, 15.30], [-4.32, 15.31], [-4.33, 15.32]], "en_circulation", 62),
-    mk("T-02", "CD-3187-BK", "P. Mwamba", "Lemba", [-0.05, -0.015], [[-4.38, 15.29], [-4.385, 15.295], [-4.39, 15.30]], "en_circulation", 30),
-    mk("T-03", "CD-4421-CK", "J. Ilunga", "Kisenso", [-0.08, 0.005], [[-4.41, 15.335], [-4.42, 15.34], [-4.425, 15.345]], "en_circulation", 84),
-    mk("T-04", "CD-1209-DK", "S. Mbala", "Ngaliema", [-0.02, -0.06], [[-4.35, 15.25], [-4.355, 15.26]], "arret", 100),
-    mk("T-05", "CD-5566-EK", "M. Tshala", "Matete", [-0.05, 0.005], [[-4.38, 15.33], [-4.385, 15.335]], "en_circulation", 45),
-    mk("T-06", "CD-7788-FK", "L. Nzuzi", "Masina", [-0.04, 0.06], [[-4.377, 15.373], [-4.38, 15.38]], "hors_ligne", 12),
+    mk(
+      "T-01",
+      "CD-2041-AA",
+      "B. Kasongo",
+      "Gombe",
+      [0.01, -0.02],
+      [
+        [-4.315, 15.3],
+        [-4.32, 15.31],
+        [-4.33, 15.32],
+      ],
+      "en_circulation",
+      62,
+    ),
+    mk(
+      "T-02",
+      "CD-3187-BK",
+      "P. Mwamba",
+      "Lemba",
+      [-0.05, -0.015],
+      [
+        [-4.38, 15.29],
+        [-4.385, 15.295],
+        [-4.39, 15.3],
+      ],
+      "en_circulation",
+      30,
+    ),
+    mk(
+      "T-03",
+      "CD-4421-CK",
+      "J. Ilunga",
+      "Kisenso",
+      [-0.08, 0.005],
+      [
+        [-4.41, 15.335],
+        [-4.42, 15.34],
+        [-4.425, 15.345],
+      ],
+      "en_circulation",
+      84,
+    ),
+    mk(
+      "T-04",
+      "CD-1209-DK",
+      "S. Mbala",
+      "Ngaliema",
+      [-0.02, -0.06],
+      [
+        [-4.35, 15.25],
+        [-4.355, 15.26],
+      ],
+      "arret",
+      100,
+    ),
+    mk(
+      "T-05",
+      "CD-5566-EK",
+      "M. Tshala",
+      "Matete",
+      [-0.05, 0.005],
+      [
+        [-4.38, 15.33],
+        [-4.385, 15.335],
+      ],
+      "en_circulation",
+      45,
+    ),
+    mk(
+      "T-06",
+      "CD-7788-FK",
+      "L. Nzuzi",
+      "Masina",
+      [-0.04, 0.06],
+      [
+        [-4.377, 15.373],
+        [-4.38, 15.38],
+      ],
+      "hors_ligne",
+      12,
+    ),
   ];
 }
 
@@ -89,13 +179,24 @@ function stepVehicle(v: Vehicle): Vehicle {
   // déviation approx = distance au 1er waypoint le plus proche
   const dev = v.route.length
     ? Math.min(
-        ...v.route.map((p) => Math.hypot((p[0] - lat) * 111000, (p[1] - lng) * 111000 * Math.cos((lat * Math.PI) / 180))),
+        ...v.route.map((p) =>
+          Math.hypot(
+            (p[0] - lat) * 111000,
+            (p[1] - lng) * 111000 * Math.cos((lat * Math.PI) / 180),
+          ),
+        ),
       )
     : 0;
   return { ...v, current: fix, track, lastFixAt: at, deviationMeters: Math.round(dev) };
 }
 
-export type FleetAlert = { id: string; vehicleId: string; kind: "hors_zone" | "arret_prolonge" | "deviation" | "hors_ligne"; msg: string; at: string };
+export type FleetAlert = {
+  id: string;
+  vehicleId: string;
+  kind: "hors_zone" | "arret_prolonge" | "deviation" | "hors_ligne";
+  msg: string;
+  at: string;
+};
 
 export function useFleet(intervalMs = 4000) {
   const [items, setItems] = useState<Vehicle[]>(() => read());
@@ -121,13 +222,31 @@ export function useFleet(intervalMs = 4000) {
       const now = new Date().toISOString();
       next.forEach((v) => {
         if (v.deviationMeters > 400 && v.status === "en_circulation") {
-          newAlerts.push({ id: `${v.id}-dev-${Date.now()}`, vehicleId: v.id, kind: "deviation", msg: `${v.id} : déviation d'itinéraire (${v.deviationMeters} m)`, at: now });
+          newAlerts.push({
+            id: `${v.id}-dev-${Date.now()}`,
+            vehicleId: v.id,
+            kind: "deviation",
+            msg: `${v.id} : déviation d'itinéraire (${v.deviationMeters} m)`,
+            at: now,
+          });
         }
         if (v.status === "arret" && v.current.speedKmh === 0 && v.loadPct < 100) {
-          newAlerts.push({ id: `${v.id}-stop-${Date.now()}`, vehicleId: v.id, kind: "arret_prolonge", msg: `${v.id} : arrêt prolongé (${v.commune})`, at: now });
+          newAlerts.push({
+            id: `${v.id}-stop-${Date.now()}`,
+            vehicleId: v.id,
+            kind: "arret_prolonge",
+            msg: `${v.id} : arrêt prolongé (${v.commune})`,
+            at: now,
+          });
         }
         if (v.status === "hors_ligne") {
-          newAlerts.push({ id: `${v.id}-off-${Date.now()}`, vehicleId: v.id, kind: "hors_ligne", msg: `${v.id} : hors ligne`, at: now });
+          newAlerts.push({
+            id: `${v.id}-off-${Date.now()}`,
+            vehicleId: v.id,
+            kind: "hors_ligne",
+            msg: `${v.id} : hors ligne`,
+            at: now,
+          });
         }
       });
       if (newAlerts.length) setAlerts((a) => [...newAlerts, ...a].slice(0, 30));
@@ -151,7 +270,10 @@ export function useFleet(intervalMs = 4000) {
 }
 
 // Optimisation naïve : plus proche voisin sur les waypoints.
-export function optimizeRoute(points: [number, number][], start?: [number, number]): [number, number][] {
+export function optimizeRoute(
+  points: [number, number][],
+  start?: [number, number],
+): [number, number][] {
   if (points.length <= 2) return points;
   const remaining = points.slice();
   const result: [number, number][] = [];

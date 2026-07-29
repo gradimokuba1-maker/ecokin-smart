@@ -17,7 +17,13 @@ import { Cloud, CloudLightning, CloudRain, Sun, AlertTriangle } from "lucide-rea
 
 const WEATHER_ICONS = { sun: Sun, cloud: Cloud, rain: CloudRain, storm: CloudLightning };
 const riskBg = (l: string) =>
-  l === "critique" ? "bg-red-500" : l === "eleve" ? "bg-orange-500" : l === "modere" ? "bg-amber-500" : "bg-emerald-500";
+  l === "critique"
+    ? "bg-red-500"
+    : l === "eleve"
+      ? "bg-orange-500"
+      : l === "modere"
+        ? "bg-amber-500"
+        : "bg-emerald-500";
 
 type Props = {
   reports?: Report[];
@@ -132,7 +138,8 @@ export function EcoMap({
 
       if (showFloodZones) {
         FLOOD_RISK_ZONES.forEach((z) => {
-          const color = z.level === "critique" ? "#ef4444" : z.level === "eleve" ? "#f97316" : "#f59e0b";
+          const color =
+            z.level === "critique" ? "#ef4444" : z.level === "eleve" ? "#f97316" : "#f59e0b";
           L.circle([z.lat, z.lng], { radius: z.radius, color, weight: 1, fillOpacity: 0.15 })
             .bindPopup(
               `<strong>Zone à risque d'inondation</strong><br/>Commune : ${z.commune}<br/>Niveau : <b style="color:${color}">${z.level}</b>`,
@@ -181,7 +188,9 @@ export function EcoMap({
             fillColor: "#b45309",
             fillOpacity: 0.85,
           })
-            .bindPopup(`<strong>Décharge sauvage</strong><br/>${d.name}<br/>Volume : ${d.volumeM3} m³`)
+            .bindPopup(
+              `<strong>Décharge sauvage</strong><br/>${d.name}<br/>Volume : ${d.volumeM3} m³`,
+            )
             .addTo(map);
         });
       }
@@ -196,7 +205,9 @@ export function EcoMap({
             fillColor: col,
             fillOpacity: 0.6,
           })
-            .bindPopup(`<strong>Caniveau obstrué</strong><br/>${d.name}<br/>Obstruction : <b style="color:${col}">${d.blockedPct}%</b>`)
+            .bindPopup(
+              `<strong>Caniveau obstrué</strong><br/>${d.name}<br/>Obstruction : <b style="color:${col}">${d.blockedPct}%</b>`,
+            )
             .addTo(map);
         });
       }
@@ -229,7 +240,18 @@ export function EcoMap({
         mapRef.current = null;
       }
     };
-  }, [reports, showCollection, showFloodZones, showPois, showDumps, showDrains, showRoads, showRivers, focusCommune, onSelectReport]);
+  }, [
+    reports,
+    showCollection,
+    showFloodZones,
+    showPois,
+    showDumps,
+    showDrains,
+    showRoads,
+    showRivers,
+    focusCommune,
+    onSelectReport,
+  ]);
 
   // Update trucks live without rebuilding the map
   useEffect(() => {
@@ -238,7 +260,14 @@ export function EcoMap({
       const L = (await import("leaflet")).default;
       truckLayerRef.current.clearLayers();
       trucks.forEach((t) => {
-        const col = t.status === "collecte" ? "#10b981" : t.status === "en_route" ? "#0ea5e9" : t.status === "depot" ? "#6366f1" : "#94a3b8";
+        const col =
+          t.status === "collecte"
+            ? "#10b981"
+            : t.status === "en_route"
+              ? "#0ea5e9"
+              : t.status === "depot"
+                ? "#6366f1"
+                : "#94a3b8";
         L.marker([t.lat, t.lng], {
           icon: L.divIcon({
             className: "",
@@ -287,11 +316,15 @@ export function EcoMap({
                 const Icon = WEATHER_ICONS[d.icon];
                 return (
                   <div key={d.day} className="rounded-lg bg-background p-1.5 text-center">
-                    <div className="truncate text-[9px] font-bold uppercase text-muted-foreground">{d.day}</div>
+                    <div className="truncate text-[9px] font-bold uppercase text-muted-foreground">
+                      {d.day}
+                    </div>
                     <Icon className="mx-auto mt-0.5 size-4 text-kin" />
                     <div className="text-[10px] font-bold">{d.tempC}°</div>
                     <div className="text-[9px] text-muted-foreground">{d.rainMm}mm</div>
-                    <span className={`mx-auto mt-1 block h-1 w-5 rounded-full ${riskBg(d.floodRisk)}`} />
+                    <span
+                      className={`mx-auto mt-1 block h-1 w-5 rounded-full ${riskBg(d.floodRisk)}`}
+                    />
                   </div>
                 );
               })}

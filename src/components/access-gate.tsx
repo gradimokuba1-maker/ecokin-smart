@@ -21,7 +21,8 @@ export function AccessGate({ required, title, children }: Props) {
 
   if (
     required.includes(session.role as any) &&
-    ((session.role !== "agent" && session.role !== "bourgmestre" && session.role !== "admin") || session.commune)
+    ((session.role !== "agent" && session.role !== "bourgmestre" && session.role !== "admin") ||
+      session.commune)
   ) {
     return <>{children}</>;
   }
@@ -42,7 +43,8 @@ export function AccessGate({ required, title, children }: Props) {
             </div>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Cet espace est réservé aux responsables habilités. Connectez-vous avec votre identifiant institutionnel et votre mot de passe.
+            Cet espace est réservé aux responsables habilités. Connectez-vous avec votre identifiant
+            institutionnel et votre mot de passe.
           </p>
 
           <form
@@ -61,7 +63,9 @@ export function AccessGate({ required, title, children }: Props) {
             className="mt-5 space-y-3"
           >
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Rôle</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Rôle
+              </label>
               <select
                 value={role}
                 onChange={(e) => {
@@ -72,13 +76,21 @@ export function AccessGate({ required, title, children }: Props) {
               >
                 {required.map((r) => (
                   <option key={r} value={r}>
-                    {r === "gouverneur" ? "Gouverneur" : r === "bourgmestre" ? "Bourgmestre" : r === "agent" ? "Agent" : "Administrateur"}
+                    {r === "gouverneur"
+                      ? "Gouverneur"
+                      : r === "bourgmestre"
+                        ? "Bourgmestre"
+                        : r === "agent"
+                          ? "Agent"
+                          : "Administrateur"}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Identifiant</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Identifiant
+              </label>
               <input
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
@@ -88,7 +100,9 @@ export function AccessGate({ required, title, children }: Props) {
               />
             </div>
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Mot de passe</label>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Mot de passe
+              </label>
               <input
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -106,14 +120,21 @@ export function AccessGate({ required, title, children }: Props) {
               <ShieldCheck className="size-4" /> Se connecter
             </button>
             <details className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
-              <summary className="cursor-pointer font-semibold">Identifiants de démonstration</summary>
+              <summary className="cursor-pointer font-semibold">
+                Identifiants de démonstration
+              </summary>
               <ul className="mt-2 space-y-0.5 font-mono">
                 {Object.entries(ACCESS_CODES).map(([r, c]) => (
-                  <li key={r}>{r} : {c}</li>
+                  <li key={r}>
+                    {r} : {c}
+                  </li>
                 ))}
               </ul>
             </details>
-            <Link to="/" className="block text-center text-xs text-muted-foreground hover:underline">
+            <Link
+              to="/"
+              className="block text-center text-xs text-muted-foreground hover:underline"
+            >
               ← Retour à l'accueil
             </Link>
           </form>

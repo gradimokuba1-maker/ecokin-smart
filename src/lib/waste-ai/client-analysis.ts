@@ -61,12 +61,27 @@ function locationFromCapture(capture: WasteCaptureForAnalysis): LocationInfo {
   throw new Error("GPS location is required for waste analysis");
 }
 
-function recommendationFor(risks: { health: RiskLevel; environmental: RiskLevel; pollution: RiskLevel; fire: RiskLevel; obstruction: RiskLevel; floodRisk: boolean }) {
+function recommendationFor(risks: {
+  health: RiskLevel;
+  environmental: RiskLevel;
+  pollution: RiskLevel;
+  fire: RiskLevel;
+  obstruction: RiskLevel;
+  floodRisk: boolean;
+}) {
   const recommendations = ["Transmettre le signalement à l’équipe de collecte compétente."];
-  if (risks.health === "eleve") recommendations.unshift("Prévoir des EPI et isoler la zone avant la collecte.");
-  if (risks.pollution === "eleve") recommendations.unshift("Éviter tout écoulement vers les caniveaux et sécuriser les déchets dangereux.");
-  if (risks.fire === "eleve") recommendations.unshift("Éloigner les sources de chaleur et demander une vérification incendie.");
-  if (risks.floodRisk) recommendations.push("Dégager le caniveau ou l’accès hydraulique en priorité.");
+  if (risks.health === "eleve")
+    recommendations.unshift("Prévoir des EPI et isoler la zone avant la collecte.");
+  if (risks.pollution === "eleve")
+    recommendations.unshift(
+      "Éviter tout écoulement vers les caniveaux et sécuriser les déchets dangereux.",
+    );
+  if (risks.fire === "eleve")
+    recommendations.unshift(
+      "Éloigner les sources de chaleur et demander une vérification incendie.",
+    );
+  if (risks.floodRisk)
+    recommendations.push("Dégager le caniveau ou l’accès hydraulique en priorité.");
   return recommendations.slice(0, 4);
 }
 
@@ -91,17 +106,28 @@ function labelForMaterial(material: WasteMaterial) {
   return "Dechets mixtes";
 }
 
-function assessRisks(composition: { material: string; percentage: number }[], volumeM3: number, wasteAreaPercent: number) {
-  const share = (material: string) => (composition.find((entry) => entry.material === material)?.percentage ?? 0) / 100;
+function assessRisks(
+  composition: { material: string; percentage: number }[],
+  volumeM3: number,
+  wasteAreaPercent: number,
+) {
+  const share = (material: string) =>
+    (composition.find((entry) => entry.material === material)?.percentage ?? 0) / 100;
   const hazardous = share("dangereux") + share("electronique");
   const plastic = share("plastique");
   const organic = share("organique") + share("menager");
   const construction = share("construction");
   const health = level(organic * 0.8 + hazardous + Math.min(0.35, volumeM3 / 30));
-  const environmental = level(plastic * 0.55 + hazardous + construction * 0.25 + Math.min(0.25, wasteAreaPercent / 300));
+  const environmental = level(
+    plastic * 0.55 + hazardous + construction * 0.25 + Math.min(0.25, wasteAreaPercent / 300),
+  );
   const pollution = level(hazardous + plastic * 0.45 + Math.min(0.25, volumeM3 / 40));
-  const fire = level(hazardous * 0.8 + plastic * 0.25 + share("textile") * 0.2 + share("pneu") * 0.35);
-  const obstruction = level(Math.min(1, wasteAreaPercent / 100) * 0.65 + Math.min(0.35, volumeM3 / 20));
+  const fire = level(
+    hazardous * 0.8 + plastic * 0.25 + share("textile") * 0.2 + share("pneu") * 0.35,
+  );
+  const obstruction = level(
+    Math.min(1, wasteAreaPercent / 100) * 0.65 + Math.min(0.35, volumeM3 / 20),
+  );
   const floodRisk = obstruction === "eleve" || (wasteAreaPercent > 55 && volumeM3 > 2);
   return { health, environmental, pollution, fire, obstruction, floodRisk };
 }
@@ -151,25 +177,47 @@ export async function analyzeWasteCapture(
       const combined = [...valid, quantified];
       const totalVolume = combined.reduce((sum, r) => sum + r.volume.m3, 0);
       const avgVolume = totalVolume / combined.length;
-      const avgConfidence = combined.reduce((sum, r) => sum + r.confidence.overall, 0) / combined.length;
+      const avgConfidence =
+        combined.reduce((sum, r) => sum + r.confidence.overall, 0) / combined.length;
       const avgWeight = combined.reduce((sum, r) => sum + r.weight.weightKg, 0) / combined.length;
-      const avgDensity = combined.reduce((sum, r) => sum + r.weight.densityKgM3, 0) / combined.length;
-      const avgArea = combined.reduce((sum, r) => sum + r.metadata.wasteAreaPercent, 0) / combined.length;
-      const mergedComposition = mergeMultiViewCompositions(combined.map((r) => r.categories.composition));
+      const avgDensity =
+        combined.reduce((sum, r) => sum + r.weight.densityKgM3, 0) / combined.length;
+      const avgArea =
+        combined.reduce((sum, r) => sum + r.metadata.wasteAreaPercent, 0) / combined.length;
+      const mergedComposition = mergeMultiViewCompositions(
+        combined.map((r) => r.categories.composition),
+      );
       const sorted = [...mergedComposition].sort((a, b) => b.percentage - a.percentage);
       const mainCategory = sorted[0]?.material ?? quantified.categories.main;
       const secondaryCategory = sorted.length > 1 ? sorted[1].material : undefined;
       quantified = {
         ...quantified,
         categories: { main: mainCategory, secondary: secondaryCategory, composition: sorted },
-        volume: { ...quantified.volume, m3: avgVolume, confidence: avgConfidence, dimensions: { ...quantified.volume.dimensions, volumeM3: avgVolume } },
-        weight: { ...quantified.weight, weightKg: avgWeight, weightTons: avgWeight / 1000, densityKgM3: avgDensity },
-        metadata: { ...quantified.metadata, wasteAreaPercent: Math.round(avgArea), modelsUsed: { ...quantified.metadata.modelsUsed } },
+        volume: {
+          ...quantified.volume,
+          m3: avgVolume,
+          confidence: avgConfidence,
+          dimensions: { ...quantified.volume.dimensions, volumeM3: avgVolume },
+        },
+        weight: {
+          ...quantified.weight,
+          weightKg: avgWeight,
+          weightTons: avgWeight / 1000,
+          densityKgM3: avgDensity,
+        },
+        metadata: {
+          ...quantified.metadata,
+          wasteAreaPercent: Math.round(avgArea),
+          modelsUsed: { ...quantified.metadata.modelsUsed },
+        },
         confidence: { ...quantified.confidence, overall: avgConfidence },
       };
     }
   }
-  const objectsByType = new Map<WasteObjectType, { score: number; confidence: number; count: number }>();
+  const objectsByType = new Map<
+    WasteObjectType,
+    { score: number; confidence: number; count: number }
+  >();
   for (const object of quantified.objects) {
     const current = objectsByType.get(object.displayLabel) ?? { score: 0, confidence: 0, count: 0 };
     current.count += 1;
@@ -190,7 +238,10 @@ export async function analyzeWasteCapture(
       if (entry.material === "inconnu") continue;
       detectedObjects.push({
         label: labelForMaterial(entry.material),
-        confidence: round(Math.max(0.25, quantified.confidence.detection || quantified.confidence.overall * 0.75), 2),
+        confidence: round(
+          Math.max(0.25, quantified.confidence.detection || quantified.confidence.overall * 0.75),
+          2,
+        ),
       });
     }
   }
@@ -205,15 +256,22 @@ export async function analyzeWasteCapture(
       confidence: round(Math.max(0.15, quantified.confidence.overall * (0.75 + ratio * 0.25)), 2),
     };
   });
-  const risks = assessRisks(quantified.categories.composition, quantified.volume.m3, quantified.metadata.wasteAreaPercent);
-  const priorityScore = Math.min(100, Math.round(
-    (risks.health === "eleve" ? 25 : risks.health === "modere" ? 13 : 4) +
-    (risks.environmental === "eleve" ? 20 : risks.environmental === "modere" ? 10 : 3) +
-    (risks.pollution === "eleve" ? 18 : risks.pollution === "modere" ? 8 : 2) +
-    (risks.fire === "eleve" ? 15 : risks.fire === "modere" ? 7 : 0) +
-    (risks.floodRisk ? 17 : 0) +
-    (quantified.volume.m3 > 10 ? 12 : quantified.volume.m3 > 3 ? 7 : 2),
-  ));
+  const risks = assessRisks(
+    quantified.categories.composition,
+    quantified.volume.m3,
+    quantified.metadata.wasteAreaPercent,
+  );
+  const priorityScore = Math.min(
+    100,
+    Math.round(
+      (risks.health === "eleve" ? 25 : risks.health === "modere" ? 13 : 4) +
+        (risks.environmental === "eleve" ? 20 : risks.environmental === "modere" ? 10 : 3) +
+        (risks.pollution === "eleve" ? 18 : risks.pollution === "modere" ? 8 : 2) +
+        (risks.fire === "eleve" ? 15 : risks.fire === "modere" ? 7 : 0) +
+        (risks.floodRisk ? 17 : 0) +
+        (quantified.volume.m3 > 10 ? 12 : quantified.volume.m3 > 3 ? 7 : 2),
+    ),
+  );
   const location = locationFromCapture(capture);
   const mainLabel = DISPLAY_LABELS[quantified.objects[0]?.displayLabel ?? "autres"];
 

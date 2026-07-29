@@ -23,9 +23,7 @@ export function Payments() {
     <Card>
       <CardHeader>
         <CardTitle>Paiements</CardTitle>
-        <CardDescription>
-          Statut de paiement des ménages.
-        </CardDescription>
+        <CardDescription>Statut de paiement des ménages.</CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -48,9 +46,7 @@ export function Payments() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Button onClick={() => togglePaymentStatus(household)}>
-                    Changer le statut
-                  </Button>
+                  <Button onClick={() => togglePaymentStatus(household)}>Changer le statut</Button>
                 </TableCell>
               </TableRow>
             ))}

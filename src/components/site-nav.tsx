@@ -2,7 +2,17 @@ import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEcoUser } from "@/lib/user-store";
 import { useAccess } from "@/lib/access-store";
 import { formatNumber } from "@/lib/utils";
-import { ArrowLeft, Home as HomeIcon, Leaf, LogOut, Menu, ShieldCheck, Trash2, X, House } from "lucide-react";
+import {
+  ArrowLeft,
+  Home as HomeIcon,
+  Leaf,
+  LogOut,
+  Menu,
+  ShieldCheck,
+  Trash2,
+  X,
+  House,
+} from "lucide-react";
 import { useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
 
@@ -59,7 +69,10 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
           >
             <ArrowLeft className="size-4" /> Retour
           </button>
-          <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground"
+          >
             <House className="size-4" /> Accueil
           </Link>
         </div>
@@ -68,7 +81,9 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
   }
 
   return (
-    <nav className={`sticky top-0 z-50 border-b backdrop-blur-md ${isAuthority ? "border-slate-800/60 bg-[linear-gradient(135deg,#071523_0%,#102f40_45%,#0f3b2a_100%)] text-white" : "border-border bg-background/85 text-foreground"}`}>
+    <nav
+      className={`sticky top-0 z-50 border-b backdrop-blur-md ${isAuthority ? "border-slate-800/60 bg-[linear-gradient(135deg,#071523_0%,#102f40_45%,#0f3b2a_100%)] text-white" : "border-border bg-background/85 text-foreground"}`}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-2">
           <span className="grid size-9 place-items-center rounded-xl bg-eco text-white shadow-sm shadow-eco/30">
@@ -103,7 +118,9 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
               key={l.to}
               to={l.to}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${isAuthority ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-              activeProps={{ className: isAuthority ? "text-white bg-white/10" : "text-eco bg-eco/5" }}
+              activeProps={{
+                className: isAuthority ? "text-white bg-white/10" : "text-eco bg-eco/5",
+              }}
             >
               <l.icon className="size-4" /> {l.label}
             </Link>
@@ -113,8 +130,14 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
         <div className="hidden items-center gap-3 md:flex">
           <NotificationBell />
           <div className="text-right">
-            <div className={`text-xs font-semibold ${isAuthority ? "text-emerald-300" : "text-eco"}`}>{formatNumber(user.points)} GP</div>
-            <div className={`text-[10px] uppercase tracking-widest ${isAuthority ? "text-white/70" : "text-muted-foreground"}`}>
+            <div
+              className={`text-xs font-semibold ${isAuthority ? "text-emerald-300" : "text-eco"}`}
+            >
+              {formatNumber(user.points)} GP
+            </div>
+            <div
+              className={`text-[10px] uppercase tracking-widest ${isAuthority ? "text-white/70" : "text-muted-foreground"}`}
+            >
               {session.role === "citoyen" ? user.name : session.name}
             </div>
           </div>
@@ -160,7 +183,9 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
                 to={l.to}
                 onClick={() => setOpen(false)}
                 className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium ${isAuthority ? "text-white/80 hover:bg-white/10 hover:text-white" : "text-muted-foreground hover:bg-muted"}`}
-                activeProps={{ className: isAuthority ? "text-white bg-white/10" : "text-eco bg-eco/5" }}
+                activeProps={{
+                  className: isAuthority ? "text-white bg-white/10" : "text-eco bg-eco/5",
+                }}
               >
                 <l.icon className="size-4" /> {l.label}
               </Link>

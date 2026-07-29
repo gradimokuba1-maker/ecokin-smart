@@ -82,9 +82,13 @@ function Home() {
                 to={to}
                 className="group relative flex w-full min-h-[150px] items-center overflow-hidden rounded-3xl border border-border/70 bg-card/95 p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_60px_-20px_rgba(16,185,129,0.35)]"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-0 transition-opacity duration-300 group-hover:opacity-10`} />
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${accent} opacity-0 transition-opacity duration-300 group-hover:opacity-10`}
+                />
                 <div className="relative flex w-full items-center gap-4">
-                  <div className={`flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-lg sm:size-16`}>
+                  <div
+                    className={`flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-lg sm:size-16`}
+                  >
                     <Icon className="size-7 sm:size-8" />
                   </div>
                   <div className="min-w-0 flex-1">

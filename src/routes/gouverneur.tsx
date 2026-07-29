@@ -16,10 +16,36 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CITY } from "@/lib/cities";
-import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports, WASTE_CATEGORIES } from "@/lib/eco-store";
+import {
+  COLLECTION_POINTS,
+  COMMUNES,
+  URGENCY_META,
+  useLiveReports,
+  WASTE_CATEGORIES,
+} from "@/lib/eco-store";
 import { useAuthorityLocalStore } from "@/lib/authority-local-store";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAgentTracking } from "@/lib/agent-tracking-store";
 import { useEcokinDb } from "@/lib/ecokin-db";
@@ -62,7 +88,10 @@ const periodOptions = [
 
 const urgencyOptions = [
   { value: "all", label: "Toute priorité" },
-  ...Object.entries(URGENCY_META).map(([value, { label }]) => ({ value, label: `Priorité ${label}` })),
+  ...Object.entries(URGENCY_META).map(([value, { label }]) => ({
+    value,
+    label: `Priorité ${label}`,
+  })),
 ];
 
 const categoryOptions = [
@@ -76,7 +105,13 @@ const categoryOptions = [
  * @param {React.ReactNode} props.children The children to render on the client.
  * @param {React.ReactNode} [props.fallback=null] The fallback to render on the server.
  */
-function ClientOnly({ children, fallback = null }: { children: () => React.ReactNode; fallback?: React.ReactNode }) {
+function ClientOnly({
+  children,
+  fallback = null,
+}: {
+  children: () => React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -180,7 +215,7 @@ function GovernorMap({ reports }: { reports: ReturnType<typeof useLiveReports>["
             `<div style="min-width:200px;font-family:Inter,sans-serif">
               <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${cp.name}</div>
               <div style="font-size:12px;color:#475569;text-transform:capitalize;">Type : ${cp.kind}</div>
-              <div style="font-size:12px;color:#475569;">Commune : ${COMMUNES.find(c => c.id === cp.commune)?.name || cp.commune}</div>
+              <div style="font-size:12px;color:#475569;">Commune : ${COMMUNES.find((c) => c.id === cp.commune)?.name || cp.commune}</div>
             </div>`,
           )
           .addTo(map);
@@ -209,13 +244,29 @@ function GovernorMap({ reports }: { reports: ReturnType<typeof useLiveReports>["
         if (!report.lat || !report.lng) return;
         const urgencyColor = URGENCY_HEX_COLORS[report.urgency] || "#6b7280";
         const categoryIcon = CATEGORY_ICONS[report.category] || "📦";
-        const communeName = COMMUNES.find(c => c.id === report.commune)?.name || report.commune;
-        const statusLabel = report.status === "terminee" ? "Terminée" : report.status === "en_cours" ? "En cours" : report.status === "assignee" ? "Assignée" : "En attente";
+        const communeName = COMMUNES.find((c) => c.id === report.commune)?.name || report.commune;
+        const statusLabel =
+          report.status === "terminee"
+            ? "Terminée"
+            : report.status === "en_cours"
+              ? "En cours"
+              : report.status === "assignee"
+                ? "Assignée"
+                : "En attente";
         const volume = report.volumeM3 ? `${report.volumeM3} m³` : "N/A";
-        const description = report.description ? report.description.substring(0, 100) : "Aucune description";
+        const description = report.description
+          ? report.description.substring(0, 100)
+          : "Aucune description";
 
         // Different icon per urgency level
-        const radius = report.urgency === "critique" ? 12 : report.urgency === "eleve" ? 10 : report.urgency === "moyen" ? 8 : 6;
+        const radius =
+          report.urgency === "critique"
+            ? 12
+            : report.urgency === "eleve"
+              ? 10
+              : report.urgency === "moyen"
+                ? 8
+                : 6;
         const borderWidth = report.urgency === "critique" ? 3 : 2;
 
         // Use circle markers with urgency-based styling
@@ -259,7 +310,12 @@ function GovernorMap({ reports }: { reports: ReturnType<typeof useLiveReports>["
     })();
   }, [reports]);
 
-  return <div ref={containerRef} className="h-[500px] w-full overflow-hidden rounded-lg border bg-secondary" />;
+  return (
+    <div
+      ref={containerRef}
+      className="h-[500px] w-full overflow-hidden rounded-lg border bg-secondary"
+    />
+  );
 }
 
 function PerformanceByCommuneChart({ data }: { data: any[] }) {
@@ -310,7 +366,13 @@ function ReportsEvolutionChart({ data }: { data: any[] }) {
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+        <XAxis
+          dataKey="name"
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+        />
         <YAxis
           stroke="hsl(var(--muted-foreground))"
           fontSize={10}
@@ -326,7 +388,13 @@ function ReportsEvolutionChart({ data }: { data: any[] }) {
             fontSize: "12px",
           }}
         />
-        <Area type="monotone" dataKey="Signalements" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorSignalements)" />
+        <Area
+          type="monotone"
+          dataKey="Signalements"
+          stroke="hsl(var(--primary))"
+          fillOpacity={1}
+          fill="url(#colorSignalements)"
+        />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -361,7 +429,9 @@ function GovernorCharts({ reports }: { reports: ReturnType<typeof useLiveReports
     <Card>
       <CardHeader>
         <CardTitle>Analyse des Performances</CardTitle>
-        <CardDescription>Visualisation des tendances et répartition des signalements.</CardDescription>
+        <CardDescription>
+          Visualisation des tendances et répartition des signalements.
+        </CardDescription>
       </CardHeader>
       <CardContent className="pl-2 pr-4">
         <Tabs defaultValue="performance">
@@ -386,7 +456,13 @@ function ResolutionTimeChart({ data }: { data: { name: string; "Temps moyen (h)"
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-        <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} />
+        <XAxis
+          type="number"
+          stroke="hsl(var(--muted-foreground))"
+          fontSize={10}
+          tickLine={false}
+          axisLine={false}
+        />
         <YAxis
           type="category"
           dataKey="name"
@@ -411,7 +487,15 @@ function ResolutionTimeChart({ data }: { data: { name: string; "Temps moyen (h)"
   );
 }
 
-const CATEGORY_COLORS = ["#10b981", "#0ea5e9", "#6366f1", "#f97316", "#ef4444", "#8b5cf6", "#ec4899"];
+const CATEGORY_COLORS = [
+  "#10b981",
+  "#0ea5e9",
+  "#6366f1",
+  "#f97316",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+];
 
 function ReportsByCategoryChart({ data }: { data: { name: string; value: number }[] }) {
   return (
@@ -434,9 +518,18 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
   const db = useEcokinDb();
   const tracking = useAgentTracking();
   const quarterRows = useMemo(() => reportsByQuarter(reports).slice(0, 10), [reports]);
-  const agentRows = useMemo(() => agentPerformance(reports, tracking.missions, db.users).slice(0, 10), [reports, tracking.missions, db.users]);
-  const adminRows = useMemo(() => authorityPerformance(reports, db.users, "admin"), [reports, db.users]);
-  const bourgmestreRows = useMemo(() => authorityPerformance(reports, db.users, "bourgmestre"), [reports, db.users]);
+  const agentRows = useMemo(
+    () => agentPerformance(reports, tracking.missions, db.users).slice(0, 10),
+    [reports, tracking.missions, db.users],
+  );
+  const adminRows = useMemo(
+    () => authorityPerformance(reports, db.users, "admin"),
+    [reports, db.users],
+  );
+  const bourgmestreRows = useMemo(
+    () => authorityPerformance(reports, db.users, "bourgmestre"),
+    [reports, db.users],
+  );
   const reportsByCategory = useMemo(() => {
     const counts = reports.reduce(
       (acc, r) => {
@@ -460,7 +553,8 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
         if (resolutionEntry) {
           const creationDate = new Date(report.createdAt);
           const resolutionDate = new Date(resolutionEntry.at);
-          const durationHours = (resolutionDate.getTime() - creationDate.getTime()) / (1000 * 60 * 60);
+          const durationHours =
+            (resolutionDate.getTime() - creationDate.getTime()) / (1000 * 60 * 60);
 
           if (!resolutionTimesByCommune[report.commune]) {
             resolutionTimesByCommune[report.commune] = [];
@@ -470,21 +564,29 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
       }
     });
 
-    return Object.entries(resolutionTimesByCommune).map(([commune, durations]) => ({ name: commune, "Temps moyen (h)": Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length) })).sort((a, b) => a["Temps moyen (h)"] - b["Temps moyen (h)"]);
+    return Object.entries(resolutionTimesByCommune)
+      .map(([commune, durations]) => ({
+        name: commune,
+        "Temps moyen (h)": Math.round(durations.reduce((sum, d) => sum + d, 0) / durations.length),
+      }))
+      .sort((a, b) => a["Temps moyen (h)"] - b["Temps moyen (h)"]);
   }, [reports]);
 
   const communeRows = useMemo(() => {
     return COMMUNES.map((commune) => {
       const communeReports = reports.filter((report) => report.commune === commune.id);
       const resolved = communeReports.filter((report) => report.status === "terminee").length;
-      const performance = communeReports.length > 0 ? Math.round((resolved / communeReports.length) * 100) : 0;
+      const performance =
+        communeReports.length > 0 ? Math.round((resolved / communeReports.length) * 100) : 0;
       return {
         commune,
         volume: Math.round(communeReports.reduce((sum, report) => sum + (report.volumeM3 ?? 0), 0)),
         agents: localStore.agents.filter((item) => item.commune === commune.id).length,
         pmes: localStore.pmes.filter((item) => item.commune === commune.id).length,
         teams: localStore.teams.filter((item) => item.commune === commune.id).length,
-        activities: localStore.activities.filter((item) => item.commune === commune.id && item.status !== "terminee").length,
+        activities: localStore.activities.filter(
+          (item) => item.commune === commune.id && item.status !== "terminee",
+        ).length,
         performance,
       };
     });
@@ -521,7 +623,9 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
                     <td>{row.teams}</td>
                     <td>{row.activities}</td>
                     <td>
-                      <span className="rounded-full bg-eco/10 px-2 py-0.5 text-xs font-bold text-eco">{row.performance}%</span>
+                      <span className="rounded-full bg-eco/10 px-2 py-0.5 text-xs font-bold text-eco">
+                        {row.performance}%
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -533,7 +637,9 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
       <Card>
         <CardHeader>
           <CardTitle>Répartition par Catégorie de Déchet</CardTitle>
-          <CardDescription>Distribution des signalements selon le type de déchet identifié.</CardDescription>
+          <CardDescription>
+            Distribution des signalements selon le type de déchet identifié.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ReportsByCategoryChart data={reportsByCategory} />
@@ -542,7 +648,9 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
       <Card>
         <CardHeader>
           <CardTitle>Performances de Résolution</CardTitle>
-          <CardDescription>Temps moyen de résolution par commune et par type d'urgence.</CardDescription>
+          <CardDescription>
+            Temps moyen de résolution par commune et par type d'urgence.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <ResolutionTimeChart data={resolutionTimeData} />
@@ -551,7 +659,9 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
       <Card>
         <CardHeader>
           <CardTitle>Signalements par quartier / zone</CardTitle>
-          <CardDescription>Classement calcule depuis les localisations enregistrees.</CardDescription>
+          <CardDescription>
+            Classement calcule depuis les localisations enregistrees.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <PerformanceByCommuneChart data={quarterRows} />
@@ -563,7 +673,10 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
           <CardDescription>Missions assignees, actives et terminees.</CardDescription>
         </CardHeader>
         <CardContent>
-          <PerformanceTable rows={agentRows} columns={["name", "commune", "assignes", "termines", "taux"]} />
+          <PerformanceTable
+            rows={agentRows}
+            columns={["name", "commune", "assignes", "termines", "taux"]}
+          />
         </CardContent>
       </Card>
       <Card>
@@ -572,7 +685,10 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
           <CardDescription>Suivi par entite administrative.</CardDescription>
         </CardHeader>
         <CardContent>
-          <PerformanceTable rows={adminRows} columns={["name", "commune", "signalements", "resolus", "taux"]} />
+          <PerformanceTable
+            rows={adminRows}
+            columns={["name", "commune", "signalements", "resolus", "taux"]}
+          />
         </CardContent>
       </Card>
       <Card>
@@ -581,16 +697,27 @@ function GovernorStatsTab({ reports }: { reports: ReturnType<typeof useLiveRepor
           <CardDescription>Resultats consolides par commune.</CardDescription>
         </CardHeader>
         <CardContent>
-          <PerformanceTable rows={bourgmestreRows} columns={["name", "commune", "signalements", "resolus", "taux"]} />
+          <PerformanceTable
+            rows={bourgmestreRows}
+            columns={["name", "commune", "signalements", "resolus", "taux"]}
+          />
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function PerformanceTable({ rows, columns }: { rows: Record<string, unknown>[]; columns: string[] }) {
+function PerformanceTable({
+  rows,
+  columns,
+}: {
+  rows: Record<string, unknown>[];
+  columns: string[];
+}) {
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aucune donnee enregistree pour le moment.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">Aucune donnee enregistree pour le moment.</p>
+    );
   }
   return (
     <div className="overflow-x-auto">
@@ -628,7 +755,9 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
     const volume = reportVolume(filteredReports);
     const poidsTotal = reportWeight(filteredReports);
     const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
-    const alertes = filteredReports.filter((r) => r.urgency === "critique" || r.urgency === "eleve").length;
+    const alertes = filteredReports.filter(
+      (r) => r.urgency === "critique" || r.urgency === "eleve",
+    ).length;
     const interventionUrgent = filteredReports.filter((r) => r.interventionUrgent).length;
     const env = environmentalIndicators(filteredReports);
 
@@ -642,8 +771,18 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
     const topCommune = Object.entries(communeCounts).sort((a, b) => b[1] - a[1])[0];
 
     return [
-      { title: "Signalements affichés", value: total.toLocaleString("fr-FR"), icon: AlertTriangle, color: "text-yellow-500" },
-      { title: "Signalements résolus", value: resolus.toLocaleString("fr-FR"), icon: CheckCircle2, color: "text-green-500" },
+      {
+        title: "Signalements affichés",
+        value: total.toLocaleString("fr-FR"),
+        icon: AlertTriangle,
+        color: "text-yellow-500",
+      },
+      {
+        title: "Signalements résolus",
+        value: resolus.toLocaleString("fr-FR"),
+        icon: CheckCircle2,
+        color: "text-green-500",
+      },
       {
         title: "Volume estimé (m³)",
         value: volume.toLocaleString("fr-FR", { maximumFractionDigits: 0 }),
@@ -656,13 +795,48 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
         icon: Trash2,
         color: "text-orange-500",
       },
-      { title: "Dechets en attente", value: String(pendingReports(filteredReports).length), icon: Trash2, color: "text-amber-500" },
-      { title: "Dechets recyclables", value: `${Math.round(recycledVolume(filteredReports))} m3`, icon: Recycle, color: "text-eco" },
-      { title: "Depots sauvages", value: String(illegalDumpCount(filteredReports)), icon: AlertTriangle, color: "text-red-500" },
-      { title: "Indice environnemental", value: `${env.cleanlinessScore}/100`, icon: ShieldCheck, color: "text-emerald-600" },
-      { title: "Taux de collecte", value: `${tauxCollecte}%`, icon: Percent, color: "text-indigo-500" },
-      { title: "Interventions urgentes", value: String(interventionUrgent), icon: AlertTriangle, color: "text-red-500" },
-      { title: "Commune la + active", value: topCommune ? topCommune[0] : "N/A", icon: Trophy, color: "text-amber-500" },
+      {
+        title: "Dechets en attente",
+        value: String(pendingReports(filteredReports).length),
+        icon: Trash2,
+        color: "text-amber-500",
+      },
+      {
+        title: "Dechets recyclables",
+        value: `${Math.round(recycledVolume(filteredReports))} m3`,
+        icon: Recycle,
+        color: "text-eco",
+      },
+      {
+        title: "Depots sauvages",
+        value: String(illegalDumpCount(filteredReports)),
+        icon: AlertTriangle,
+        color: "text-red-500",
+      },
+      {
+        title: "Indice environnemental",
+        value: `${env.cleanlinessScore}/100`,
+        icon: ShieldCheck,
+        color: "text-emerald-600",
+      },
+      {
+        title: "Taux de collecte",
+        value: `${tauxCollecte}%`,
+        icon: Percent,
+        color: "text-indigo-500",
+      },
+      {
+        title: "Interventions urgentes",
+        value: String(interventionUrgent),
+        icon: AlertTriangle,
+        color: "text-red-500",
+      },
+      {
+        title: "Commune la + active",
+        value: topCommune ? topCommune[0] : "N/A",
+        icon: Trophy,
+        color: "text-amber-500",
+      },
       {
         title: "Alertes prioritaires",
         value: alertes.toLocaleString("fr-FR"),
@@ -675,7 +849,12 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
 
 function GovernorDashboard() {
   const { items: liveReports } = useLiveReports();
-  const [filters, setFilters] = useState({ commune: "all", period: "all", category: "all", urgency: "all" });
+  const [filters, setFilters] = useState({
+    commune: "all",
+    period: "all",
+    category: "all",
+    urgency: "all",
+  });
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -713,9 +892,12 @@ function GovernorDashboard() {
             <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-eco">
               <ShieldCheck className="size-4" /> Espace Gouverneur
             </div>
-            <h1 className="mt-2 font-display text-4xl font-bold">Centre de Commandement Stratégique</h1>
+            <h1 className="mt-2 font-display text-4xl font-bold">
+              Centre de Commandement Stratégique
+            </h1>
             <p className="mt-1 text-muted-foreground">
-              Vue d'ensemble en temps réel de la propreté et des opérations dans la ville de Kinshasa.
+              Vue d'ensemble en temps réel de la propreté et des opérations dans la ville de
+              Kinshasa.
             </p>
           </div>
         </div>
@@ -751,7 +933,10 @@ function GovernorDashboard() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filters.category} onValueChange={(v) => handleFilterChange("category", v)}>
+            <Select
+              value={filters.category}
+              onValueChange={(v) => handleFilterChange("category", v)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -793,10 +978,14 @@ function GovernorDashboard() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Carte Opérationnelle de la Ville</CardTitle>
-                    <CardDescription>Visualisation des signalements, des infrastructures et des unités mobiles.</CardDescription>
+                    <CardDescription>
+                      Visualisation des signalements, des infrastructures et des unités mobiles.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <ClientOnly fallback={<div className="h-[500px] animate-pulse rounded-lg bg-muted" />}>
+                    <ClientOnly
+                      fallback={<div className="h-[500px] animate-pulse rounded-lg bg-muted" />}
+                    >
                       {() => <GovernorMap reports={filteredReports} />}
                     </ClientOnly>
                   </CardContent>

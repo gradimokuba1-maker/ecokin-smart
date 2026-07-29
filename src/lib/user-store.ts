@@ -119,16 +119,16 @@ export function useEcoUser() {
       const saved = record
         ? record
         : upsertUser({
-          role: "citoyen",
-          identifier: normalizedPhone,
-          password: input.pin,
-          name: input.name,
-          phone: normalizedPhone,
-          commune: input.commune,
-          points: 0,
-          reports: 0,
-          badges: [],
-        });
+            role: "citoyen",
+            identifier: normalizedPhone,
+            password: input.pin,
+            name: input.name,
+            phone: normalizedPhone,
+            commune: input.commune,
+            points: 0,
+            reports: 0,
+            badges: [],
+          });
       const next = userFromRecord(saved);
       write(K_USER, next);
       setUser(next);

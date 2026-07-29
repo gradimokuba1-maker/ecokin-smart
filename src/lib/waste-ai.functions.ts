@@ -127,7 +127,19 @@ Rien d'autre que le JSON.`;
     }
   });
 
-export type WasteMaterial = "plastique" | "carton" | "papier" | "verre" | "metal" | "organique" | "dangereux" | "meuble" | "electronique" | "construction" | "mixte" | "inconnu";
+export type WasteMaterial =
+  | "plastique"
+  | "carton"
+  | "papier"
+  | "verre"
+  | "metal"
+  | "organique"
+  | "dangereux"
+  | "meuble"
+  | "electronique"
+  | "construction"
+  | "mixte"
+  | "inconnu";
 
 export type CompositionEntry = { material: WasteMaterial; percentage: number };
 // --- ADVANCED ANALYSIS ---
@@ -197,7 +209,15 @@ export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
 
     // 1. Dynamic Category Recognition (based on dataUrl characters)
     const hash = data.imageDataUrl.length % 7;
-    const categories: WasteMaterial[] = ["plastique", "organique", "papier", "metal", "verre", "construction", "mixte"];
+    const categories: WasteMaterial[] = [
+      "plastique",
+      "organique",
+      "papier",
+      "metal",
+      "verre",
+      "construction",
+      "mixte",
+    ];
     const mainCategory = categories[hash] ?? "mixte";
     const secondaryCategory = categories[(hash + 2) % 7];
 
@@ -228,37 +248,72 @@ export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
 
     // 4. Dynamic Risk & Confidence
     const analysisConfidence = 0.55 + sizeFactor * 0.4; // 55% to 95%
-    const healthRisk = ["organique", "dangereux"].includes(mainCategory) ? "eleve" : (volumeM3 > 2 ? "modere" : "faible");
-    const priorityScore = Math.min(98, 40 + Math.round(volumeM3 * 5) + (healthRisk === "eleve" ? 20 : 0));
-    const priorityLevel = priorityScore > 90 ? "critique" : priorityScore > 75 ? "eleve" : priorityScore > 50 ? "moyen" : "faible";
+    const healthRisk = ["organique", "dangereux"].includes(mainCategory)
+      ? "eleve"
+      : volumeM3 > 2
+        ? "modere"
+        : "faible";
+    const priorityScore = Math.min(
+      98,
+      40 + Math.round(volumeM3 * 5) + (healthRisk === "eleve" ? 20 : 0),
+    );
+    const priorityLevel =
+      priorityScore > 90
+        ? "critique"
+        : priorityScore > 75
+          ? "eleve"
+          : priorityScore > 50
+            ? "moyen"
+            : "faible";
 
     // 5. Contextual Recommendations
     const recommendations = ["Évaluation sur site requise."];
     if (volumeM3 > 3) recommendations.push("Prévoir un camion de grande capacité.");
     if (mainCategory === "mixte") recommendations.push("Tri nécessaire avant évacuation.");
-    if (healthRisk === "eleve") recommendations.push("Équipement de protection individuelle (EPI) recommandé pour les équipes.");
+    if (healthRisk === "eleve")
+      recommendations.push(
+        "Équipement de protection individuelle (EPI) recommandé pour les équipes.",
+      );
 
     const result: WasteAnalysisResult = {
       mainCategory,
       secondaryCategory,
-      composition: [{ material: mainCategory, percentage: 70 }, { material: secondaryCategory, percentage: 30 }],
-      detectedObjects: [{ label: mainCategory, count: Math.round(1 + sizeFactor * 10), confidence: 0.8 }],
+      composition: [
+        { material: mainCategory, percentage: 70 },
+        { material: secondaryCategory, percentage: 30 },
+      ],
+      detectedObjects: [
+        { label: mainCategory, count: Math.round(1 + sizeFactor * 10), confidence: 0.8 },
+      ],
       environmentDetected: ["route", "trottoir"],
       wasteAreaPercent: Math.round(20 + sizeFactor * 60),
-      dimensions: { lengthM: parseFloat(Math.sqrt(surfaceM2 * 1.5).toFixed(2)), widthM: parseFloat(Math.sqrt(surfaceM2 / 1.5).toFixed(2)), heightAvgM, surfaceM2, volumeM3, confidence: 0.6 + sizeFactor * 0.3 },
-      weight: { weightKg, weightTons: parseFloat((weightKg / 1000).toFixed(2)), densityUsed, uncertaintyPercent: Math.round(35 - sizeFactor * 20), confidence: 0.5 + sizeFactor * 0.4 },
+      dimensions: {
+        lengthM: parseFloat(Math.sqrt(surfaceM2 * 1.5).toFixed(2)),
+        widthM: parseFloat(Math.sqrt(surfaceM2 / 1.5).toFixed(2)),
+        heightAvgM,
+        surfaceM2,
+        volumeM3,
+        confidence: 0.6 + sizeFactor * 0.3,
+      },
+      weight: {
+        weightKg,
+        weightTons: parseFloat((weightKg / 1000).toFixed(2)),
+        densityUsed,
+        uncertaintyPercent: Math.round(35 - sizeFactor * 20),
+        confidence: 0.5 + sizeFactor * 0.4,
+      },
       location: { lat: -4.32, lng: 15.3, accuracy: 20, commune: "gombe" },
       healthRisk,
       environmentalRisk: volumeM3 > 1 ? "modere" : "faible",
       obstructionRisk: "faible",
-      floodRisk: mainCategory === 'plastique' && volumeM3 > 1,
+      floodRisk: mainCategory === "plastique" && volumeM3 > 1,
       interventionUrgent: priorityLevel === "critique",
       priorityScore,
       priorityLevel,
       description: `Analyse dynamique : Détection d'un dépôt de type '${mainCategory}' d'un volume approximatif de ${volumeM3} m³.`,
       recommendations,
       analysisConfidence,
-      model3DAvailable: data.cameraCapability === 'lidar' || !!data.depthData,
+      model3DAvailable: data.cameraCapability === "lidar" || !!data.depthData,
       cameraCapability: "basic",
     };
 

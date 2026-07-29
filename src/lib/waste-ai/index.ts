@@ -40,7 +40,12 @@ export type {
 } from "./types";
 
 export { analyzeWastePhotoAdvanced } from "./analysis.functions";
-export { detectDeviceCapability, requestCameraPermission, requestGPSPermission, estimateVolumeFromImage } from "./depth-analyzer";
+export {
+  detectDeviceCapability,
+  requestCameraPermission,
+  requestGPSPermission,
+  estimateVolumeFromImage,
+} from "./depth-analyzer";
 export type { DeviceCapability } from "./depth-analyzer";
 export { requestGPSPosition, buildLocationInfo, haversineDistance } from "./gps-location";
 export type { GPSState } from "./gps-location";

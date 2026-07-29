@@ -14,9 +14,9 @@ export function SiteFooter() {
             </span>
           </div>
           <p className="mt-4 max-w-md text-sm text-muted-foreground">
-            Plateforme Smart City pour la gestion intelligente des déchets sur l'ensemble
-            des 24 communes de Kinshasa. Une initiative numérique au service d'une ville
-            plus propre, plus saine et résiliente face aux inondations.
+            Plateforme Smart City pour la gestion intelligente des déchets sur l'ensemble des 24
+            communes de Kinshasa. Une initiative numérique au service d'une ville plus propre, plus
+            saine et résiliente face aux inondations.
           </p>
 
           <div className="mt-6 inline-flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -24,7 +24,9 @@ export function SiteFooter() {
           </div>
         </div>
         <div>
-          <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Couverture</h4>
+          <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Couverture
+          </h4>
           <ul className="space-y-2 text-sm">
             <li>24 communes de Kinshasa</li>
             <li>Signalements temps réel</li>
@@ -32,7 +34,9 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Partenaires</h4>
+          <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Partenaires
+          </h4>
           <ul className="space-y-2 text-sm">
             <li>Régie d'Assainissement de Kinshasa</li>
             <li>Ministère de l'Environnement</li>

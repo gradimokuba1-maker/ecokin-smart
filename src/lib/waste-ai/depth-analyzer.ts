@@ -30,7 +30,7 @@ export async function detectDeviceCapability(): Promise<DeviceCapability> {
   const deviceType = isIOS ? "ios" : isAndroid ? "android" : "other";
 
   // Vérifier la disponibilité des API navigateur
-  const hasMediaDevices = !!(navigator.mediaDevices?.getUserMedia);
+  const hasMediaDevices = !!navigator.mediaDevices?.getUserMedia;
   const hasMultipleCameras = await checkMultipleCameras();
   const hasDepthSupport = checkDepthSupport();
 
@@ -112,7 +112,7 @@ function checkDepthSupport(): boolean {
 async function checkLiDARAvailability(): Promise<boolean> {
   try {
     // Vérifier si WebXR Device API est disponible avec des capacités de profondeur
-    const navXR = (navigator as NavigatorXR);
+    const navXR = navigator as NavigatorXR;
     if (navXR.xr) {
       try {
         const supported = await navXR.xr.isSessionSupported("immersive-ar");
@@ -150,7 +150,7 @@ async function checkLiDARAvailability(): Promise<boolean> {
 async function checkARCoreAvailability(): Promise<boolean> {
   try {
     // Vérifier les capacités AR via WebXR
-    const navXR = (navigator as NavigatorXR);
+    const navXR = navigator as NavigatorXR;
     if (navXR.xr) {
       try {
         const supported = await navXR.xr.isSessionSupported("immersive-ar");
@@ -217,7 +217,7 @@ export function requestGPSPermission(): Promise<GeolocationPosition | null> {
     navigator.geolocation.getCurrentPosition(
       (position) => resolve(position),
       () => resolve(null),
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
     );
   });
 }

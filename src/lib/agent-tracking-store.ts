@@ -59,7 +59,12 @@ function write(state: AgentTrackingState) {
   window.dispatchEvent(new Event(EVT));
 }
 
-export function updateAgentPosition(agentId: string, name: string, commune: string, fix: Omit<AgentFix, "at">) {
+export function updateAgentPosition(
+  agentId: string,
+  name: string,
+  commune: string,
+  fix: Omit<AgentFix, "at">,
+) {
   const state = read();
   const at = new Date().toISOString();
   const newFix: AgentFix = { ...fix, at };
@@ -67,7 +72,14 @@ export function updateAgentPosition(agentId: string, name: string, commune: stri
   const agents = existing
     ? state.agents.map((a) =>
         a.id === agentId
-          ? { ...a, current: newFix, track: [newFix, ...a.track].slice(0, MAX_TRACK), lastSeenAt: at, name, commune }
+          ? {
+              ...a,
+              current: newFix,
+              track: [newFix, ...a.track].slice(0, MAX_TRACK),
+              lastSeenAt: at,
+              name,
+              commune,
+            }
           : a,
       )
     : [
@@ -98,10 +110,7 @@ export function assignMission(input: {
     status: "en_attente",
     assignedAt: new Date().toISOString(),
   };
-  const missions = [
-    mission,
-    ...state.missions.filter((m) => m.reportId !== input.reportId),
-  ];
+  const missions = [mission, ...state.missions.filter((m) => m.reportId !== input.reportId)];
   const agents = state.agents.map((a) =>
     a.id === input.agentId ? { ...a, activeMissionId: input.reportId } : a,
   );

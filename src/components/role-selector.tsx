@@ -16,7 +16,8 @@ const ACCESS_TYPES: RoleCard[] = [
     role: "gouverneur",
     title: "Gouverneur",
     subtitle: "Supervision globale",
-    description: "Vision stratégique de Kinshasa, des 24 communes et des infrastructures prioritaires.",
+    description:
+      "Vision stratégique de Kinshasa, des 24 communes et des infrastructures prioritaires.",
     icon: ShieldCheck,
   },
   {
@@ -30,14 +31,16 @@ const ACCESS_TYPES: RoleCard[] = [
     role: "admin",
     title: "Administrateur",
     subtitle: "Gestion technique",
-    description: "Administration complète des utilisateurs, rôles, communes, infrastructures et statistiques.",
+    description:
+      "Administration complète des utilisateurs, rôles, communes, infrastructures et statistiques.",
     icon: UserCog,
   },
   {
     role: "agent",
     title: "Agent de terrain",
     subtitle: "Interventions terrain",
-    description: "Missions, points de collecte, signalements locaux et validation avant/après intervention.",
+    description:
+      "Missions, points de collecte, signalements locaux et validation avant/après intervention.",
     icon: UserRound,
   },
 ];

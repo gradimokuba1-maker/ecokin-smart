@@ -49,7 +49,9 @@ function footer(doc: jsPDF) {
   }
 }
 
-export function generateReport(kind: "quotidien" | "hebdomadaire" | "mensuel" | "strategique" | "carte"): jsPDF {
+export function generateReport(
+  kind: "quotidien" | "hebdomadaire" | "mensuel" | "strategique" | "carte",
+): jsPDF {
   const doc = new jsPDF();
   const label = {
     quotidien: "Rapport quotidien",
@@ -120,7 +122,14 @@ export function generateReport(kind: "quotidien" | "hebdomadaire" | "mensuel" | 
   autoTable(doc, {
     startY: y + 4,
     head: [["#", "Commune", "Action", "Camions", "Équipes", "Délai"]],
-    body: AI_RECOMMENDATIONS.map((r) => [r.priorite, r.commune, r.titre, r.camions, r.equipes, r.eta]),
+    body: AI_RECOMMENDATIONS.map((r) => [
+      r.priorite,
+      r.commune,
+      r.titre,
+      r.camions,
+      r.equipes,
+      r.eta,
+    ]),
     headStyles: { fillColor: [99, 102, 241] },
   });
 
@@ -143,7 +152,12 @@ export function generateReport(kind: "quotidien" | "hebdomadaire" | "mensuel" | 
       head: [["Commune", "Hebdo (CDF)", "Mensuel (CDF)", "Coût / tonne"]],
       body: COMMUNES.map((c) => {
         const b = COMMUNE_BUDGET[c.id];
-        return [c.name, b.hebdo.toLocaleString("fr-FR"), b.mensuel.toLocaleString("fr-FR"), b.cout_tonne.toLocaleString("fr-FR")];
+        return [
+          c.name,
+          b.hebdo.toLocaleString("fr-FR"),
+          b.mensuel.toLocaleString("fr-FR"),
+          b.cout_tonne.toLocaleString("fr-FR"),
+        ];
       }),
     });
 

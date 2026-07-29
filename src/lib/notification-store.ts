@@ -47,7 +47,11 @@ export function pushNotification(input: Omit<EcoNotification, "id" | "at" | "rea
   };
   write([item, ...read()]);
 
-  if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+  if (
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    Notification.permission === "granted"
+  ) {
     try {
       new Notification(item.title, { body: item.message, tag: item.id });
     } catch {

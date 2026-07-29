@@ -16,7 +16,10 @@ export const ACCESS_CODES: Record<AuthorityRole, string> = {
   admin: "ADMIN2026",
 };
 
-export const AUTH_USERS: Record<AuthorityRole, { identifier: string; password: string; label: string }> = {
+export const AUTH_USERS: Record<
+  AuthorityRole,
+  { identifier: string; password: string; label: string }
+> = {
   agent: { identifier: "ECOKIN-AGENT", password: "AGENT2026", label: "Agent terrain" },
   bourgmestre: { identifier: "ECOKIN-BOURG", password: "BOURG2026", label: "Bourgmestre" },
   gouverneur: { identifier: "ECOKIN-GOUV", password: "GOUV2026", label: "Cabinet du Gouverneur" },
@@ -67,9 +70,31 @@ export type Permission =
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   citoyen: ["signaler"],
   agent: ["signaler", "manage_fleet", "manage_activities"],
-  bourgmestre: ["signaler", "export_data", "manage_alerts", "manage_activities", "manage_fleet", "moderate_reports"],
-  gouverneur: ["signaler", "export_data", "manage_alerts", "manage_activities", "manage_fleet", "moderate_reports"],
-  admin: ["signaler", "export_data", "manage_alerts", "manage_activities", "manage_fleet", "moderate_reports", "reset_data"],
+  bourgmestre: [
+    "signaler",
+    "export_data",
+    "manage_alerts",
+    "manage_activities",
+    "manage_fleet",
+    "moderate_reports",
+  ],
+  gouverneur: [
+    "signaler",
+    "export_data",
+    "manage_alerts",
+    "manage_activities",
+    "manage_fleet",
+    "moderate_reports",
+  ],
+  admin: [
+    "signaler",
+    "export_data",
+    "manage_alerts",
+    "manage_activities",
+    "manage_fleet",
+    "moderate_reports",
+    "reset_data",
+  ],
 };
 
 export type Session = {
@@ -84,7 +109,11 @@ export type Session = {
   permissions: Permission[];
 };
 
-const DEFAULT: Session = { role: "citoyen", name: "Citoyen EcoKin", permissions: ROLE_PERMISSIONS.citoyen };
+const DEFAULT: Session = {
+  role: "citoyen",
+  name: "Citoyen EcoKin",
+  permissions: ROLE_PERMISSIONS.citoyen,
+};
 
 function toSession(record: EcokinUserRecord, commune?: string): Session {
   return {
@@ -121,7 +150,8 @@ function findAuthority(role: AuthorityRole, identifier: string, password: string
   if (direct) return direct;
 
   // Compatibilite avec les anciens formulaires de demonstration.
-  if (identifier.trim().toUpperCase() !== "ECOKIN2026" || ACCESS_CODES[role] !== password.trim()) return undefined;
+  if (identifier.trim().toUpperCase() !== "ECOKIN2026" || ACCESS_CODES[role] !== password.trim())
+    return undefined;
   return readDb().users.find((user) => user.role === role && user.password === ACCESS_CODES[role]);
 }
 
@@ -166,7 +196,8 @@ export function useAccess() {
     if (prev.role !== "citoyen") logAudit({ user: prev.name, role: prev.role, action: "logout" });
   };
 
-  const loginAdmin = (identifier: string, password?: string, commune?: string) => login("admin", identifier, password, commune);
+  const loginAdmin = (identifier: string, password?: string, commune?: string) =>
+    login("admin", identifier, password, commune);
   const can = (path: string) => {
     const allowed = ROUTE_ROLES[path];
     if (!allowed) return true;

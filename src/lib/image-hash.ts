@@ -71,7 +71,10 @@ function write(list: StoredHash[]) {
   localStorage.setItem(KEY, JSON.stringify(list.slice(-500)));
 }
 
-export function findDuplicate(hash: string, threshold = 95): { match: StoredHash; similarity: number } | null {
+export function findDuplicate(
+  hash: string,
+  threshold = 95,
+): { match: StoredHash; similarity: number } | null {
   const list = read();
   let best: { match: StoredHash; similarity: number } | null = null;
   for (const h of list) {

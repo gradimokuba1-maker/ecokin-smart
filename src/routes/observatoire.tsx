@@ -20,7 +20,10 @@ export const Route = createFileRoute("/observatoire")({
   head: () => ({
     meta: [
       { title: "Observatoire de la propreté — EcoKin Smart" },
-      { name: "description", content: "Indice de Propreté de Kinshasa (IPK), performance des communes, valorisation." },
+      {
+        name: "description",
+        content: "Indice de Propreté de Kinshasa (IPK), performance des communes, valorisation.",
+      },
     ],
   }),
   component: Page,
@@ -53,15 +56,23 @@ function Page() {
         <div className="grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-eco/30 bg-eco/5 p-5">
             <div className="text-xs font-bold uppercase tracking-widest text-eco">IPK Kinshasa</div>
-            <div className="mt-1 font-display text-4xl font-bold">{IPK_KINSHASA}<span className="text-base text-muted-foreground">/100</span></div>
+            <div className="mt-1 font-display text-4xl font-bold">
+              {IPK_KINSHASA}
+              <span className="text-base text-muted-foreground">/100</span>
+            </div>
           </div>
           {COMMUNES.map((c) => (
             <div key={c.id} className="rounded-2xl border border-border bg-card p-5">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">IPK {c.name}</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                IPK {c.name}
+              </div>
               <div className="mt-1 font-display text-3xl font-bold">
                 {IPK[c.id].score}
-                <span className={`ml-2 text-sm font-semibold ${IPK[c.id].trend >= 0 ? "text-eco" : "text-red-500"}`}>
-                  {IPK[c.id].trend >= 0 ? "+" : ""}{IPK[c.id].trend}
+                <span
+                  className={`ml-2 text-sm font-semibold ${IPK[c.id].trend >= 0 ? "text-eco" : "text-red-500"}`}
+                >
+                  {IPK[c.id].trend >= 0 ? "+" : ""}
+                  {IPK[c.id].trend}
                 </span>
               </div>
               <div className="mt-1 text-xs text-muted-foreground">Rang #{IPK[c.id].rang}</div>

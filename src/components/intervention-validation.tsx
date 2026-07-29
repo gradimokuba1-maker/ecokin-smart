@@ -10,7 +10,13 @@ type Props = {
   onComplete: () => void;
 };
 
-export function InterventionValidation({ report, onStart, onCaptureBefore, onCaptureAfter, onComplete }: Props) {
+export function InterventionValidation({
+  report,
+  onStart,
+  onCaptureBefore,
+  onCaptureAfter,
+  onComplete,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {report.status === "assignee" && (
@@ -26,14 +32,31 @@ export function InterventionValidation({ report, onStart, onCaptureBefore, onCap
           <Button size="sm" variant="outline" onClick={onCaptureAfter}>
             <Camera className="mr-1 size-3" /> Après {report.photoAfter ? "✓" : ""}
           </Button>
-          <Button size="sm" onClick={onComplete} className="bg-eco text-white hover:bg-eco/90" disabled={!report.photoBefore || !report.photoAfter}>
+          <Button
+            size="sm"
+            onClick={onComplete}
+            className="bg-eco text-white hover:bg-eco/90"
+            disabled={!report.photoBefore || !report.photoAfter}
+          >
             <Check className="mr-1 size-3" /> Valider
           </Button>
         </>
       )}
       <div className="flex gap-2">
-        {report.photoBefore && <img src={report.photoBefore} alt="Avant intervention" className="h-8 w-8 rounded-md object-cover" />}
-        {report.photoAfter && <img src={report.photoAfter} alt="Après intervention" className="h-8 w-8 rounded-md object-cover" />}
+        {report.photoBefore && (
+          <img
+            src={report.photoBefore}
+            alt="Avant intervention"
+            className="h-8 w-8 rounded-md object-cover"
+          />
+        )}
+        {report.photoAfter && (
+          <img
+            src={report.photoAfter}
+            alt="Après intervention"
+            className="h-8 w-8 rounded-md object-cover"
+          />
+        )}
       </div>
     </div>
   );

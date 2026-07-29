@@ -12,7 +12,10 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server.ts" },
   },
-   nitro: {
+  nitro: {
     preset: "vercel",
+  },
+  resolve: {
+    alias: [{ find: /^recharts$/, replacement: "recharts/lib/index.js" }],
   },
 });

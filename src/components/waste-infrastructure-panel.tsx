@@ -168,7 +168,15 @@ const WASTE_SITES: WasteSite[] = [
 
 const CATEGORY_META: Record<
   SiteCategory,
-  { label: string; shortLabel: string; color: string; bg: string; text: string; icon: typeof Factory; marker: string }
+  {
+    label: string;
+    shortLabel: string;
+    color: string;
+    bg: string;
+    text: string;
+    icon: typeof Factory;
+    marker: string;
+  }
 > = {
   traitement: {
     label: "Centre de traitement, valorisation et enfouissement",
@@ -327,7 +335,9 @@ function InfrastructureMap({
       });
 
       if (sites.length > 0) {
-        const bounds = L.latLngBounds(sites.map((site) => [site.lat, site.lng] as [number, number]));
+        const bounds = L.latLngBounds(
+          sites.map((site) => [site.lat, site.lng] as [number, number]),
+        );
         mapRef.current.fitBounds(bounds.pad(0.22), { maxZoom: 12 });
       }
     })();
@@ -343,7 +353,10 @@ function InfrastructureMap({
 
   return (
     <div className="relative h-[520px] w-full">
-      <div ref={containerRef} className="h-full w-full overflow-hidden rounded-2xl border border-border bg-secondary" />
+      <div
+        ref={containerRef}
+        className="h-full w-full overflow-hidden rounded-2xl border border-border bg-secondary"
+      />
       <div className="absolute bottom-3 left-3 z-[500] rounded-xl border border-border bg-card/95 p-3 shadow-lg backdrop-blur">
         <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
           <Layers3 className="size-3.5" /> Legende
@@ -400,28 +413,47 @@ export function WasteInfrastructurePanel() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <MapPinned className="size-5 text-eco" /> Cartographie des infrastructures de dechets
+                <MapPinned className="size-5 text-eco" /> Cartographie des infrastructures de
+                dechets
               </CardTitle>
               <CardDescription className="mt-2 max-w-3xl">
-                Visualisez sur une seule carte les centres de traitement, les centres de transfert et les points de
-                regroupement disponibles dans la ville de Kinshasa.
+                Visualisez sur une seule carte les centres de traitement, les centres de transfert
+                et les points de regroupement disponibles dans la ville de Kinshasa.
               </CardDescription>
             </div>
             <Badge className="border-eco/30 bg-eco/10 text-eco">Kinshasa</Badge>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-4">
-          <SummaryTile icon={<Factory className="size-5 text-emerald-600" />} label="Traitement" value={stats.traitement} />
-          <SummaryTile icon={<Warehouse className="size-5 text-amber-600" />} label="Transfert" value={stats.transfert} />
-          <SummaryTile icon={<Recycle className="size-5 text-sky-600" />} label="Regroupement" value={stats.regroupement} />
-          <SummaryTile icon={<Truck className="size-5 text-red-600" />} label="Sites satures" value={stats.sature} />
+          <SummaryTile
+            icon={<Factory className="size-5 text-emerald-600" />}
+            label="Traitement"
+            value={stats.traitement}
+          />
+          <SummaryTile
+            icon={<Warehouse className="size-5 text-amber-600" />}
+            label="Transfert"
+            value={stats.transfert}
+          />
+          <SummaryTile
+            icon={<Recycle className="size-5 text-sky-600" />}
+            label="Regroupement"
+            value={stats.regroupement}
+          />
+          <SummaryTile
+            icon={<Truck className="size-5 text-red-600" />}
+            label="Sites satures"
+            value={stats.sature}
+          />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>Filtres de la carte</CardTitle>
-          <CardDescription>Affichez une categorie precise ou toutes les infrastructures simultanement.</CardDescription>
+          <CardDescription>
+            Affichez une categorie precise ou toutes les infrastructures simultanement.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -430,7 +462,9 @@ export function WasteInfrastructurePanel() {
                 key={item.value}
                 onClick={() => {
                   setFilter(item.value);
-                  const first = WASTE_SITES.find((site) => item.value === "all" || site.category === item.value);
+                  const first = WASTE_SITES.find(
+                    (site) => item.value === "all" || site.category === item.value,
+                  );
                   setSelectedSiteId(first?.id ?? null);
                 }}
                 className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition ${
@@ -453,7 +487,8 @@ export function WasteInfrastructurePanel() {
               <MapPinned className="size-5 text-eco" /> Carte interactive
             </CardTitle>
             <CardDescription>
-              Cliquez sur un marqueur pour ouvrir la fiche du site et identifier rapidement sa categorie par couleur.
+              Cliquez sur un marqueur pour ouvrir la fiche du site et identifier rapidement sa
+              categorie par couleur.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -486,7 +521,9 @@ export function WasteInfrastructurePanel() {
                           key={site.id}
                           onClick={() => setSelectedSiteId(site.id)}
                           className={`w-full rounded-xl border p-3 text-left transition hover:bg-muted ${
-                            selectedSite.id === site.id ? "border-eco bg-eco/5" : "border-border bg-background"
+                            selectedSite.id === site.id
+                              ? "border-eco bg-eco/5"
+                              : "border-border bg-background"
                           }`}
                         >
                           <div className="flex items-start gap-2">
@@ -508,7 +545,9 @@ export function WasteInfrastructurePanel() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucun site ne correspond au filtre selectionne.</p>
+              <p className="text-sm text-muted-foreground">
+                Aucun site ne correspond au filtre selectionne.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -517,11 +556,21 @@ export function WasteInfrastructurePanel() {
   );
 }
 
-function SummaryTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+function SummaryTile({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
   return (
     <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+          {label}
+        </div>
         {icon}
       </div>
       <div className="mt-2 text-2xl font-semibold">{value}</div>
@@ -545,7 +594,9 @@ function SiteDetails({ site }: { site: WasteSite }) {
         </span>
         <div>
           <div className="font-display text-lg font-bold leading-tight">{site.name}</div>
-          <div className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${meta.bg} ${meta.text}`}>
+          <div
+            className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${meta.bg} ${meta.text}`}
+          >
             {meta.label}
           </div>
         </div>

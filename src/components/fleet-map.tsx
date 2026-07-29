@@ -32,20 +32,34 @@ function getRouteCoordinates(route: FleetMapVehicle["route"]) {
   return route.path.map((point) => [point.lat, point.lon] as [number, number]);
 }
 
-export function FleetMap({ vehicles: controlledVehicles, selectedId, onSelect, height = 520 }: FleetMapProps) {
+export function FleetMap({
+  vehicles: controlledVehicles,
+  selectedId,
+  onSelect,
+  height = 520,
+}: FleetMapProps) {
   const fleet = useFleet();
-  const vehicles: FleetMapVehicle[] = controlledVehicles ?? fleet.vehicles.map((v) => ({
-    id: v.id,
-    plate: v.plate,
-    driver: v.type === "camion_benne" ? "Camion" : v.type === "tricycle" ? "Tricycle" : "Vélo",
-    current: v.currentPosition ? { lat: v.currentPosition.lat, lng: v.currentPosition.lon } : undefined,
-    currentPosition: v.currentPosition,
-    route: v.route,
-  }));
+  const vehicles: FleetMapVehicle[] =
+    controlledVehicles ??
+    fleet.vehicles.map((v) => ({
+      id: v.id,
+      plate: v.plate,
+      driver: v.type === "camion_benne" ? "Camion" : v.type === "tricycle" ? "Tricycle" : "Vélo",
+      current: v.currentPosition
+        ? { lat: v.currentPosition.lat, lng: v.currentPosition.lon }
+        : undefined,
+      currentPosition: v.currentPosition,
+      route: v.route,
+    }));
   const position: [number, number] = [-4.325, 15.322222]; // Kinshasa
 
   return (
-    <MapContainer center={position} zoom={12} scrollWheelZoom={false} style={{ height, width: "100%" }}>
+    <MapContainer
+      center={position}
+      zoom={12}
+      scrollWheelZoom={false}
+      style={{ height, width: "100%" }}
+    >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

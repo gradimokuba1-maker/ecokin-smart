@@ -15,7 +15,10 @@ export type GPSState =
  * Demande la position GPS avec haute précision
  * Retourne l'état GPS et les coordonnées
  */
-export function requestGPSPosition(options?: { maximumAge?: number; timeout?: number }): Promise<GPSState> {
+export function requestGPSPosition(options?: {
+  maximumAge?: number;
+  timeout?: number;
+}): Promise<GPSState> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       resolve({ status: "unavailable" });
@@ -39,7 +42,11 @@ export function requestGPSPosition(options?: { maximumAge?: number; timeout?: nu
           resolve({ status: "unavailable" });
         }
       },
-      { enableHighAccuracy: true, timeout: options?.timeout ?? 15000, maximumAge: options?.maximumAge ?? 60000 }
+      {
+        enableHighAccuracy: true,
+        timeout: options?.timeout ?? 15000,
+        maximumAge: options?.maximumAge ?? 60000,
+      },
     );
   });
 }
@@ -72,11 +79,7 @@ export function buildLocationInfo(
  * Estimation du quartier basée sur les coordonnées
  * (version simplifiée - à enrichir avec une base de données réelle)
  */
-function estimateQuartier(
-  lat: number,
-  lng: number,
-  communeId: string
-): string {
+function estimateQuartier(lat: number, lng: number, communeId: string): string {
   // Quartiers connus par commune (à étendre)
   const quartiers: Record<string, string[]> = {
     matete: ["Mokali", "Mabanga", "Kimpwanza", "Mazamba"],
@@ -119,11 +122,7 @@ function estimateQuartier(
 /**
  * Construit une adresse approximative
  */
-function buildApproximateAddress(
-  lat: number,
-  lng: number,
-  communeName: string
-): string {
+function buildApproximateAddress(lat: number, lng: number, communeName: string): string {
   const latDir = lat >= 0 ? "N" : "S";
   const lngDir = lng >= 0 ? "E" : "O";
   const latDeg = Math.abs(lat);
@@ -134,12 +133,7 @@ function buildApproximateAddress(
 /**
  * Calcule la distance entre deux points GPS en mètres
  */
-export function haversineDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
+export function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const toRad = (v: number) => (v * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);

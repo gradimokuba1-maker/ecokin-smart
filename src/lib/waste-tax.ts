@@ -53,9 +53,10 @@ function readRates(): WasteTaxRates {
     const saved = JSON.parse(localStorage.getItem(K_RATES) ?? "{}") as Partial<WasteTaxRates>;
     return {
       bin: { ...DEFAULT_RATES.bin, ...saved.bin },
-      pmeMultiplier: Number.isFinite(saved.pmeMultiplier) && (saved.pmeMultiplier ?? 0) > 0
-        ? saved.pmeMultiplier!
-        : DEFAULT_RATES.pmeMultiplier,
+      pmeMultiplier:
+        Number.isFinite(saved.pmeMultiplier) && (saved.pmeMultiplier ?? 0) > 0
+          ? saved.pmeMultiplier!
+          : DEFAULT_RATES.pmeMultiplier,
     };
   } catch {
     return DEFAULT_RATES;
@@ -193,5 +194,7 @@ export const PAYMENT_PROVIDERS: Record<PaymentMethod, string[]> = {
 };
 
 export function formatCdf(n: number) {
-  return `${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} CDF`;
+  return `${Math.round(n)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ")} CDF`;
 }

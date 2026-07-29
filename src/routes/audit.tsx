@@ -10,7 +10,11 @@ export const Route = createFileRoute("/audit")({
   head: () => ({
     meta: [
       { title: "Journal d'audit — EcoKin Smart" },
-      { name: "description", content: "Traçabilité complète : connexions, validations, interventions et changements de rôle." },
+      {
+        name: "description",
+        content:
+          "Traçabilité complète : connexions, validations, interventions et changements de rôle.",
+      },
     ],
   }),
   component: () => (
@@ -37,7 +41,14 @@ function Page() {
     const header = "date,utilisateur,role,action,cible,details\n";
     const rows = filtered
       .map((e) =>
-        [e.at, e.user, e.role, ACTION_LABEL[e.action], e.target ?? "", (e.details ?? "").replace(/,/g, ";")]
+        [
+          e.at,
+          e.user,
+          e.role,
+          ACTION_LABEL[e.action],
+          e.target ?? "",
+          (e.details ?? "").replace(/,/g, ";"),
+        ]
           .map((v) => `"${String(v).replace(/"/g, '""')}"`)
           .join(","),
       )
@@ -78,7 +89,9 @@ function Page() {
             >
               <option value="all">Toutes les actions</option>
               {Object.entries(ACTION_LABEL).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+                <option key={k} value={k}>
+                  {v}
+                </option>
               ))}
             </select>
           </div>
@@ -121,7 +134,10 @@ function Page() {
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                    <td
+                      colSpan={6}
+                      className="px-4 py-12 text-center text-sm text-muted-foreground"
+                    >
                       Aucune entrée pour l'instant. Les actions sont enregistrées automatiquement.
                     </td>
                   </tr>

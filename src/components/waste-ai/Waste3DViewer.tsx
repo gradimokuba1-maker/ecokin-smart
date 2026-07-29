@@ -48,7 +48,7 @@ export function Waste3DViewer({ result, compact }: Props) {
       // Dimensions du volume
       const dim = result.dimensions;
       const maxDim = Math.max(dim.lengthM, dim.widthM, dim.heightAvgM, 1);
-      const scale = Math.min(w, h) * 0.3 / maxDim;
+      const scale = (Math.min(w, h) * 0.3) / maxDim;
 
       const l = dim.lengthM * scale;
       const wi = dim.widthM * scale;
@@ -64,14 +64,14 @@ export function Waste3DViewer({ result, compact }: Props) {
 
         // Points du parallélépipède
         const pts: [number, number, number][] = [
-          [-l / 2, -he / 2, -depth / 2],  // 0: arrière-gauche-bas
-          [l / 2, -he / 2, -depth / 2],   // 1: arrière-droit-bas
-          [l / 2, -he / 2, depth / 2],    // 2: avant-droit-bas
-          [-l / 2, -he / 2, depth / 2],   // 3: avant-gauche-bas
-          [-l / 2, he / 2, -depth / 2],   // 4: arrière-gauche-haut
-          [l / 2, he / 2, -depth / 2],    // 5: arrière-droit-haut
-          [l / 2, he / 2, depth / 2],     // 6: avant-droit-haut
-          [-l / 2, he / 2, depth / 2],    // 7: avant-gauche-haut
+          [-l / 2, -he / 2, -depth / 2], // 0: arrière-gauche-bas
+          [l / 2, -he / 2, -depth / 2], // 1: arrière-droit-bas
+          [l / 2, -he / 2, depth / 2], // 2: avant-droit-bas
+          [-l / 2, -he / 2, depth / 2], // 3: avant-gauche-bas
+          [-l / 2, he / 2, -depth / 2], // 4: arrière-gauche-haut
+          [l / 2, he / 2, -depth / 2], // 5: arrière-droit-haut
+          [l / 2, he / 2, depth / 2], // 6: avant-droit-haut
+          [-l / 2, he / 2, depth / 2], // 7: avant-gauche-haut
         ];
 
         // Projection isométrique simple
@@ -83,7 +83,7 @@ export function Waste3DViewer({ result, compact }: Props) {
           return [px, py];
         };
 
-        const projected = pts.map(p => project(p[0], p[1], p[2]));
+        const projected = pts.map((p) => project(p[0], p[1], p[2]));
 
         // Couleurs basées sur la composition
         const mainColor = getCompositionColor(result.mainCategory);
@@ -128,7 +128,20 @@ export function Waste3DViewer({ result, compact }: Props) {
         // Arêtes visibles
         ctx.strokeStyle = mainColor;
         ctx.lineWidth = 2;
-        for (const [i, j] of [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]]) {
+        for (const [i, j] of [
+          [0, 1],
+          [1, 2],
+          [2, 3],
+          [3, 0],
+          [4, 5],
+          [5, 6],
+          [6, 7],
+          [7, 4],
+          [0, 4],
+          [1, 5],
+          [2, 6],
+          [3, 7],
+        ]) {
           ctx.beginPath();
           ctx.moveTo(projected[i][0], projected[i][1]);
           ctx.lineTo(projected[j][0], projected[j][1]);
@@ -142,15 +155,24 @@ export function Waste3DViewer({ result, compact }: Props) {
 
         const labelOffset = 20;
         // Longueur
-        const lMid = [(projected[0][0] + projected[1][0]) / 2, (projected[0][1] + projected[1][1]) / 2 + labelOffset];
+        const lMid = [
+          (projected[0][0] + projected[1][0]) / 2,
+          (projected[0][1] + projected[1][1]) / 2 + labelOffset,
+        ];
         ctx.fillText(`${dim.lengthM}m`, lMid[0], lMid[1]);
 
         // Largeur
-        const wMid = [(projected[1][0] + projected[2][0]) / 2 + labelOffset, (projected[1][1] + projected[2][1]) / 2];
+        const wMid = [
+          (projected[1][0] + projected[2][0]) / 2 + labelOffset,
+          (projected[1][1] + projected[2][1]) / 2,
+        ];
         ctx.fillText(`${dim.widthM}m`, wMid[0], wMid[1]);
 
         // Hauteur
-        const hMid = [(projected[4][0] + projected[0][0]) / 2 - labelOffset, (projected[4][1] + projected[0][1]) / 2];
+        const hMid = [
+          (projected[4][0] + projected[0][0]) / 2 - labelOffset,
+          (projected[4][1] + projected[0][1]) / 2,
+        ];
         ctx.fillText(`${dim.heightAvgM}m`, hMid[0], hMid[1]);
       };
 
@@ -183,12 +205,7 @@ export function Waste3DViewer({ result, compact }: Props) {
   if (compact) {
     return (
       <div className="relative overflow-hidden rounded-lg border bg-card">
-        <canvas
-          ref={canvasRef}
-          width={300}
-          height={180}
-          className="w-full"
-        />
+        <canvas ref={canvasRef} width={300} height={180} className="w-full" />
         <div className="absolute bottom-2 left-2 rounded-md bg-background/80 px-2 py-1 text-xs font-bold backdrop-blur-sm">
           {result.dimensions.volumeM3} m³
         </div>

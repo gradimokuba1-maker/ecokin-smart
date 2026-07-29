@@ -87,7 +87,7 @@ export function usePermissions() {
           enableHighAccuracy: true, // ← localisation précise
           timeout: 15000,
           maximumAge: 60000,
-        }
+        },
       );
     });
   }, []);

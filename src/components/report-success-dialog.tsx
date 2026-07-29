@@ -32,7 +32,8 @@ export function ReportSuccessDialog({ open, onClose, report, greenPoints, commun
             Signalement enregistré avec succès
           </DialogTitle>
           <DialogDescription className="text-center">
-            Votre signalement a été transmis aux autorités compétentes. Merci pour votre contribution à la propreté de Kinshasa.
+            Votre signalement a été transmis aux autorités compétentes. Merci pour votre
+            contribution à la propreté de Kinshasa.
           </DialogDescription>
         </DialogHeader>
 
@@ -53,13 +54,17 @@ export function ReportSuccessDialog({ open, onClose, report, greenPoints, commun
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Urgence</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${URGENCY_META[report.urgency].bg} ${URGENCY_META[report.urgency].color}`}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ${URGENCY_META[report.urgency].bg} ${URGENCY_META[report.urgency].color}`}
+            >
               {URGENCY_META[report.urgency].label}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Statut</span>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_META[report.status].color}`}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-bold ${STATUS_META[report.status].color}`}
+            >
               {STATUS_META[report.status].label}
             </span>
           </div>
@@ -68,7 +73,9 @@ export function ReportSuccessDialog({ open, onClose, report, greenPoints, commun
         {greenPoints > 0 && (
           <div className="flex items-center justify-center gap-2 rounded-xl border border-eco/30 bg-eco/10 px-4 py-3">
             <Trophy className="size-5 text-eco" />
-            <span className="font-display text-lg font-bold text-eco">+{greenPoints} Green Points</span>
+            <span className="font-display text-lg font-bold text-eco">
+              +{greenPoints} Green Points
+            </span>
           </div>
         )}
 

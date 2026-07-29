@@ -13,25 +13,34 @@ export type ReportScope = {
 };
 
 export function severityFromAnalysis(result: WasteAnalysisResult): Severity {
-  if (result.interventionUrgent || result.floodRisk || result.priorityLevel === "critique") return "critique";
+  if (result.interventionUrgent || result.floodRisk || result.priorityLevel === "critique")
+    return "critique";
   if (result.priorityLevel === "eleve" || result.healthRisk === "eleve") return "modere";
   return "faible";
 }
 
-export function priorityScoreFromAnalysis(analysisResult: WasteAnalysisResult, commune: string): number {
+export function priorityScoreFromAnalysis(
+  analysisResult: WasteAnalysisResult,
+  commune: string,
+): number {
   // The AI analysis result already contains a priorityScore, which is more accurate.
   // We'll use that directly instead of re-calculating from basic severity.
   return analysisResult.priorityScore;
 }
 
-export function filterReportsByScope(reports: LiveReport[], session: Pick<Session, "role" | "commune" | "quartier" | "zone" | "userId">) {
+export function filterReportsByScope(
+  reports: LiveReport[],
+  session: Pick<Session, "role" | "commune" | "quartier" | "zone" | "userId">,
+) {
   if (session.role === "gouverneur") return reports;
   if (session.role === "agent") {
     return reports.filter(
       (report) =>
         report.assignedAgentId === session.userId ||
         report.authorId === session.userId ||
-        (!report.assignedAgentId && report.commune === session.commune && (report.status === "assignee" || report.status === "en_cours")),
+        (!report.assignedAgentId &&
+          report.commune === session.commune &&
+          (report.status === "assignee" || report.status === "en_cours")),
     );
   }
   if (session.role === "bourgmestre" || session.role === "admin") {
@@ -61,7 +70,10 @@ export function statusDate(report: LiveReport, status: LiveStatus) {
 }
 
 export function reportVolume(reports: LiveReport[]) {
-  return reports.reduce((sum, report) => sum + (report.volumeM3 ?? report.dimensions?.volumeM3 ?? 0), 0);
+  return reports.reduce(
+    (sum, report) => sum + (report.volumeM3 ?? report.dimensions?.volumeM3 ?? 0),
+    0,
+  );
 }
 
 export function reportWeight(reports: LiveReport[]) {
@@ -73,7 +85,12 @@ export function collectedReports(reports: LiveReport[]) {
 }
 
 export function pendingReports(reports: LiveReport[]) {
-  return reports.filter((report) => report.status === "en_attente" || report.status === "assignee" || report.status === "en_cours");
+  return reports.filter(
+    (report) =>
+      report.status === "en_attente" ||
+      report.status === "assignee" ||
+      report.status === "en_cours",
+  );
 }
 
 export function recycledVolume(reports: LiveReport[]) {
@@ -81,7 +98,9 @@ export function recycledVolume(reports: LiveReport[]) {
     const recyclablePct =
       report.composition?.reduce((pct, item) => {
         const material = item.material.toLowerCase();
-        if (["plastique", "metal", "verre", "papier", "carton"].some((key) => material.includes(key))) {
+        if (
+          ["plastique", "metal", "verre", "papier", "carton"].some((key) => material.includes(key))
+        ) {
           return pct + item.percentage;
         }
         return pct;
@@ -93,7 +112,12 @@ export function recycledVolume(reports: LiveReport[]) {
 export function illegalDumpCount(reports: LiveReport[]) {
   return reports.filter((report) => {
     const text = `${report.category} ${report.description ?? ""}`.toLowerCase();
-    return text.includes("depot") || text.includes("dépôt") || text.includes("sauvage") || report.category === "mixte";
+    return (
+      text.includes("depot") ||
+      text.includes("dépôt") ||
+      text.includes("sauvage") ||
+      report.category === "mixte"
+    );
   }).length;
 }
 
@@ -103,12 +127,16 @@ export function environmentalIndicators(reports: LiveReport[]) {
   const critical = reports.filter((report) => report.urgency === "critique").length;
   const floodRisk = reports.filter((report) => report.floodRisk).length;
   const treatmentRate = total ? Math.round((resolved / total) * 100) : 0;
-  const cleanlinessScore = Math.max(0, Math.min(100, 100 - critical * 8 - pendingReports(reports).length * 2 + treatmentRate / 2));
+  const cleanlinessScore = Math.max(
+    0,
+    Math.min(100, 100 - critical * 8 - pendingReports(reports).length * 2 + treatmentRate / 2),
+  );
   return {
     treatmentRate,
     cleanlinessScore: Math.round(cleanlinessScore),
     floodRisk,
-    urgent: reports.filter((report) => report.urgency === "critique" || report.urgency === "eleve").length,
+    urgent: reports.filter((report) => report.urgency === "critique" || report.urgency === "eleve")
+      .length,
   };
 }
 
@@ -118,9 +146,12 @@ export function dailySeries(reports: LiveReport[], days: number) {
     date.setDate(date.getDate() - index);
     const key = date.toISOString().slice(0, 10);
     return {
-      name: index === 0 ? "Auj." : date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+      name:
+        index === 0 ? "Auj." : date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
       Signalements: reports.filter((report) => report.createdAt.startsWith(key)).length,
-      Collectes: reports.filter((report) => report.status === "terminee" && statusDate(report, "terminee")?.startsWith(key)).length,
+      Collectes: reports.filter(
+        (report) => report.status === "terminee" && statusDate(report, "terminee")?.startsWith(key),
+      ).length,
     };
   }).reverse();
 }
@@ -133,7 +164,9 @@ export function monthlySeries(reports: LiveReport[], months: number) {
     return {
       name: date.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
       Signalements: reports.filter((report) => report.createdAt.startsWith(key)).length,
-      Collectes: reports.filter((report) => report.status === "terminee" && statusDate(report, "terminee")?.startsWith(key)).length,
+      Collectes: reports.filter(
+        (report) => report.status === "terminee" && statusDate(report, "terminee")?.startsWith(key),
+      ).length,
     };
   }).reverse();
 }
@@ -151,25 +184,34 @@ export function reportsByCommune(reports: LiveReport[]) {
 }
 
 export function reportsByQuarter(reports: LiveReport[]) {
-  return Object.entries(groupBy(reports, (report) => report.quartier ?? report.zone ?? "Non renseigne"))
+  return Object.entries(
+    groupBy(reports, (report) => report.quartier ?? report.zone ?? "Non renseigne"),
+  )
     .map(([name, value]) => ({ name, Signalements: value }))
     .sort((a, b) => b.Signalements - a.Signalements);
 }
 
-export function agentPerformance(reports: LiveReport[], missions: AgentMission[], users: EcokinUserRecord[]) {
+export function agentPerformance(
+  reports: LiveReport[],
+  missions: AgentMission[],
+  users: EcokinUserRecord[],
+) {
   const agentUsers = users.filter((user) => user.role === "agent");
   return agentUsers
     .map((agent) => {
       const assigned = reports.filter((report) => report.assignedAgentId === agent.id);
       const missionRows = missions.filter((mission) => mission.agentId === agent.id);
       const completed = assigned.filter((report) => report.status === "terminee").length;
-      const active = assigned.filter((report) => report.status === "assignee" || report.status === "en_cours").length;
+      const active = assigned.filter(
+        (report) => report.status === "assignee" || report.status === "en_cours",
+      ).length;
       return {
         id: agent.id,
         name: agent.name,
         commune: agent.commune ?? "Kinshasa",
         assignes: assigned.length || missionRows.length,
-        termines: completed || missionRows.filter((mission) => mission.status === "terminee").length,
+        termines:
+          completed || missionRows.filter((mission) => mission.status === "terminee").length,
         actifs: active || missionRows.filter((mission) => mission.status !== "terminee").length,
         taux: assigned.length ? Math.round((completed / assigned.length) * 100) : 0,
       };
@@ -177,11 +219,17 @@ export function agentPerformance(reports: LiveReport[], missions: AgentMission[]
     .filter((row) => row.assignes > 0 || row.actifs > 0 || row.termines > 0);
 }
 
-export function authorityPerformance(reports: LiveReport[], users: EcokinUserRecord[], role: "admin" | "bourgmestre") {
+export function authorityPerformance(
+  reports: LiveReport[],
+  users: EcokinUserRecord[],
+  role: "admin" | "bourgmestre",
+) {
   return users
     .filter((user) => user.role === role)
     .map((user) => {
-      const scoped = user.commune ? reports.filter((report) => report.commune === user.commune) : reports;
+      const scoped = user.commune
+        ? reports.filter((report) => report.commune === user.commune)
+        : reports;
       const resolved = scoped.filter((report) => report.status === "terminee").length;
       return {
         id: user.id,

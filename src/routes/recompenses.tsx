@@ -40,7 +40,9 @@ function RecompensesPage() {
       <header className="border-b border-border bg-secondary/40">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <p className="text-xs font-bold uppercase tracking-widest text-eco">Programme citoyen</p>
-          <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">Green Points & Récompenses</h1>
+          <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">
+            Green Points & Récompenses
+          </h1>
           <p className="mt-2 max-w-2xl text-muted-foreground">
             Chaque signalement validé rapporte des points. Échangez-les contre des avantages
             concrets auprès de nos partenaires.
@@ -58,7 +60,9 @@ function RecompensesPage() {
             <div className="mt-4 font-display text-6xl font-extrabold tracking-tight">
               {user.points.toLocaleString()}
             </div>
-            <div className="mt-1 text-sm opacity-90">Green Points · ≈ {(user.points * 4).toLocaleString()} CDF</div>
+            <div className="mt-1 text-sm opacity-90">
+              Green Points · ≈ {(user.points * 4).toLocaleString()} CDF
+            </div>
             <div className="mt-6 grid grid-cols-3 gap-3 border-t border-white/20 pt-5 text-center">
               <div>
                 <div className="font-display text-2xl font-bold">{user.reports}</div>
@@ -66,7 +70,9 @@ function RecompensesPage() {
               </div>
               <div>
                 <div className="font-display text-2xl font-bold">#248</div>
-                <div className="text-[10px] uppercase tracking-widest opacity-80">Rang national</div>
+                <div className="text-[10px] uppercase tracking-widest opacity-80">
+                  Rang national
+                </div>
               </div>
               <div>
                 <div className="font-display text-2xl font-bold">{user.badges.length}</div>
@@ -90,7 +96,9 @@ function RecompensesPage() {
                       owned ? "border-eco/30 bg-eco/5" : "border-border bg-secondary opacity-60"
                     }`}
                   >
-                    <span className={`grid size-10 place-items-center rounded-full text-white ${b.color}`}>
+                    <span
+                      className={`grid size-10 place-items-center rounded-full text-white ${b.color}`}
+                    >
                       <Award className="size-4" />
                     </span>
                     <div className="flex-1">
@@ -130,7 +138,9 @@ function RecompensesPage() {
                       onClick={() => claim(r.cost, r.name)}
                       disabled={!enough}
                       className={`rounded-lg px-3 py-2 text-xs font-bold ${
-                        enough ? "bg-foreground text-background" : "bg-secondary text-muted-foreground"
+                        enough
+                          ? "bg-foreground text-background"
+                          : "bg-secondary text-muted-foreground"
                       }`}
                     >
                       {r.cost.toLocaleString()} GP

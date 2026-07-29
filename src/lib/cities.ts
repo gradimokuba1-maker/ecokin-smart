@@ -52,14 +52,22 @@ function isPointInRing(lat: number, lng: number, ring: Array<[number, number]>):
   return inside;
 }
 
-function isPointInCommune(lat: number, lng: number, rings: Array<Array<[number, number]>>): boolean {
+function isPointInCommune(
+  lat: number,
+  lng: number,
+  rings: Array<Array<[number, number]>>,
+): boolean {
   return rings.some((ring) => isPointInRing(lat, lng, ring));
 }
 
 export function detectCityCommune(city: City, lat: number, lng: number): CityCommune {
   if (city.id === "kinshasa") {
-    const polygonMatch = KINSHASA_COMMUNE_POLYGONS.find((commune) => isPointInCommune(lat, lng, commune.rings));
-    const commune = polygonMatch ? city.communes.find((item) => item.id === polygonMatch.id) : undefined;
+    const polygonMatch = KINSHASA_COMMUNE_POLYGONS.find((commune) =>
+      isPointInCommune(lat, lng, commune.rings),
+    );
+    const commune = polygonMatch
+      ? city.communes.find((item) => item.id === polygonMatch.id)
+      : undefined;
     if (commune) return commune;
   }
 
@@ -82,7 +90,6 @@ export function haversineMeters(a: [number, number], b: [number, number]): numbe
   const dLng = toRad(b[1] - a[1]);
   const lat1 = toRad(a[0]);
   const lat2 = toRad(b[0]);
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }

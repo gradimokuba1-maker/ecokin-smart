@@ -39,14 +39,18 @@ function AuthorityIndex() {
           <div className="inline-flex items-center justify-center gap-2 self-center rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200 sm:self-start">
             <Lock className="size-4" /> Portail sécurisé · Accès réservé
           </div>
-          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Espace Autorité</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+            Espace Autorité
+          </h1>
           <p className="mx-auto max-w-2xl text-sm text-slate-300 sm:mx-0 sm:text-base">
-            Sélectionnez votre profil pour continuer vers la page de connexion sécurisée de votre service.
+            Sélectionnez votre profil pour continuer vers la page de connexion sécurisée de votre
+            service.
           </p>
         </div>
         <RoleSelector />
         <div className="mt-6 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-50">
-          Après votre sélection, vous serez redirigé vers une page de connexion sécurisée avec les champs Identifiant et Mot de passe.
+          Après votre sélection, vous serez redirigé vers une page de connexion sécurisée avec les
+          champs Identifiant et Mot de passe.
         </div>
       </div>
     </main>

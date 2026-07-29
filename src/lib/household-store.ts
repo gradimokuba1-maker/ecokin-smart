@@ -82,9 +82,9 @@ export function useHouseholds() {
   const refresh = useCallback(() => {
     let allHouseholds = read<Household>(K_HH);
     if (user) {
-        if (user.role === 'bourgmestre' && user.commune) {
-            allHouseholds = allHouseholds.filter(h => h.commune === user.commune);
-        }
+      if (user.role === "bourgmestre" && user.commune) {
+        allHouseholds = allHouseholds.filter((h) => h.commune === user.commune);
+      }
     }
     setHouseholds(allHouseholds);
     setRequests(read<CollectionRequest>(K_REQ));
@@ -106,47 +106,47 @@ export function useHouseholds() {
   useEffect(() => {
     const data = read<Household>(K_HH);
     if (data.length === 0) {
-        write(K_HH, [
-            {
-                id: "HH-1",
-                kind: "menage",
-                name: "Famille Kabongo",
-                commune: "Kalamu",
-                quartier: "Matonge",
-                address: "123, Avenue Victoire",
-                phone: "+243810000001",
-                occupants: 5,
-                binType: "120L",
-                createdAt: new Date().toISOString(),
-            },
-            {
-                id: "HH-2",
-                kind: "pme",
-                name: "Chez Mama Nseya",
-                commune: "Kalamu",
-                quartier: "Yolo",
-                address: "456, Avenue de l'Université",
-                phone: "+243810000002",
-                occupants: 10,
-                binType: "240L",
-                createdAt: new Date().toISOString(),
-            },
-            {
-                id: "HH-3",
-                kind: "menage",
-                name: "Famille Mavanga",
-                commune: "Gombe",
-                quartier: "Centre-ville",
-                address: "789, Boulevard du 30 Juin",
-                phone: "+243810000003",
-                occupants: 3,
-                binType: "120L",
-                createdAt: new Date().toISOString(),
-            },
-        ]);
-        refresh();
+      write(K_HH, [
+        {
+          id: "HH-1",
+          kind: "menage",
+          name: "Famille Kabongo",
+          commune: "Kalamu",
+          quartier: "Matonge",
+          address: "123, Avenue Victoire",
+          phone: "+243810000001",
+          occupants: 5,
+          binType: "120L",
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: "HH-2",
+          kind: "pme",
+          name: "Chez Mama Nseya",
+          commune: "Kalamu",
+          quartier: "Yolo",
+          address: "456, Avenue de l'Université",
+          phone: "+243810000002",
+          occupants: 10,
+          binType: "240L",
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: "HH-3",
+          kind: "menage",
+          name: "Famille Mavanga",
+          commune: "Gombe",
+          quartier: "Centre-ville",
+          address: "789, Boulevard du 30 Juin",
+          phone: "+243810000003",
+          occupants: 3,
+          binType: "120L",
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      refresh();
     }
-}, [refresh]);
+  }, [refresh]);
 
   return {
     households,
@@ -170,7 +170,10 @@ export function useHouseholds() {
       );
     },
     removeHousehold(id: string) {
-      write(K_HH, read<Household>(K_HH).filter((x) => x.id !== id));
+      write(
+        K_HH,
+        read<Household>(K_HH).filter((x) => x.id !== id),
+      );
     },
     createRequest(r: Omit<CollectionRequest, "id" | "requestedAt" | "status">) {
       const next: CollectionRequest = {
@@ -248,10 +251,7 @@ export const SORT_TIPS = [
     id: "verre",
     label: "Verre",
     color: "#10b981",
-    tips: [
-      "Bocaux et bouteilles rincés",
-      "Ne pas jeter d'ampoules ni de vaisselle dans ce bac",
-    ],
+    tips: ["Bocaux et bouteilles rincés", "Ne pas jeter d'ampoules ni de vaisselle dans ce bac"],
   },
   {
     id: "deee",

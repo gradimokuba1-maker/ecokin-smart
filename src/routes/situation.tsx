@@ -18,7 +18,10 @@ export const Route = createFileRoute("/situation")({
   head: () => ({
     meta: [
       { title: "Centre de Situation Urbaine — EcoKin Smart" },
-      { name: "description", content: "Centre de situation urbaine en temps réel : incidents, hotspots, urgences." },
+      {
+        name: "description",
+        content: "Centre de situation urbaine en temps réel : incidents, hotspots, urgences.",
+      },
     ],
   }),
   component: SituationPage,
@@ -43,7 +46,8 @@ function Content() {
           </div>
           <h1 className="mt-2 font-display text-4xl font-bold">Centre de Situation Urbaine</h1>
           <p className="mt-1 text-white/70">
-            Visualisation en direct des incidents environnementaux et points critiques d'accumulation.
+            Visualisation en direct des incidents environnementaux et points critiques
+            d'accumulation.
           </p>
         </div>
       </header>
@@ -55,7 +59,12 @@ function Content() {
             const reports = REPORTS.filter((r) => r.commune === c.id);
             const critiques = reports.filter((r) => r.severity === "critique").length;
             const level = critiques > 4 ? "critique" : critiques > 2 ? "eleve" : "modere";
-            const lvlColor = level === "critique" ? "bg-red-500" : level === "eleve" ? "bg-orange-500" : "bg-amber-500";
+            const lvlColor =
+              level === "critique"
+                ? "bg-red-500"
+                : level === "eleve"
+                  ? "bg-orange-500"
+                  : "bg-amber-500";
             return (
               <div key={c.id} className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex items-center justify-between">
@@ -65,7 +74,9 @@ function Content() {
                     </div>
                     <div className="font-display text-xl font-bold">{c.name}</div>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase text-white ${lvlColor}`}>
+                  <span
+                    className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase text-white ${lvlColor}`}
+                  >
                     {level}
                   </span>
                 </div>
@@ -107,7 +118,9 @@ function Content() {
               <ul className="mt-3 space-y-2">
                 {PRIORITY_ALERTS.map((a) => (
                   <li key={a.id} className="rounded-xl bg-card p-3 text-xs">
-                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-600">{a.level}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-red-600">
+                      {a.level}
+                    </div>
                     <div className="mt-1 font-semibold">{a.msg}</div>
                   </li>
                 ))}
@@ -120,16 +133,29 @@ function Content() {
               </div>
               <ul className="mt-3 space-y-2 text-xs">
                 {HOTSPOTS.map((h) => (
-                  <li key={h.id} className="flex items-center justify-between gap-2 border-b border-border/60 pb-1.5">
+                  <li
+                    key={h.id}
+                    className="flex items-center justify-between gap-2 border-b border-border/60 pb-1.5"
+                  >
                     <div className="min-w-0">
                       <div className="truncate font-semibold">{h.name}</div>
-                      <div className="capitalize text-muted-foreground">{h.commune} · {h.recurrence}/mois · {h.trend}</div>
+                      <div className="capitalize text-muted-foreground">
+                        {h.commune} · {h.recurrence}/mois · {h.trend}
+                      </div>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase text-white ${
-                      h.predictedRiskNext7d === "critique" ? "bg-red-500" :
-                      h.predictedRiskNext7d === "eleve" ? "bg-orange-500" :
-                      h.predictedRiskNext7d === "modere" ? "bg-amber-500" : "bg-emerald-500"
-                    }`}>{h.predictedRiskNext7d}</span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase text-white ${
+                        h.predictedRiskNext7d === "critique"
+                          ? "bg-red-500"
+                          : h.predictedRiskNext7d === "eleve"
+                            ? "bg-orange-500"
+                            : h.predictedRiskNext7d === "modere"
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                      }`}
+                    >
+                      {h.predictedRiskNext7d}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -178,7 +204,9 @@ function Content() {
 function Mini({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-secondary/40 px-2 py-1.5">
-      <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
       <div className="font-display text-base font-bold">{value}</div>
     </div>
   );

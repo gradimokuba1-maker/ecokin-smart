@@ -10,7 +10,11 @@ export const Route = createFileRoute("/admin-login")({
   head: () => ({
     meta: [
       { title: "Connexion administrateur — EcoKin Smart" },
-      { name: "description", content: "Connexion sécurisée à la console d'administration EcoKin Smart par téléphone et code PIN." },
+      {
+        name: "description",
+        content:
+          "Connexion sécurisée à la console d'administration EcoKin Smart par téléphone et code PIN.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -49,8 +53,8 @@ function AdminLoginPage() {
             </div>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Cet espace est strictement réservé aux administrateurs habilités de la plateforme EcoKin Smart.
-            Authentifiez-vous par téléphone et code PIN.
+            Cet espace est strictement réservé aux administrateurs habilités de la plateforme EcoKin
+            Smart. Authentifiez-vous par téléphone et code PIN.
           </p>
 
           <form
@@ -111,13 +115,18 @@ function AdminLoginPage() {
               <ShieldCheck className="size-4" /> Se connecter
             </button>
             <details className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
-              <summary className="cursor-pointer font-semibold">Identifiants de démonstration</summary>
+              <summary className="cursor-pointer font-semibold">
+                Identifiants de démonstration
+              </summary>
               <ul className="mt-2 space-y-0.5 font-mono">
                 <li>Téléphone : {AUTH_USERS.admin.identifier}</li>
                 <li>PIN : {AUTH_USERS.admin.password}</li>
               </ul>
             </details>
-            <Link to="/" className="block text-center text-xs text-muted-foreground hover:underline">
+            <Link
+              to="/"
+              className="block text-center text-xs text-muted-foreground hover:underline"
+            >
               ← Retour à l'accueil
             </Link>
           </form>

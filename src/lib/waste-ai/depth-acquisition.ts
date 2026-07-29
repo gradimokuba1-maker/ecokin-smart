@@ -18,21 +18,24 @@ async function detectDepthSensor(): Promise<DepthAcquisition> {
     if (await nav.xr.isSessionSupported("immersive-ar")) {
       // isSessionSupported is not enough, we need to check for the feature.
       // A real session request is more reliable.
-      const session = await nav.xr.requestSession("immersive-ar", { requiredFeatures: ['depth-sensing'] }).catch(() => null);
+      const session = await nav.xr
+        .requestSession("immersive-ar", { requiredFeatures: ["depth-sensing"] })
+        .catch(() => null);
       if (session) {
         // We must end the session immediately as we are only detecting capabilities.
         session.end();
 
         // Let's check if it's likely ARKit or ARCore
         const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-        const source: DepthSource = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream ? "arkit" : "arcore";
+        const source: DepthSource =
+          /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream ? "arkit" : "arcore";
 
         return {
           source,
-          label: source === 'arkit' ? "ARKit Depth" : "ARCore Depth",
+          label: source === "arkit" ? "ARKit Depth" : "ARCore Depth",
           supported: true,
           confidence: 0.85,
-          resolution: { width: 256, height: 192 } // Typical low-res depth map
+          resolution: { width: 256, height: 192 }, // Typical low-res depth map
         };
       }
     }
@@ -41,13 +44,14 @@ async function detectDepthSensor(): Promise<DepthAcquisition> {
   }
 
   // Simulate ToF sensor detection as a fallback example (no standard web API exists)
-  if (Math.random() > 0.8) { // Simulate 20% chance
+  if (Math.random() > 0.8) {
+    // Simulate 20% chance
     return {
       source: "tof",
       label: "Capteur ToF (simulé)",
       supported: true,
       confidence: 0.7,
-      resolution: { width: 320, height: 240 }
+      resolution: { width: 320, height: 240 },
     };
   }
 
@@ -59,7 +63,6 @@ async function detectDepthSensor(): Promise<DepthAcquisition> {
     confidence: 0.6,
   };
 }
-
 
 export const getDepthAcquisition = async (): Promise<DepthAcquisition> => {
   try {

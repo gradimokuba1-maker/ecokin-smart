@@ -56,7 +56,9 @@ export function useLearning() {
   const total = store.validations + store.corrections.length;
   // Précision IA simulée — augmente avec les validations, diminue avec corrections
   const precisionPct =
-    total === 0 ? 92.4 : Math.min(99, Math.max(60, Math.round(((store.validations + 30) / (total + 30)) * 100)));
+    total === 0
+      ? 92.4
+      : Math.min(99, Math.max(60, Math.round(((store.validations + 30) / (total + 30)) * 100)));
 
   return { store, validate, correct, precisionPct };
 }

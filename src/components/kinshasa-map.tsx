@@ -53,7 +53,14 @@ type Props = {
   onUserLocation?: (lat: number, lng: number, accuracy: number) => void;
 };
 
-export function KinshasaMap({ city, reports, height = 560, picker, followUser = true, onUserLocation }: Props) {
+export function KinshasaMap({
+  city,
+  reports,
+  height = 560,
+  picker,
+  followUser = true,
+  onUserLocation,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const clusterRef = useRef<any>(null);
@@ -63,8 +70,12 @@ export function KinshasaMap({ city, reports, height = 560, picker, followUser = 
   const LRef = useRef<any>(null);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<Array<{ label: string; lat: number; lng: number }>>([]);
-  const [userPos, setUserPos] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [suggestions, setSuggestions] = useState<
+    Array<{ label: string; lat: number; lng: number }>
+  >([]);
+  const [userPos, setUserPos] = useState<{ lat: number; lng: number; accuracy: number } | null>(
+    null,
+  );
   const [mapReady, setMapReady] = useState(false);
 
   // Init map (once)
@@ -136,7 +147,7 @@ export function KinshasaMap({ city, reports, height = 560, picker, followUser = 
     const L = LRef.current;
     const cluster = clusterRef.current;
     cluster.clearLayers();
-    const userLL = userPos ? [userPos.lat, userPos.lng] as [number, number] : null;
+    const userLL = userPos ? ([userPos.lat, userPos.lng] as [number, number]) : null;
     reports.forEach((r) => {
       if (!Number.isFinite(r.lat) || !Number.isFinite(r.lng)) return;
       const color = STATUS_COLOR[r.status ?? "nouveau"] ?? "#ef4444";
@@ -150,7 +161,9 @@ export function KinshasaMap({ city, reports, height = 560, picker, followUser = 
       });
       const dist = userLL ? haversineMeters(userLL, [r.lat, r.lng]) : null;
       const distStr =
-        dist == null ? "" : `<div style="color:#64748b;font-size:11px;margin-top:4px">📍 ${dist < 1000 ? Math.round(dist) + " m" : (dist / 1000).toFixed(1) + " km"} de vous</div>`;
+        dist == null
+          ? ""
+          : `<div style="color:#64748b;font-size:11px;margin-top:4px">📍 ${dist < 1000 ? Math.round(dist) + " m" : (dist / 1000).toFixed(1) + " km"} de vous</div>`;
       const photo = r.photoUrl
         ? `<img src="${r.photoUrl}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px;margin-bottom:6px" />`
         : "";
@@ -185,7 +198,10 @@ export function KinshasaMap({ city, reports, height = 560, picker, followUser = 
       iconAnchor: [14, 14],
     });
     const m = L.marker([picker.lat, picker.lng], { icon, draggable: true }).addTo(mapRef.current);
-    m.bindTooltip("Glissez pour ajuster la position", { direction: "top", offset: [0, -12] }).openTooltip();
+    m.bindTooltip("Glissez pour ajuster la position", {
+      direction: "top",
+      offset: [0, -12],
+    }).openTooltip();
     m.on("dragend", () => {
       const p = m.getLatLng();
       picker.onChange(p.lat, p.lng);
@@ -218,7 +234,9 @@ export function KinshasaMap({ city, reports, height = 560, picker, followUser = 
             iconSize: [18, 18],
             iconAnchor: [9, 9],
           });
-          userMarkerRef.current = L.marker([lat, lng], { icon, interactive: false }).addTo(mapRef.current);
+          userMarkerRef.current = L.marker([lat, lng], { icon, interactive: false }).addTo(
+            mapRef.current,
+          );
           accuracyCircleRef.current = L.circle([lat, lng], {
             radius: acc,
             color: "#0ea5e9",
@@ -295,7 +313,11 @@ export function KinshasaMap({ city, reports, height = 560, picker, followUser = 
       {/* Search bar */}
       <div className="absolute left-3 right-3 top-3 z-[500] sm:right-auto sm:w-96">
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur">
-          {searching ? <Loader2 className="size-4 animate-spin text-eco" /> : <Search className="size-4 text-muted-foreground" />}
+          {searching ? (
+            <Loader2 className="size-4 animate-spin text-eco" />
+          ) : (
+            <Search className="size-4 text-muted-foreground" />
+          )}
           <input
             value={query}
             onChange={(e) => runSearch(e.target.value)}

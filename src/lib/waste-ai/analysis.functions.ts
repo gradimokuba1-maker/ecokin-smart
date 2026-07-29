@@ -15,29 +15,40 @@ import {
   MATERIAL_DENSITIES,
 } from "./types";
 
-const InputSchema = z.object({
-  imageDataUrl: z.string().min(20),
-  additionalImages: z.array(z.string()).optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
-  accuracy: z.number().optional(),
-  altitudeM: z.number().optional(),
-  capturedAt: z.string().datetime().optional(),
-  cameraCapability: z.enum(["lidar", "arcore", "basic"]).optional(),
-  depthData: z.string().optional(), // JSON stringified depth data if available
-}).extend({
-  // Ajout de champs pour une analyse plus riche côté serveur
-  volumeM3FromDepth: z.number().optional(),
-  surfaceM2FromDepth: z.number().optional(),
-  heightAvgMFromDepth: z.number().optional(),
-});
-
+const InputSchema = z
+  .object({
+    imageDataUrl: z.string().min(20),
+    additionalImages: z.array(z.string()).optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    accuracy: z.number().optional(),
+    altitudeM: z.number().optional(),
+    capturedAt: z.string().datetime().optional(),
+    cameraCapability: z.enum(["lidar", "arcore", "basic"]).optional(),
+    depthData: z.string().optional(), // JSON stringified depth data if available
+  })
+  .extend({
+    // Ajout de champs pour une analyse plus riche côté serveur
+    volumeM3FromDepth: z.number().optional(),
+    surfaceM2FromDepth: z.number().optional(),
+    heightAvgMFromDepth: z.number().optional(),
+  });
 
 type Input = z.infer<typeof InputSchema>;
 
 const MATERIALS: readonly WasteMaterial[] = [
-  "plastique", "carton", "papier", "verre", "metal", "organique",
-  "dangereux", "meuble", "electronique", "construction", "mixte", "inconnu",
+  "plastique",
+  "carton",
+  "papier",
+  "verre",
+  "metal",
+  "organique",
+  "dangereux",
+  "meuble",
+  "electronique",
+  "construction",
+  "mixte",
+  "inconnu",
 ];
 
 function toMaterial(value: unknown, fallback: WasteMaterial = "inconnu"): WasteMaterial {
@@ -55,7 +66,8 @@ function detectedObjects(value: unknown) {
   return value.slice(0, 12).flatMap((object) => {
     if (!object || typeof object !== "object") return [];
     const item = object as Record<string, unknown>;
-    const label = typeof item.label === "string" ? item.label.trim().slice(0, 60) : "déchet non précisé";
+    const label =
+      typeof item.label === "string" ? item.label.trim().slice(0, 60) : "déchet non précisé";
     const count = Math.max(1, Math.min(999, Math.round(Number(item.count) || 1)));
     const confidence = Math.max(0, Math.min(1, Number(item.confidence) || 0));
     return label ? [{ label, count, confidence }] : [];
@@ -66,9 +78,7 @@ function detectedObjects(value: unknown) {
 function createFallback(input: Input): WasteAnalysisResult {
   const now = new Date().toISOString();
   const id = "ECO-" + Date.now().toString(36).toUpperCase();
-  const composition: CompositionEntry[] = [
-    { material: "mixte", percentage: 100 },
-  ];
+  const composition: CompositionEntry[] = [{ material: "mixte", percentage: 100 }];
   const dimensions: Dimensions3D = {
     lengthM: 1.5,
     widthM: 1.0,
@@ -195,7 +205,17 @@ export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
 
     try {
       const analysisResult = await (async (): Promise<WasteAnalysisResult> => {
-        const { imageDataUrl, additionalImages, lat, lng, accuracy, altitudeM, capturedAt, cameraCapability, depthData } = data;
+        const {
+          imageDataUrl,
+          additionalImages,
+          lat,
+          lng,
+          accuracy,
+          altitudeM,
+          capturedAt,
+          cameraCapability,
+          depthData,
+        } = data;
         const now = new Date().toISOString();
         const id = "ECO-" + Date.now().toString(36).toUpperCase();
 
@@ -256,8 +276,13 @@ RÈGLES IMPORTANTES :
           }),
         };
 
-        const imageContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
-          { type: "text", text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète." },
+        const imageContent: Array<
+          { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
+        > = [
+          {
+            type: "text",
+            text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète.",
+          },
           { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
         ];
 
@@ -272,7 +297,7 @@ RÈGLES IMPORTANTES :
             content: imageContent,
           },
         ];
-        
+
         console.log("Appel IA avec AbortController...");
         const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -288,7 +313,7 @@ RÈGLES IMPORTANTES :
         if (!res.ok) {
           throw new Error(`AI gateway error: ${res.status} ${await res.text()}`);
         }
-        
+
         console.log("Réponse IA reçue.");
         const json: any = await res.json();
         const content: string = json?.choices?.[0]?.message?.content ?? "";
@@ -300,7 +325,10 @@ RÈGLES IMPORTANTES :
           percentage: Math.round(c.percentage ?? 0),
         }));
 
-        const totalPct = composition.reduce((sum: number, c: CompositionEntry) => sum + c.percentage, 0);
+        const totalPct = composition.reduce(
+          (sum: number, c: CompositionEntry) => sum + c.percentage,
+          0,
+        );
         if (totalPct > 0 && totalPct !== 100) {
           const factor = 100 / totalPct;
           for (const c of composition) {
@@ -313,11 +341,17 @@ RÈGLES IMPORTANTES :
         }
 
         const hasDepthMetrics = !!depthMetrics;
-        const surfaceM2 = hasDepthMetrics ? depthMetrics.surfaceM2 : Math.round(Number(p.surfaceM2 ?? 1.5) * 10) / 10;
-        const heightAvgM = hasDepthMetrics ? depthMetrics.heightAvgM : Math.max(0.05, Number(p.heightAvgM ?? 0.5));
-        const volumeM3 = hasDepthMetrics ? depthMetrics.volumeM3 : Math.round(Number(p.volumeM3 ?? 1.2) * 100) / 100;
+        const surfaceM2 = hasDepthMetrics
+          ? depthMetrics.surfaceM2
+          : Math.round(Number(p.surfaceM2 ?? 1.5) * 10) / 10;
+        const heightAvgM = hasDepthMetrics
+          ? depthMetrics.heightAvgM
+          : Math.max(0.05, Number(p.heightAvgM ?? 0.5));
+        const volumeM3 = hasDepthMetrics
+          ? depthMetrics.volumeM3
+          : Math.round(Number(p.volumeM3 ?? 1.2) * 100) / 100;
 
-        const ratio = (p.lengthM && p.widthM) ? p.lengthM / p.widthM : 1.5;
+        const ratio = p.lengthM && p.widthM ? p.lengthM / p.widthM : 1.5;
         const widthM = Math.sqrt(surfaceM2 / ratio);
         const lengthM = widthM * ratio;
 
@@ -346,7 +380,13 @@ RÈGLES IMPORTANTES :
           commune: "matete",
         };
 
-        const sevScore = p.interventionUrgent ? 40 : p.healthRisk === "eleve" ? 30 : p.healthRisk === "modere" ? 20 : 10;
+        const sevScore = p.interventionUrgent
+          ? 40
+          : p.healthRisk === "eleve"
+            ? 30
+            : p.healthRisk === "modere"
+              ? 20
+              : 10;
         const floodScore = p.floodRisk ? 25 : 0;
         const volumeScore = volumeM3 > 10 ? 20 : volumeM3 > 3 ? 12 : 5;
         const healthScore = p.healthRisk === "eleve" ? 15 : p.healthRisk === "modere" ? 8 : 0;
@@ -354,7 +394,7 @@ RÈGLES IMPORTANTES :
 
         const mainCategory = toMaterial(p.mainCategory, "mixte");
         const secondaryCategory = p.secondaryCategory ? toMaterial(p.secondaryCategory) : undefined;
-        
+
         console.log("Fin de l'analyse.");
         return {
           id,
@@ -366,7 +406,9 @@ RÈGLES IMPORTANTES :
           secondaryCategory,
           wasteAreaPercent: Math.min(100, Math.max(0, Number(p.wasteAreaPercent ?? 50))),
           detectedObjects: detectedObjects(p.detectedObjects),
-          environmentDetected: Array.isArray(p.environmentDetected) ? p.environmentDetected : ["sol"],
+          environmentDetected: Array.isArray(p.environmentDetected)
+            ? p.environmentDetected
+            : ["sol"],
           dimensions,
           weight,
           location,
@@ -399,7 +441,7 @@ RÈGLES IMPORTANTES :
       return analysisResult;
     } catch (err) {
       clearTimeout(timeoutId); // Clear timeout on failure as well
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (err instanceof Error && err.name === "AbortError") {
         console.error("L'analyse IA a dépassé le délai de 30 secondes et a été annulée.", err);
       } else {
         console.error("L'analyse IA a échoué.", err);

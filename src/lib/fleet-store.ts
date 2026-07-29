@@ -73,8 +73,6 @@ export function useFleet() {
     return () => clearInterval(interval);
   }, [vehicles]);
 
-
-  
   // Initialize with sample data if empty
   useEffect(() => {
     const data = read<Vehicle>(K_VEHICLES);

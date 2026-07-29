@@ -92,12 +92,17 @@ export function urgencyFromSeverity(severity: string, floodRisk?: boolean): Urge
   return "faible";
 }
 
-export function pushLiveReport(input: Omit<LiveReport, "id" | "createdAt" | "ack" | "status" | "history">) {
+export function pushLiveReport(
+  input: Omit<LiveReport, "id" | "createdAt" | "ack" | "status" | "history">,
+) {
   const item = insertReport(input);
 
   if (item.urgency === "critique" || item.urgency === "eleve") {
     const team = pickTeam(item.commune);
-    const history = [...item.history, { at: new Date().toISOString(), label: `Auto-assignation -> ${team}` }];
+    const history = [
+      ...item.history,
+      { at: new Date().toISOString(), label: `Auto-assignation -> ${team}` },
+    ];
     Object.assign(item, { team, status: "assignee" as const, history });
     updateReport(item.id, { team, status: "assignee", history });
   }
@@ -162,7 +167,13 @@ export function assignLiveReportToAgent(
     { team, status: "assignee", assignedAgentId: agentId, assignedAgentName: agentName },
     `Assigne a ${agentName} (${team})`,
   );
-  logAudit({ user: by, role: "autorité", action: "report_assign", target: id, details: `${agentName} - ${team}` });
+  logAudit({
+    user: by,
+    role: "autorité",
+    action: "report_assign",
+    target: id,
+    details: `${agentName} - ${team}`,
+  });
   if (report) {
     assignMission({
       reportId: id,
@@ -202,10 +213,21 @@ export function setLiveStatus(id: string, status: LiveStatus, by: string) {
   if (status === "terminee") updateMissionStatus(id, "terminee");
 }
 
-export function setReportPhoto(id: string, type: "before" | "after", photoDataUrl: string, by: string) {
+export function setReportPhoto(
+  id: string,
+  type: "before" | "after",
+  photoDataUrl: string,
+  by: string,
+) {
   const patch = type === "before" ? { photoBefore: photoDataUrl } : { photoAfter: photoDataUrl };
   update(id, { ...patch }, `Photo ${type === "before" ? "avant" : "apres"} ajoutee par ${by}`);
-  logAudit({ user: by, role: "agent", action: "report_photo", target: id, details: `photo_${type}` });
+  logAudit({
+    user: by,
+    role: "agent",
+    action: "report_photo",
+    target: id,
+    details: `photo_${type}`,
+  });
 }
 
 export function useLiveReports() {

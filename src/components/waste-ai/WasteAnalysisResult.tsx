@@ -1,8 +1,23 @@
 // EcoKin Smart — WasteAnalysisResult : Affichage détaillé des résultats d'analyse IA
 // Composition, dimensions 3D, poids, priorité, risques
 
-import { type WasteAnalysisResult, type CompositionEntry, type WasteMaterial } from "@/lib/waste-ai/types";
-import { BarChart3, Box, Crosshair, Gauge, Shield, Siren, Sparkles, TriangleAlert, Truck, Zap } from "lucide-react";
+import {
+  type WasteAnalysisResult,
+  type CompositionEntry,
+  type WasteMaterial,
+} from "@/lib/waste-ai/types";
+import {
+  BarChart3,
+  Box,
+  Crosshair,
+  Gauge,
+  Shield,
+  Siren,
+  Sparkles,
+  TriangleAlert,
+  Truck,
+  Zap,
+} from "lucide-react";
 
 type Props = {
   result: WasteAnalysisResult;
@@ -28,10 +43,30 @@ const MATERIAL_ICONS: Record<WasteMaterial, string> = {
 };
 
 const PRIORITY_CONFIG = {
-  critique: { color: "text-red-600", bg: "bg-red-500/10", border: "border-red-300", label: "CRITIQUE" },
-  eleve: { color: "text-orange-600", bg: "bg-orange-500/10", border: "border-orange-300", label: "ÉLEVÉ" },
-  moyen: { color: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-300", label: "MOYEN" },
-  faible: { color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-300", label: "FAIBLE" },
+  critique: {
+    color: "text-red-600",
+    bg: "bg-red-500/10",
+    border: "border-red-300",
+    label: "CRITIQUE",
+  },
+  eleve: {
+    color: "text-orange-600",
+    bg: "bg-orange-500/10",
+    border: "border-orange-300",
+    label: "ÉLEVÉ",
+  },
+  moyen: {
+    color: "text-amber-600",
+    bg: "bg-amber-500/10",
+    border: "border-amber-300",
+    label: "MOYEN",
+  },
+  faible: {
+    color: "text-emerald-600",
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-300",
+    label: "FAIBLE",
+  },
 };
 
 export function WasteAnalysisResultCard({ result, loading }: Props) {
@@ -63,7 +98,9 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
           <Sparkles className="size-5 text-eco" />
           <h3 className="font-display text-lg font-bold">Analyse IA et coaching</h3>
         </div>
-        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${priority.bg} ${priority.color}`}>
+        <span
+          className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${priority.bg} ${priority.color}`}
+        >
           {priority.label}
         </span>
       </div>
@@ -76,10 +113,14 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
           {result.model3DAvailable && " · 3D disponible"}
         </span>
         {result.cameraCapability === "lidar" && (
-          <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] font-bold text-purple-700">LiDAR</span>
+          <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-[9px] font-bold text-purple-700">
+            LiDAR
+          </span>
         )}
         {result.cameraCapability === "arcore" && (
-          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-700">ARCore</span>
+          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-700">
+            ARCore
+          </span>
         )}
       </div>
 
@@ -91,7 +132,9 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
           ))}
         </div>
         <div className="mt-2 flex items-center gap-2 text-xs">
-          <span className="font-semibold capitalize">{mainIcon} {result.mainCategory}</span>
+          <span className="font-semibold capitalize">
+            {mainIcon} {result.mainCategory}
+          </span>
           {result.secondaryCategory && (
             <span className="text-muted-foreground">
               + {MATERIAL_ICONS[result.secondaryCategory]} {result.secondaryCategory}
@@ -104,7 +147,10 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
         <Section icon={<Crosshair className="size-4" />} title="Détections">
           <div className="space-y-2">
             {result.detectedObjects.map((object, i) => (
-              <div key={`${object.label}-${i}`} className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2 text-xs">
+              <div
+                key={`${object.label}-${i}`}
+                className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2 text-xs"
+              >
                 <span className="capitalize">{object.label}</span>
                 <span className="font-semibold">{Math.round(object.confidence * 100)}%</span>
               </div>
@@ -118,7 +164,10 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
         <Section icon={<Crosshair className="size-4" />} title="Environnement">
           <div className="flex flex-wrap gap-1">
             {result.environmentDetected.map((env, i) => (
-              <span key={i} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium">
+              <span
+                key={i}
+                className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium"
+              >
                 {env}
               </span>
             ))}
@@ -139,9 +188,7 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
         </div>
         <div className="mt-2 flex items-center gap-2 rounded-lg bg-secondary/50 p-2">
           <Gauge className="size-4 text-eco" />
-          <span className="text-sm font-bold">
-            Volume : {result.dimensions.volumeM3} m³
-          </span>
+          <span className="text-sm font-bold">Volume : {result.dimensions.volumeM3} m³</span>
           <span className="text-[10px] text-muted-foreground">
             Précision {Math.round(result.dimensions.confidence * 100)}%
           </span>
@@ -217,7 +264,9 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
       {/* Recommandations */}
       {result.recommendations.length > 0 && (
         <div>
-          <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Recommandations</h4>
+          <h4 className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Recommandations
+          </h4>
           <ul className="space-y-1">
             {result.recommendations.map((rec, i) => (
               <li key={i} className="flex items-start gap-2 text-xs">
@@ -232,7 +281,15 @@ export function WasteAnalysisResultCard({ result, loading }: Props) {
   );
 }
 
-function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-xl border border-eco/15 bg-card p-4">
       <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -267,7 +324,9 @@ function DetailedCompositionBar({ entry }: { entry: CompositionEntry }) {
     entry.surfaceM2 != null ? `${entry.surfaceM2} m²` : null,
     entry.volumeM3 != null ? `${entry.volumeM3} m³` : null,
     entry.confidence != null ? `${Math.round(entry.confidence * 100)}%` : null,
-  ].filter(Boolean).join(" · ");
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="rounded-lg bg-secondary/40 p-2">
@@ -282,7 +341,9 @@ function DetailedCompositionBar({ entry }: { entry: CompositionEntry }) {
         </div>
         <span className="w-10 text-right text-xs font-bold">{entry.percentage}%</span>
       </div>
-      {details && <div className="mt-1 pl-7 text-[10px] font-medium text-muted-foreground">{details}</div>}
+      {details && (
+        <div className="mt-1 pl-7 text-[10px] font-medium text-muted-foreground">{details}</div>
+      )}
     </div>
   );
 }
@@ -303,7 +364,9 @@ function RiskBadge({ label, level }: { label: string; level: string }) {
     eleve: "bg-red-500/10 text-red-700",
   };
   return (
-    <div className={`rounded-lg p-2 text-center text-xs ${colorMap[level] ?? "bg-secondary text-muted-foreground"}`}>
+    <div
+      className={`rounded-lg p-2 text-center text-xs ${colorMap[level] ?? "bg-secondary text-muted-foreground"}`}
+    >
       <div className="font-bold uppercase">{level}</div>
       <div className="text-[10px] opacity-80">{label}</div>
     </div>

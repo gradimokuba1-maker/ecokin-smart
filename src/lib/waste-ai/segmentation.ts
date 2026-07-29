@@ -41,8 +41,14 @@ type DetectionHint = {
 };
 
 type SamRuntime = {
-  model: (input: unknown) => Promise<{ pred_masks: { data: Uint8Array | Float32Array; dims: number[] }; iou_scores?: { data: Float32Array | number[] } }>;
-  processor: (image: unknown, options: { input_boxes: number[][][] }) => Promise<Record<string, unknown>> & {
+  model: (input: unknown) => Promise<{
+    pred_masks: { data: Uint8Array | Float32Array; dims: number[] };
+    iou_scores?: { data: Float32Array | number[] };
+  }>;
+  processor: (
+    image: unknown,
+    options: { input_boxes: number[][][] },
+  ) => Promise<Record<string, unknown>> & {
     post_process_masks?: (...args: unknown[]) => unknown;
   };
   postProcess: (...args: unknown[]) => unknown;
@@ -74,7 +80,9 @@ async function getSam2(onProgress?: (message: string) => void) {
       return {
         model: model as unknown as SamRuntime["model"],
         processor: processor as unknown as SamRuntime["processor"],
-        postProcess: (processor as unknown as { post_process_masks: (...args: unknown[]) => unknown }).post_process_masks.bind(processor),
+        postProcess: (
+          processor as unknown as { post_process_masks: (...args: unknown[]) => unknown }
+        ).post_process_masks.bind(processor),
         readImage: runtime.RawImage.read,
       };
     });
@@ -87,17 +95,25 @@ function rectangularContour(bbox: BoundingBox) {
   const y0 = bbox.y - bbox.height / 2;
   const x1 = bbox.x + bbox.width / 2;
   const y1 = bbox.y + bbox.height / 2;
-  return [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+  return [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
+  ];
 }
 
 function chooseMaskIndex(scores?: Float32Array | number[]) {
   if (!scores || scores.length === 0) return 0;
   let best = 0;
-  for (let index = 1; index < scores.length; index += 1) if (Number(scores[index]) > Number(scores[best])) best = index;
+  for (let index = 1; index < scores.length; index += 1)
+    if (Number(scores[index]) > Number(scores[best])) best = index;
   return best;
 }
 
-function tensorFromPostProcess(result: unknown): { data: Uint8Array | Float32Array; dims: number[] } | null {
+function tensorFromPostProcess(
+  result: unknown,
+): { data: Uint8Array | Float32Array; dims: number[] } | null {
   if (Array.isArray(result)) return tensorFromPostProcess(result[0]);
   if (result && typeof result === "object" && "data" in result && "dims" in result) {
     const tensor = result as { data: Uint8Array | Float32Array; dims: number[] };
@@ -116,7 +132,7 @@ function maskToSegment(
 ): SegmentMask | null {
   const height = tensor.dims.at(-2) ?? 0;
   const width = tensor.dims.at(-1) ?? 0;
-  const masks = tensor.dims.length >= 3 ? tensor.dims.at(-3) ?? 1 : 1;
+  const masks = tensor.dims.length >= 3 ? (tensor.dims.at(-3) ?? 1) : 1;
   if (width < 1 || height < 1 || tensor.data.length < width * height) return null;
   const selected = Math.min(Math.max(0, maskIndex), masks - 1);
   const offset = selected * width * height;
@@ -151,8 +167,8 @@ function maskToSegment(
   canvas.height = height;
   canvas.getContext("2d")?.putImageData(imageData, 0, 0);
   const bbox: BoundingBox = {
-    x: ((minX + maxX) / 2) / width,
-    y: ((minY + maxY) / 2) / height,
+    x: (minX + maxX) / 2 / width,
+    y: (minY + maxY) / 2 / height,
     width: (maxX - minX + 1) / width,
     height: (maxY - minY + 1) / height,
   };
@@ -172,7 +188,11 @@ function maskToSegment(
   };
 }
 
-async function segmentWithSam2(imageDataUrl: string, hints: DetectionHint[], onProgress?: (message: string) => void) {
+async function segmentWithSam2(
+  imageDataUrl: string,
+  hints: DetectionHint[],
+  onProgress?: (message: string) => void,
+) {
   const [runtime, image] = await Promise.all([getSam2(onProgress), loadImage(imageDataUrl)]);
   const rawImage = await runtime.readImage(imageDataUrl);
   const segments: SegmentMask[] = [];
@@ -185,9 +205,22 @@ async function segmentWithSam2(imageDataUrl: string, hints: DetectionHint[], onP
     const y1 = Math.min(image.height, (hint.bbox.y + hint.bbox.height / 2) * image.height);
     const inputs = await runtime.processor(rawImage, { input_boxes: [[[x0, y0, x1, y1]]] });
     const outputs = await runtime.model(inputs);
-    const postProcessed = runtime.postProcess(outputs.pred_masks, (inputs as { original_sizes?: unknown }).original_sizes, (inputs as { reshaped_input_sizes?: unknown }).reshaped_input_sizes);
+    const postProcessed = runtime.postProcess(
+      outputs.pred_masks,
+      (inputs as { original_sizes?: unknown }).original_sizes,
+      (inputs as { reshaped_input_sizes?: unknown }).reshaped_input_sizes,
+    );
     const tensor = tensorFromPostProcess(postProcessed);
-    const segment = tensor ? maskToSegment(segments.length, hint, tensor, chooseMaskIndex(outputs.iou_scores?.data), image.width, image.height) : null;
+    const segment = tensor
+      ? maskToSegment(
+          segments.length,
+          hint,
+          tensor,
+          chooseMaskIndex(outputs.iou_scores?.data),
+          image.width,
+          image.height,
+        )
+      : null;
     if (segment) segments.push(segment);
   }
   return { segments, imageWidth: image.width, imageHeight: image.height };
@@ -229,17 +262,25 @@ export async function segmentWasteAreas(
   if (detections.length === 0) {
     const image = await loadImage(imageDataUrl);
     return {
-      segments: [], totalSegments: 0, wasteAreaRatio: 0,
-      imageWidth: image.width, imageHeight: image.height,
+      segments: [],
+      totalSegments: 0,
+      wasteAreaRatio: 0,
+      imageWidth: image.width,
+      imageHeight: image.height,
       processingTimeMs: Math.round(performance.now() - startedAt),
-      modelUsed: "unavailable", confidence: 0,
+      modelUsed: "unavailable",
+      confidence: 0,
     };
   }
   try {
     const result = await segmentWithSam2(imageDataUrl, detections, onProgress);
-    const area = Math.min(1, result.segments.reduce((sum, segment) => sum + segment.areaRatio, 0));
+    const area = Math.min(
+      1,
+      result.segments.reduce((sum, segment) => sum + segment.areaRatio, 0),
+    );
     const confidence = result.segments.length
-      ? result.segments.reduce((sum, segment) => sum + segment.confidence, 0) / result.segments.length
+      ? result.segments.reduce((sum, segment) => sum + segment.confidence, 0) /
+        result.segments.length
       : 0;
     return {
       ...result,
@@ -252,7 +293,10 @@ export async function segmentWasteAreas(
   } catch (error) {
     console.warn("SAM 2 segmentation unavailable; using bounding-box fallback", error);
     const fallback = await fallbackSegments(imageDataUrl, detections);
-    const area = Math.min(1, fallback.segments.reduce((sum, segment) => sum + segment.areaRatio, 0));
+    const area = Math.min(
+      1,
+      fallback.segments.reduce((sum, segment) => sum + segment.areaRatio, 0),
+    );
     return {
       ...fallback,
       totalSegments: fallback.segments.length,
@@ -260,7 +304,8 @@ export async function segmentWasteAreas(
       processingTimeMs: Math.round(performance.now() - startedAt),
       modelUsed: "bounding-box",
       confidence: fallback.segments.length
-        ? fallback.segments.reduce((sum, segment) => sum + segment.confidence, 0) / fallback.segments.length
+        ? fallback.segments.reduce((sum, segment) => sum + segment.confidence, 0) /
+          fallback.segments.length
         : 0,
     };
   }

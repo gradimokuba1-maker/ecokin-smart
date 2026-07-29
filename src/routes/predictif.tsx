@@ -44,8 +44,8 @@ function Page() {
           </div>
           <h1 className="mt-2 font-display text-4xl font-bold">Anticiper plutôt que réagir</h1>
           <p className="mt-1 max-w-2xl text-muted-foreground">
-            L'IA croise hotspots récurrents, météo et obstruction des caniveaux pour anticiper
-            les zones critiques des 7 prochains jours.
+            L'IA croise hotspots récurrents, météo et obstruction des caniveaux pour anticiper les
+            zones critiques des 7 prochains jours.
           </p>
         </div>
       </header>
@@ -54,11 +54,21 @@ function Page() {
         <div className="grid gap-4 md:grid-cols-3">
           {[
             { l: "Hotspots actifs", v: HOTSPOTS.length.toString(), d: "Kinshasa" },
-            { l: "Caniveaux à risque", v: BLOCKED_DRAINS.filter((d) => d.blockedPct > 75).length + "", d: "obstruction > 75%" },
-            { l: "Pluies 7j", v: WEATHER_FORECAST.reduce((s, d) => s + d.rainMm, 0) + " mm", d: "cumul prévu" },
+            {
+              l: "Caniveaux à risque",
+              v: BLOCKED_DRAINS.filter((d) => d.blockedPct > 75).length + "",
+              d: "obstruction > 75%",
+            },
+            {
+              l: "Pluies 7j",
+              v: WEATHER_FORECAST.reduce((s, d) => s + d.rainMm, 0) + " mm",
+              d: "cumul prévu",
+            },
           ].map((k) => (
             <div key={k.l} className="rounded-2xl border border-border bg-card p-5">
-              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{k.l}</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                {k.l}
+              </div>
               <div className="mt-2 font-display text-3xl font-bold">{k.v}</div>
               <div className="mt-1 text-xs text-muted-foreground">{k.d}</div>
             </div>
@@ -125,11 +135,19 @@ function Page() {
               <div key={h.id} className="rounded-2xl border border-border bg-secondary/30 p-4">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">{h.name}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase text-white ${
-                    h.predictedRiskNext7d === "critique" ? "bg-red-500" :
-                    h.predictedRiskNext7d === "eleve" ? "bg-orange-500" :
-                    h.predictedRiskNext7d === "modere" ? "bg-amber-500" : "bg-emerald-500"
-                  }`}>{h.predictedRiskNext7d}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase text-white ${
+                      h.predictedRiskNext7d === "critique"
+                        ? "bg-red-500"
+                        : h.predictedRiskNext7d === "eleve"
+                          ? "bg-orange-500"
+                          : h.predictedRiskNext7d === "modere"
+                            ? "bg-amber-500"
+                            : "bg-emerald-500"
+                    }`}
+                  >
+                    {h.predictedRiskNext7d}
+                  </span>
                 </div>
                 <div className="mt-1 text-xs capitalize text-muted-foreground">
                   {h.commune} · {h.recurrence} sig./mois · tendance {h.trend}
