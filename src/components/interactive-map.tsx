@@ -105,9 +105,7 @@ export function InteractiveMap({ commune, reports = [], heightClassName = "h-[42
               </div>
               <div style="border-top:1px solid #e2e8f0;padding-top:6px;margin-top:4px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;">
-                  ${report.commune ? `<div><span style="color:#64748b;">Commune :</span> <strong>${report.commune}</strong></div>` : ""}
                   ${report.volumeM3 ? `<div><span style="color:#64748b;">Volume :</span> <strong>${report.volumeM3} m³</strong></div>` : ""}
-                  ${report.weightTons ? `<div><span style="color:#64748b;">Poids :</span> <strong>${report.weightTons} t</strong></div>` : ""}
                   ${report.priorityScore ? `<div><span style="color:#64748b;">Priorité :</span> <strong>${report.priorityScore}/100</strong></div>` : ""}
                 </div>
                 ${

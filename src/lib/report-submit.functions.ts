@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { analyzeWastePhotoAdvanced } from "./waste-ai/analysis.functions";
+import { analyzeWastePhotoAdvanced } from "./waste-ai.functions";
 import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { detectCityCommune, DEFAULT_CITY } from "./cities";
 import { pushLiveReport } from "./live-reports";

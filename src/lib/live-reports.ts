@@ -38,8 +38,6 @@ export type LiveReport = {
   photoBefore?: string;
   photoAfter?: string;
   composition?: { material: string; percentage: number }[];
-  weightTons?: number;
-  weightConfidence?: number;
   dimensions?: {
     lengthM: number;
     widthM: number;

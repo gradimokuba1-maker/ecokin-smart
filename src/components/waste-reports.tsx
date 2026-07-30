@@ -12,8 +12,9 @@ export function WasteReports({ reports, limit = 10 }: { reports: LiveReport[]; l
           <tr className="border-b">
             <th className="py-2">ID</th>
             <th>Commune</th>
-            <th>Catégorie</th>
-            <th>Urgence</th>
+            <th>Volume</th>
+            <th>Priorité</th>
+            <th>Risque</th>
             <th>Statut</th>
           </tr>
         </thead>
@@ -22,17 +23,26 @@ export function WasteReports({ reports, limit = 10 }: { reports: LiveReport[]; l
             <tr key={report.id} className="border-b border-border/60">
               <td className="py-2 font-mono text-xs">{report.id}</td>
               <td className="capitalize">{report.commune}</td>
-              <td className="capitalize">{report.category}</td>
-              <td>
+              <td>{report.volumeM3 ? `${report.volumeM3} m³` : "-"}</td>
+              <td className="capitalize">
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${URGENCY_META[report.urgency]?.bg} ${URGENCY_META[report.urgency]?.color}`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    report.priorityLevel === "critique"
+                      ? "bg-red-500 text-white"
+                      : report.priorityLevel === "eleve"
+                        ? "bg-orange-500 text-white"
+                        : ""
+                  }`}
                 >
-                  {URGENCY_META[report.urgency]?.label}
+                  {report.priorityLevel ?? "N/A"}
                 </span>
               </td>
+              <td className="capitalize">{report.healthRisk ?? "N/A"}</td>
               <td>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[report.status]?.color}`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    STATUS_META[report.status]?.color
+                  }`}
                 >
                   {STATUS_META[report.status]?.label}
                 </span>

@@ -3,21 +3,7 @@ import type { AgentMission } from "./agent-tracking-store";
 import type { Session } from "./access-store";
 import type { EcokinUserRecord } from "./ecokin-db";
 import type { LiveReport, LiveStatus } from "./live-reports";
-import type { WasteAnalysisResult, Severity } from "./waste-ai/types";
-
-export type ReportScope = {
-  commune?: string;
-  quartier?: string;
-  zone?: string;
-  agentId?: string;
-};
-
-export function severityFromAnalysis(result: WasteAnalysisResult): Severity {
-  if (result.interventionUrgent || result.floodRisk || result.priorityLevel === "critique")
-    return "critique";
-  if (result.priorityLevel === "eleve" || result.healthRisk === "eleve") return "modere";
-  return "faible";
-}
+import type { WasteAnalysisResult } from "./waste-ai.functions";
 
 export function priorityScoreFromAnalysis(
   analysisResult: WasteAnalysisResult,
@@ -74,10 +60,6 @@ export function reportVolume(reports: LiveReport[]) {
     (sum, report) => sum + (report.volumeM3 ?? report.dimensions?.volumeM3 ?? 0),
     0,
   );
-}
-
-export function reportWeight(reports: LiveReport[]) {
-  return reports.reduce((sum, report) => sum + (report.weightTons ?? 0), 0);
 }
 
 export function collectedReports(reports: LiveReport[]) {

@@ -401,7 +401,6 @@ function BourgmestreDashboard() {
     const resolus = communeReports.filter((r) => r.status === "terminee").length;
     const total = communeReports.length;
     const volume = communeReports.reduce((sum, report) => sum + (report.volumeM3 ?? 0), 0);
-    const poidsTotal = communeReports.reduce((sum, report) => sum + (report.weightTons ?? 0), 0);
     const critiques = communeReports.filter(
       (r) => r.priorityLevel === "critique" || r.urgency === "critique",
     ).length;
@@ -418,12 +417,6 @@ function BourgmestreDashboard() {
         value: `${Math.round(volume)} m³`,
         icon: CheckCircle2,
         color: "text-green-500",
-      },
-      {
-        title: "Poids estimé",
-        value: `${poidsTotal.toFixed(1)} t`,
-        icon: AlertTriangle,
-        color: "text-yellow-500",
       },
       {
         title: "Signalements critiques",

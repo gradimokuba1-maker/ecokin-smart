@@ -57,7 +57,6 @@ import {
   pendingReports,
   recycledVolume,
   reportVolume,
-  reportWeight,
   reportsByQuarter,
 } from "@/lib/dashboard-analytics";
 
@@ -753,7 +752,6 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
     const total = filteredReports.length;
     const resolus = filteredReports.filter((r) => r.status === "terminee").length;
     const volume = reportVolume(filteredReports);
-    const poidsTotal = reportWeight(filteredReports);
     const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
     const alertes = filteredReports.filter(
       (r) => r.urgency === "critique" || r.urgency === "eleve",
@@ -788,12 +786,6 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
         value: volume.toLocaleString("fr-FR", { maximumFractionDigits: 0 }),
         icon: Trash2,
         color: "text-blue-500",
-      },
-      {
-        title: "Poids estimé (tonnes)",
-        value: `${poidsTotal.toFixed(1)} t`,
-        icon: Trash2,
-        color: "text-orange-500",
       },
       {
         title: "Dechets en attente",
