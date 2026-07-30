@@ -15,16 +15,12 @@ export const Route = createFileRoute("/signaler")({
   component: SignalerPage,
 });
 
-type PageStep = "camera" | "confirmation" | "submitting" | "submitted" | "registering";
+type PageStep = "camera" | "confirmation" | "submitting" | "submitted";
 
 const SmartWasteCamera = lazy(() =>
   import("@/components/waste-ai/SmartWasteCamera").then((module) => ({
     default: module.SmartWasteCamera,
   })),
-);
-
-const CitizenGate = lazy(() =>
-  import("@/components/citizen-gate").then((module) => ({ default: module.CitizenGate })),
 );
 
 function SignalementLoader({ label }: { label: string }) {
@@ -179,46 +175,37 @@ function SignalerPage() {
     );
   }
 
-  if (step === "submitted" || step === "registering") {
+  if (step === "submitted") {
     return (
       <div className="min-h-screen bg-background">
         <SiteNav minimal />
         <main className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 lg:px-8">
-          {step === "submitted" ? (
-            <>
-              <ShieldCheck className="mx-auto size-14 text-emerald-500" />
-              <h1 className="mt-4 font-display text-3xl font-bold">Signalement enregistré !</h1>
-              <p className="mt-2 text-lg text-muted-foreground">
-                Merci de contribuer à un environnement plus propre.
-              </p>
+          <ShieldCheck className="mx-auto size-14 text-emerald-500" />
+          <h1 className="mt-4 font-display text-3xl font-bold">Signalement enregistré !</h1>
+          <p className="mt-2 text-lg text-muted-foreground">
+            Merci de contribuer à un environnement plus propre.
+          </p>
 
-              <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/50 p-6">
-                <div className="flex items-center justify-center gap-3">
-                  <Trophy className="size-6 text-amber-400" />
-                  <h3 className="font-display text-xl font-bold">Gagnez des Green Points !</h3>
-                </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Créez un compte gratuit pour suivre vos signalements, recevoir des notifications
-                  et accumuler des points pour chaque action positive.
-                </p>
-                <Button
-                  onClick={() => setStep("registering")}
-                  size="lg"
-                  className="mt-5 w-full max-w-xs"
-                >
-                  Créer un compte citoyen
-                </Button>
-              </div>
-              <Button onClick={() => navigate({ to: "/" })} variant="ghost" className="mt-8">
-                Continuer anonymement
-              </Button>
-            </>
-          ) : (
-            <CitizenGate
-              title="Rejoignez EcoKin"
-              description="Créez votre compte citoyen pour cumuler vos Green Points et suivre l'impact de vos actions."
-            />
-          )}
+          <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/50 p-6">
+            <div className="flex items-center justify-center gap-3">
+              <Trophy className="size-6 text-amber-400" />
+              <h3 className="font-display text-xl font-bold">Gagnez des Green Points !</h3>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Créez un compte gratuit pour suivre vos signalements, recevoir des notifications et
+              accumuler des points pour chaque action positive.
+            </p>
+            <Button
+              onClick={() => navigate({ to: "/rejoindre" })}
+              size="lg"
+              className="mt-5 w-full max-w-xs"
+            >
+              Créer un compte citoyen
+            </Button>
+          </div>
+          <Button onClick={() => navigate({ to: "/" })} variant="ghost" className="mt-8">
+            Continuer anonymement
+          </Button>
         </main>
       </div>
     );
