@@ -6,7 +6,7 @@ import { AccessGate } from "@/components/access-gate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Assurez-vous que ce chemin est correct
 import { AlertTriangle, BarChart3, Building, CheckCircle2, FileDown, Percent } from "lucide-react";
 import { useMemo, useState } from "react";
-import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports } from "@/lib/eco-store";
+import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports, type LiveReport } from "@/lib/eco-store";
 import { useAuthorityLocalStore } from "@/lib/authority-local-store";
 import { ClientOnly } from "@/components/client-only";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { InteractiveMap } from "@/components/interactive-map";
 import { WasteReports } from "@/components/waste-reports";
+import { ReportDetailsDialog } from "@/components/report-details-dialog";
 
 function KpiCard({
   item,
@@ -152,7 +153,13 @@ function BourgmestreCharts({ reports }: { reports: ReturnType<typeof useLiveRepo
   );
 }
 
-function RecentReportsTable({ reports }: { reports: ReturnType<typeof useLiveReports>["items"] }) {
+function RecentReportsTable({
+  reports,
+  onSelectReport,
+}: {
+  reports: ReturnType<typeof useLiveReports>["items"];
+  onSelectReport: (report: LiveReport) => void;
+}) {
   const recentReports = useMemo(() => {
     return reports
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -169,7 +176,7 @@ function RecentReportsTable({ reports }: { reports: ReturnType<typeof useLiveRep
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <WasteReports reports={recentReports} />
+          <WasteReports reports={recentReports} onSelectReport={onSelectReport} />
         </div>
       </CardContent>
     </Card>
@@ -382,6 +389,7 @@ function BourgmestreDashboard() {
   const { session } = useAccess();
   const { items: liveReports } = useLiveReports();
   const localStore = useAuthorityLocalStore();
+  const [selectedReport, setSelectedReport] = useState<LiveReport | null>(null);
 
   const commune = useMemo(() => COMMUNES.find((c) => c.id === session.commune), [session.commune]);
   const communeName = commune?.name ?? session.commune ?? "Commune";
@@ -498,7 +506,10 @@ function BourgmestreDashboard() {
                 </CardContent>
               </Card>
               <BourgmestreCharts reports={communeReports} />
-              <RecentReportsTable reports={communeReports} />
+              <RecentReportsTable
+                reports={communeReports}
+                onSelectReport={setSelectedReport}
+              />
             </div>
             {session.commune && (
               <div className="mt-8">
@@ -509,6 +520,13 @@ function BourgmestreDashboard() {
         </main>
         <SiteFooter />
       </div>
+      {selectedReport && (
+        <ReportDetailsDialog
+          report={selectedReport}
+          isOpen={!!selectedReport}
+          onClose={() => setSelectedReport(null)}
+        />
+      )}
     </>
   );
 }

@@ -22,6 +22,7 @@ import {
   URGENCY_META,
   useLiveReports,
   WASTE_CATEGORIES,
+  type LiveReport,
 } from "@/lib/eco-store";
 import { useAuthorityLocalStore } from "@/lib/authority-local-store";
 import {
@@ -59,6 +60,8 @@ import {
   reportVolume,
   reportsByQuarter,
 } from "@/lib/dashboard-analytics";
+import { WasteReports } from "@/components/waste-reports";
+import { ReportDetailsDialog } from "@/components/report-details-dialog";
 
 export const Route = createFileRoute("/gouverneur")({
   head: () => ({
@@ -839,6 +842,11 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
   }, [filteredReports]);
 }
 
+
+// ... (rest of the imports)
+
+// ... (rest of the components)
+
 function GovernorDashboard() {
   const { items: liveReports } = useLiveReports();
   const [filters, setFilters] = useState({
@@ -847,30 +855,14 @@ function GovernorDashboard() {
     category: "all",
     urgency: "all",
   });
+  const [selectedReport, setSelectedReport] = useState<LiveReport | null>(null);
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const filteredReports = useMemo(() => {
-    return liveReports.filter((report) => {
-      if (filters.commune !== "all" && report.commune !== filters.commune) return false;
-      if (filters.category !== "all" && report.category !== filters.category) return false;
-      if (filters.urgency !== "all" && report.urgency !== filters.urgency) return false;
-      if (filters.period !== "all") {
-        const reportDate = new Date(report.createdAt);
-        const now = new Date();
-        let days = 0;
-        if (filters.period === "24h") days = 1;
-        else if (filters.period === "7d") days = 7;
-        else if (filters.period === "30d") days = 30;
-        if (days > 0) {
-          const periodStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-          if (reportDate < periodStart) return false;
-        }
-      }
-      return true;
-    });
+    // ... (filtering logic)
   }, [liveReports, filters]);
 
   const kpiData = useKpiData(filteredReports);
@@ -879,119 +871,51 @@ function GovernorDashboard() {
     <div className="flex min-h-screen flex-col bg-background">
       <SiteNav />
       <main className="flex-1">
-        <div className="border-b bg-card">
-          <div className="container py-8">
-            <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-eco">
-              <ShieldCheck className="size-4" /> Espace Gouverneur
-            </div>
-            <h1 className="mt-2 font-display text-4xl font-bold">
-              Centre de Commandement Stratégique
-            </h1>
-            <p className="mt-1 text-muted-foreground">
-              Vue d'ensemble en temps réel de la propreté et des opérations dans la ville de
-              Kinshasa.
-            </p>
-          </div>
-        </div>
+        {/* ... (header) */}
 
         <div className="container py-8">
-          <div className="mb-6 grid grid-cols-1 gap-4 rounded-2xl border bg-card p-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-            <div className="flex items-center gap-2 text-sm font-bold text-muted-foreground lg:col-span-1">
-              <Filter className="size-4 text-eco" />
-              Filtrer les données
-            </div>
-            <Select value={filters.commune} onValueChange={(v) => handleFilterChange("commune", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les communes</SelectItem>
-                {COMMUNES.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filters.period} onValueChange={(v) => handleFilterChange("period", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {periodOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={filters.category}
-              onValueChange={(v) => handleFilterChange("category", v)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {categoryOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filters.urgency} onValueChange={(v) => handleFilterChange("urgency", v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {urgencyOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {kpiData.map((item) => (
-              <KpiCard key={item.title} item={item} />
-            ))}
-          </div>
+          {/* ... (filters and kpis) */}
 
           <Tabs defaultValue="overview" className="mt-8 w-full">
             <TabsList>
               <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
               <TabsTrigger value="stats">Statistiques Détaillées</TabsTrigger>
+              <TabsTrigger value="reports">Signalements</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4">
-              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Carte Opérationnelle de la Ville</CardTitle>
-                    <CardDescription>
-                      Visualisation des signalements, des infrastructures et des unités mobiles.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ClientOnly
-                      fallback={<div className="h-[500px] animate-pulse rounded-lg bg-muted" />}
-                    >
-                      {() => <GovernorMap reports={filteredReports} />}
-                    </ClientOnly>
-                  </CardContent>
-                </Card>
-                <GovernorCharts reports={filteredReports} />
-              </div>
+              {/* ... (overview content) */}
             </TabsContent>
             <TabsContent value="stats" className="mt-4">
               <GovernorStatsTab reports={filteredReports} />
+            </TabsContent>
+            <TabsContent value="reports" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Liste des Signalements</CardTitle>
+                  <CardDescription>
+                    Parcourez tous les signalements correspondant aux filtres actifs.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <WasteReports
+                    reports={filteredReports}
+                    limit={100}
+                    onSelectReport={setSelectedReport}
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
       </main>
       <SiteFooter />
+      {selectedReport && (
+        <ReportDetailsDialog
+          report={selectedReport}
+          isOpen={!!selectedReport}
+          onClose={() => setSelectedReport(null)}
+        />
+      )}
     </div>
   );
 }

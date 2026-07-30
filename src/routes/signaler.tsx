@@ -3,7 +3,7 @@ import { lazy, Suspense, useCallback, useState } from "react";
 import { useEcoUser } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
-import { pushLiveReport } from "@/lib/live-reports";
+import { updateLiveReport } from "@/lib/live-reports";
 import { submitCitizenReport } from "@/lib/report-submit.functions";
 import { Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { toast } from "sonner";
@@ -66,48 +66,6 @@ function SignalerPage() {
     setStep("camera");
   };
 
-  const saveLocalReport = useCallback(
-    (captureResult: CaptureResult, reportHash: string) => {
-      const location = captureResult.location;
-      const commune = location
-        ? detectCityCommune(DEFAULT_CITY, location.lat, location.lng).id
-        : DEFAULT_CITY.communes[0]?.id || "kinshasa";
-
-      return pushLiveReport({
-        author: user.registered ? user.name : "Citoyen Anonyme",
-        authorId: user.registered ? user.id : "anonyme",
-        authorRole: user.registered ? "citoyen" : "anonyme",
-        province: "Kinshasa",
-        city: "Kinshasa",
-        commune,
-        category: "mixte",
-        urgency: "moyen",
-        description: description.trim() || "Signalement citoyen rapide.",
-        lat: location?.lat,
-        lng: location?.lng,
-        photoUrl: captureResult.imageDataUrl,
-        photoBefore: captureResult.imageDataUrl,
-        cameraCapability:
-          captureResult.cameraCapability === "lidar" || captureResult.cameraCapability === "arcore"
-            ? captureResult.cameraCapability
-            : "basic",
-        priorityScore: 62,
-        priorityLevel: "moyen",
-        analysisConfidence: 0.72,
-        healthRisk: "modere",
-        floodRisk: false,
-        interventionUrgent: false,
-        greenPointsAwarded: user.registered ? 25 : 10,
-        aiAnalysis: {
-          hash: reportHash,
-          mode: captureResult.captureMode,
-          imageQuality: captureResult.imageQuality,
-        },
-      });
-    },
-    [description, user.id, user.name, user.registered],
-  );
-
   const submitReport = async () => {
     console.log("[CLIENT] Début de submitReport()");
     if (!capture || !hash) {
@@ -130,16 +88,15 @@ function SignalerPage() {
       },
     });
 
-    const reportPromise = submitCitizenReport({ data: payload });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout: La requête a pris trop de temps.")), 30000),
-    );
-
     try {
-      console.log("[CLIENT] Juste avant l'appel serveur avec timeout.");
-      await Promise.race([reportPromise, timeoutPromise]);
+      console.log("[CLIENT] Juste avant l'appel serveur.");
+      const result = await submitCitizenReport({ data: payload });
 
-      console.log("[CLIENT] Appel serveur réussi.");
+      if (result.success && result.reportId && result.analysisPatch) {
+        console.log("[CLIENT] Appel serveur réussi, mise à jour locale avec le patch IA.");
+        updateLiveReport(result.reportId, result.analysisPatch, "Analyse IA terminée");
+      }
+
       toast.success("Votre signalement a été envoyé avec succès !");
       login({
         ...user,

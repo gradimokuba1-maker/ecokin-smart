@@ -15,6 +15,7 @@ import {
   useWasteTax,
 } from "@/lib/eco-store";
 import { AUTH_USERS, useAccess } from "@/lib/access-store";
+import { ReportDetailsDialog } from "@/components/report-details-dialog";
 import {
   Activity,
   AlertTriangle,
@@ -765,6 +766,7 @@ function ReportsTab() {
   const { items: reports, setStatus } = useLiveReports();
   const { session } = useAccess();
   const [filters, setFilters] = useState({ q: "", commune: "all", status: "all", urgency: "all" });
+  const [selectedReport, setSelectedReport] = useState<typeof reports[number] | null>(null);
 
   const filteredReports = useMemo(() => {
     const scopedReports = filterReportsByScope(reports, session);
@@ -865,6 +867,12 @@ function ReportsTab() {
                 </td>
                 <td className="space-x-1">
                   <button
+                    onClick={() => setSelectedReport(r)}
+                    className="rounded-md border border-border px-2 py-1 text-xs"
+                  >
+                    Voir détails
+                  </button>
+                  <button
                     onClick={() => setStatus(r.id, "terminee", session.name)}
                     className="rounded-md bg-eco/10 px-2 py-1 text-xs font-semibold text-eco"
                   >
@@ -882,6 +890,13 @@ function ReportsTab() {
           </tbody>
         </table>
       </div>
+      {selectedReport && (
+        <ReportDetailsDialog
+          report={selectedReport}
+          isOpen={!!selectedReport}
+          onClose={() => setSelectedReport(null)}
+        />
+      )}
     </div>
   );
 }
@@ -2514,3 +2529,5 @@ function IATab() {
     </div>
   );
 }
+
+

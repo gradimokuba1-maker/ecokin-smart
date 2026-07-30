@@ -1,6 +1,15 @@
+import { Button } from "./ui/button";
 import { STATUS_META, URGENCY_META, type LiveReport } from "@/lib/eco-store";
 
-export function WasteReports({ reports, limit = 10 }: { reports: LiveReport[]; limit?: number }) {
+export function WasteReports({
+  reports,
+  limit = 10,
+  onSelectReport,
+}: {
+  reports: LiveReport[];
+  limit?: number;
+  onSelectReport?: (report: LiveReport) => void;
+}) {
   const visible = [...reports]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, limit);
@@ -16,6 +25,7 @@ export function WasteReports({ reports, limit = 10 }: { reports: LiveReport[]; l
             <th>Priorité</th>
             <th>Risque</th>
             <th>Statut</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -46,6 +56,13 @@ export function WasteReports({ reports, limit = 10 }: { reports: LiveReport[]; l
                 >
                   {STATUS_META[report.status]?.label}
                 </span>
+              </td>
+              <td>
+                {onSelectReport && (
+                  <Button variant="outline" size="sm" onClick={() => onSelectReport(report)}>
+                    Détails
+                  </Button>
+                )}
               </td>
             </tr>
           ))}

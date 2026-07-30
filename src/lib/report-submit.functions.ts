@@ -123,7 +123,11 @@ const CitizenReportSchema = z.object({
 
 export const submitCitizenReport = createServerFn({ method: "POST" })
   .validator((d: unknown) => CitizenReportSchema.parse(d))
-  .handler(async ({ data }): Promise<{ success: true; reportId: string }> => {
+  .handler(async ({ data }): Promise<{
+    success: true;
+    reportId: string;
+    analysisPatch: Partial<import("./live-reports").LiveReport>;
+  }> => {
     console.log("[1] Début submitCitizenReport");
     const { capture, description, hash } = data as {
       capture: CaptureResult;
@@ -131,121 +135,109 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
       hash: string;
     };
 
-    try {
-      if (!capture.location) {
-        throw new Error("Localisation GPS manquante.");
-      }
+    if (!capture.location) {
+      throw new Error("Localisation GPS manquante.");
+    }
 
-      console.log("[2] Vérification anti-fraude");
-      const duplicateCheck = await validateReportHash({
-        data: { hash, lat: capture.location.lat, lng: capture.location.lng },
-      });
-      console.log("[3] Validation anti-fraude terminée");
-      if (duplicateCheck.duplicate) {
-        console.log(
-          `Duplicate report detected (similarity: ${duplicateCheck.similarity}%), proceeding anyway but could be flagged.`,
-        );
-      }
+    console.log("[2] Vérification anti-fraude");
+    const duplicateCheck = await validateReportHash({
+      data: { hash, lat: capture.location.lat, lng: capture.location.lng },
+    });
+    console.log("[3] Validation anti-fraude terminée");
+    if (duplicateCheck.duplicate) {
+      console.log(
+        `Duplicate report detected (similarity: ${duplicateCheck.similarity}%), proceeding anyway but could be flagged.`,
+      );
+    }
 
-      const preliminaryCommune = detectCityCommune(
-        DEFAULT_CITY,
-        capture.location.lat,
-        capture.location.lng,
-      ).id;
+    const preliminaryCommune = detectCityCommune(
+      DEFAULT_CITY,
+      capture.location.lat,
+      capture.location.lng,
+    ).id;
 
-      const preliminaryReport = {
-        author: "Citoyen Anonyme",
-        authorId: "anonyme",
-        authorRole: "anonyme" as const,
-        province: "Kinshasa",
-        city: "Kinshasa",
-        commune: preliminaryCommune,
-        category: "mixte" as const,
-        urgency: "moyen" as const,
-        description: description || "Signalement citoyen rapide.",
+    const preliminaryReport = {
+      author: "Citoyen Anonyme",
+      authorId: "anonyme",
+      authorRole: "anonyme" as const,
+      province: "Kinshasa",
+      city: "Kinshasa",
+      commune: preliminaryCommune,
+      category: "mixte" as const,
+      urgency: "moyen" as const,
+      description: description || "Signalement citoyen rapide.",
+      lat: capture.location.lat,
+      lng: capture.location.lng,
+      photoUrl: capture.imageDataUrl,
+      cameraCapability:
+        capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
+          ? capture.cameraCapability
+          : "basic",
+    } as const;
+
+    const item = pushLiveReport(preliminaryReport);
+
+    await commitReportHash({
+      data: {
+        hash,
         lat: capture.location.lat,
         lng: capture.location.lng,
-        photoUrl: capture.imageDataUrl,
-        cameraCapability:
-          capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
-            ? capture.cameraCapability
-            : "basic",
-      } as const;
+        reportId: item.id,
+        category: "mixte",
+      },
+    });
 
-      const item = pushLiveReport(preliminaryReport);
-
-      await commitReportHash({
+    try {
+      console.log("[4] Lancement de l'analyse IA");
+      const analysisResult = await analyzeWastePhotoAdvanced({
         data: {
-          hash,
-          lat: capture.location.lat,
-          lng: capture.location.lng,
-          reportId: item.id,
-          category: "mixte",
+          imageDataUrl: capture.imageDataUrl,
+          additionalImages: capture.additionalImages,
+          lat: capture.location?.lat,
+          lng: capture.location?.lng,
+          accuracy: capture.location?.accuracy,
+          altitudeM: capture.location?.altitudeM,
+          capturedAt: capture.capturedAt,
+          cameraCapability:
+            capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
+              ? capture.cameraCapability
+              : "basic",
+          depthData: capture.depthData,
         },
       });
+      console.log("[5] Analyse IA terminée");
 
-      void (async () => {
-        try {
-          const analysisResult = await analyzeWastePhotoAdvanced({
-            data: {
-              imageDataUrl: capture.imageDataUrl,
-              additionalImages: capture.additionalImages,
-              lat: capture.location?.lat,
-              lng: capture.location?.lng,
-              accuracy: capture.location?.accuracy,
-              altitudeM: capture.location?.altitudeM,
-              capturedAt: capture.capturedAt,
-              cameraCapability:
-                capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
-                  ? capture.cameraCapability
-                  : "basic",
-              depthData: capture.depthData,
-            },
-          });
+      const patch: Partial<import("./live-reports").LiveReport> = {
+        category: analysisResult.mainCategory,
+        description: analysisResult.description || item.description,
+        volumeM3: analysisResult.dimensions?.volumeM3,
+        priorityScore: analysisResult.priorityScore,
+        priorityLevel: analysisResult.priorityLevel,
+        analysisConfidence: analysisResult.analysisConfidence,
+        dimensions: analysisResult.dimensions,
+        cameraCapability: analysisResult.cameraCapability ?? item.cameraCapability,
+        model3DAvailable: analysisResult.model3DAvailable ?? item.model3DAvailable,
+        healthRisk: analysisResult.healthRisk,
+        floodRisk: analysisResult.floodRisk,
+        interventionUrgent: analysisResult.interventionUrgent,
+        composition: analysisResult.composition?.map((c) => ({
+          material: c.material,
+          percentage: c.percentage,
+        })),
+        aiAnalysis: analysisResult,
+        ...(analysisResult.interventionUrgent || analysisResult.priorityLevel === "critique"
+          ? { status: "assignee" as const }
+          : {}),
+      };
 
-          const patch: Partial<import("./live-reports").LiveReport> = {
-            category: analysisResult.mainCategory,
-            description: analysisResult.description || item.description,
-            volumeM3: analysisResult.dimensions?.volumeM3,
-            priorityScore: analysisResult.priorityScore,
-            priorityLevel: analysisResult.priorityLevel,
-            analysisConfidence: analysisResult.analysisConfidence,
-            dimensions: analysisResult.dimensions,
-            cameraCapability: analysisResult.cameraCapability ?? item.cameraCapability,
-            model3DAvailable: analysisResult.model3DAvailable ?? item.model3DAvailable,
-            healthRisk: analysisResult.healthRisk,
-            floodRisk: analysisResult.floodRisk,
-            interventionUrgent: analysisResult.interventionUrgent,
-            composition: analysisResult.composition?.map((c) => ({
-              material: c.material,
-              percentage: c.percentage,
-            })),
-            aiAnalysis: analysisResult,
-            ...(analysisResult.interventionUrgent || analysisResult.priorityLevel === "critique"
-              ? { status: "assignee" as const }
-              : {}),
-          };
-
-          updateReport(item.id, patch, "Analyse IA terminée");
-          console.log("[9] Analyse IA terminée (background)");
-        } catch (analysisError) {
-          console.error(
-            "Analyse IA en arrière-plan échouée pour le signalement :",
-            analysisError instanceof Error ? analysisError.message : analysisError,
-          );
-        }
-      })();
-
-      console.log("[9] Enregistrement du signalement terminé");
-      return { success: true, reportId: item.id };
-    } catch (error) {
+      console.log("[6] Envoi du patch d'analyse au client");
+      return { success: true, reportId: item.id, analysisPatch: patch };
+    } catch (analysisError) {
       console.error(
-        "Erreur détaillée dans submitCitizenReport:",
-        error instanceof Error ? error.message : error,
+        "Analyse IA en arrière-plan échouée pour le signalement :",
+        analysisError instanceof Error ? analysisError.message : analysisError,
       );
-      if (error instanceof Error && error.stack) {
-        console.error(error.stack);
-      }
-      throw error;
+      // En cas d'erreur de l'IA, on renvoie quand même un succès partiel.
+      return { success: true, reportId: item.id, analysisPatch: {} };
     }
   });

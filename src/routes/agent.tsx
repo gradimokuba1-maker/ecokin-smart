@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ReportDetailsDialog } from "@/components/report-details-dialog";
 import { Camera, Check, Crosshair, Loader2, MapPinned, Play, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClientOnly } from "@/components/client-only";
@@ -129,6 +130,7 @@ function AgentDashboard() {
     report: LiveReport;
     type: "before" | "after";
   } | null>(null);
+  const [selectedReport, setSelectedReport] = useState<LiveReport | null>(null);
 
   const handlePhotoCapture = (reportId: string, type: "before" | "after", dataUrl: string) => {
     if (session) {
@@ -274,6 +276,13 @@ function AgentDashboard() {
                             onCaptureAfter={() => setCapturing({ report, type: "after" })}
                             onComplete={() => setStatus(report.id, "terminee", session.name)}
                           />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedReport(report)}
+                          >
+                            Voir détails
+                          </Button>
                         </CardFooter>
                       </Card>
                     ))
@@ -303,7 +312,8 @@ function AgentDashboard() {
                 <CardContent>
                   <ul className="divide-y divide-border">
                     {doneReports.map((report) => (
-                      <li key={report.id} className="py-3">
+                      <li key={report.id} className="py-3 flex justify-between items-center">
+                        <div>
                         <p className="font-semibold">
                           {report.id} · {report.category}
                         </p>
@@ -313,6 +323,14 @@ function AgentDashboard() {
                               report.createdAt,
                           ).toLocaleString("fr-FR")}
                         </p>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedReport(report)}
+                          >
+                            Voir détails
+                          </Button>
                       </li>
                     ))}
                   </ul>
@@ -321,6 +339,14 @@ function AgentDashboard() {
             </TabsContent>
           </Tabs>
         </div>
+
+        {selectedReport && (
+          <ReportDetailsDialog
+            report={selectedReport}
+            isOpen={!!selectedReport}
+            onClose={() => setSelectedReport(null)}
+          />
+        )}
 
         {capturing && (
           <PhotoCapture

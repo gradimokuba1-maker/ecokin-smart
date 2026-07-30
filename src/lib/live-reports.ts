@@ -27,6 +27,7 @@ export type LiveReport = {
   description?: string;
   lat?: number;
   lng?: number;
+  address?: string;
   volumeM3?: number;
   priorityScore?: number;
   ack: boolean;
@@ -38,6 +39,8 @@ export type LiveReport = {
   photoBefore?: string;
   photoAfter?: string;
   composition?: { material: string; percentage: number }[];
+  detectedObjects?: { label: string; count?: number; confidence?: number }[];
+  environmentDetected?: string[];
   dimensions?: {
     lengthM: number;
     widthM: number;
@@ -48,6 +51,8 @@ export type LiveReport = {
   };
   priorityLevel?: "faible" | "moyen" | "eleve" | "critique";
   analysisConfidence?: number;
+  analysisCompletedAt?: string;
+  analysisRecommendations?: string[];
   cameraCapability?: "lidar" | "arcore" | "basic";
   model3DAvailable?: boolean;
   healthRisk?: "faible" | "modere" | "eleve";
@@ -129,6 +134,11 @@ export function pushLiveReport(
     });
   }
   return item;
+}
+
+export function updateLiveReport(id: string, patch: Partial<LiveReport>, logMsg?: string) {
+  updateReport(id, patch, logMsg);
+  broadcast();
 }
 
 function update(id: string, patch: Partial<LiveReport>, logMsg?: string) {
