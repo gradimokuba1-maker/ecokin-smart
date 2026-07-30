@@ -57,9 +57,7 @@ function MenageRoute() {
               </CardHeader>
               <CardContent className="h-[500px]">
                 <ClientOnly>
-                  <Suspense
-                    fallback={<div className="h-full w-full animate-pulse bg-muted" />}
-                  >
+                  <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
                     <FleetMap />
                   </Suspense>
                 </ClientOnly>
@@ -120,7 +118,10 @@ function HouseholdSettings() {
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
               {["120L", "240L", "660L"].map((bin) => (
-                <span key={bin} className="rounded-full bg-eco/10 px-3 py-1 text-xs font-bold text-eco">
+                <span
+                  key={bin}
+                  className="rounded-full bg-eco/10 px-3 py-1 text-xs font-bold text-eco"
+                >
                   {bin}
                 </span>
               ))}

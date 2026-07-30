@@ -4,6 +4,7 @@ import { useEcoUser } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { pushLiveReport } from "@/lib/live-reports";
+import { submitCitizenReport } from "@/lib/report-submit.functions";
 import { Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
@@ -114,7 +115,8 @@ function SignalerPage() {
   const submitReport = async () => {
     console.log("[CLIENT] Début de submitReport()");
     if (!capture || !hash) {
-      console.log("[CLIENT] Abandon : capture ou hash manquant.");
+      console.error("[CLIENT] Abandon : capture ou hash manquant.");
+      toast.error("Une erreur est survenue, données de capture manquantes.");
       return;
     }
 
@@ -122,26 +124,38 @@ function SignalerPage() {
     setStep("submitting");
 
     const payload = { capture, description, hash };
-    console.log("[CLIENT] Données envoyées au serveur :", payload);
+    console.log("[CLIENT] Données envoyées au serveur (extrait):", {
+      description,
+      hash,
+      capture: {
+        ...capture,
+        imageDataUrl: capture.imageDataUrl.substring(0, 50) + "...",
+        additionalImages: capture.additionalImages.map((img) => img.substring(0, 50) + "..."),
+      },
+    });
+
+    const reportPromise = submitCitizenReport({ data: payload });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout: La requête a pris trop de temps.")), 30000),
+    );
 
     try {
-      console.log("[CLIENT] Juste avant l'appel serveur");
-      const result = saveLocalReport(capture, hash);
-      void result;
-      console.log("Réponse serveur reçue :", result);
+      console.log("[CLIENT] Juste avant l'appel serveur avec timeout.");
+      await Promise.race([reportPromise, timeoutPromise]);
+
+      console.log("[CLIENT] Appel serveur réussi.");
       toast.success("Votre signalement a été envoyé avec succès !");
       setStep("submitted");
     } catch (error) {
-      console.warn("Soumission serveur indisponible, conservation locale du signalement:", error);
-      saveLocalReport(capture, hash);
-      toast.success("Signalement enregistré localement pour la démonstration.");
-      if (error instanceof Error && error.name === "__legacy_submit_error__") {
-        console.error("Erreur serveur :", error);
-        toast.error("L'envoi a échoué. Veuillez réessayer.");
-        setStep("confirmation"); // Go back to confirmation screen on error
-      } else {
-        setStep("submitted");
-      }
+      console.error("[CLIENT] Erreur lors de la soumission du rapport :", error);
+      const errorMessage =
+        error instanceof Error && error.message.includes("Timeout")
+          ? "L'envoi a échoué (timeout). Vérifiez votre connexion et réessayez."
+          : "L'envoi a échoué. Veuillez réessayer.";
+
+      toast.error(errorMessage);
+      // Retour à l'écran de confirmation pour permettre une nouvelle tentative
+      setStep("confirmation");
     }
   };
 
