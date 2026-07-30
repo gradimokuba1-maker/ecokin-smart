@@ -15,59 +15,8 @@ export type WasteMaterial =
   | "mixte"
   | "inconnu";
 
+
 export type CompositionEntry = { material: WasteMaterial; percentage: number };
-// --- ADVANCED ANALYSIS ---
-
-const AdvancedInputSchema = z.object({
-  imageDataUrl: z.string().min(20),
-  additionalImages: z.array(z.string()).optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
-  accuracy: z.number().optional(),
-  altitudeM: z.number().optional(),
-  capturedAt: z.string().datetime().optional(),
-  cameraCapability: z.enum(["lidar", "arcore", "basic"]).optional(),
-  depthData: z.string().optional(),
-});
-
-export type WasteAnalysisResult = {
-  mainCategory: WasteMaterial;
-  secondaryCategory?: WasteMaterial;
-  composition: CompositionEntry[];
-  detectedObjects: { label: string; count: number; confidence: number }[];
-  environmentDetected: string[];
-  wasteAreaPercent: number;
-  dimensions: {
-    lengthM: number;
-    widthM: number;
-    heightAvgM: number;
-    surfaceM2: number;
-    volumeM3: number;
-    confidence: number;
-  };
-  location: {
-    lat: number;
-    lng: number;
-    accuracy: number;
-    altitudeM?: number;
-    commune: string;
-    quartier?: string;
-  };
-  healthRisk: "faible" | "modere" | "eleve";
-  environmentalRisk: "faible" | "modere" | "eleve";
-  obstructionRisk: "faible" | "modere" | "eleve";
-  floodRisk: boolean;
-  interventionUrgent: boolean;
-  priorityScore: number;
-  priorityLevel: "faible" | "moyen" | "eleve" | "critique";
-  description: string;
-  recommendations: string[];
-  analysisConfidence: number;
-  model3DAvailable: boolean;
-  cameraCapability?: "lidar" | "arcore" | "basic";
-};
-
-// --- ADVANCED ANALYSIS ---
 
 const AdvancedInputSchema = z.object({
   imageDataUrl: z.string().min(20),

@@ -13,6 +13,7 @@ import { Route as SituationRouteImport } from './routes/situation'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
 import { Route as SensibilisationRouteImport } from './routes/sensibilisation'
+import { Route as RejoindreRouteImport } from './routes/rejoindre'
 import { Route as RecompensesRouteImport } from './routes/recompenses'
 import { Route as RapportsRouteImport } from './routes/rapports'
 import { Route as PredictifRouteImport } from './routes/predictif'
@@ -55,6 +56,11 @@ const SignalerRoute = SignalerRouteImport.update({
 const SensibilisationRoute = SensibilisationRouteImport.update({
   id: '/sensibilisation',
   path: '/sensibilisation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RejoindreRoute = RejoindreRouteImport.update({
+  id: '/rejoindre',
+  path: '/rejoindre',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecompensesRoute = RecompensesRouteImport.update({
@@ -196,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
+  '/rejoindre': typeof RejoindreRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -225,6 +232,7 @@ export interface FileRoutesByTo {
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
+  '/rejoindre': typeof RejoindreRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/predictif': typeof PredictifRoute
   '/rapports': typeof RapportsRoute
   '/recompenses': typeof RecompensesRoute
+  '/rejoindre': typeof RejoindreRoute
   '/sensibilisation': typeof SensibilisationRoute
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -286,6 +295,7 @@ export interface FileRouteTypes {
     | '/predictif'
     | '/rapports'
     | '/recompenses'
+    | '/rejoindre'
     | '/sensibilisation'
     | '/signaler'
     | '/sitemap.xml'
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/predictif'
     | '/rapports'
     | '/recompenses'
+    | '/rejoindre'
     | '/sensibilisation'
     | '/signaler'
     | '/sitemap.xml'
@@ -344,6 +355,7 @@ export interface FileRouteTypes {
     | '/predictif'
     | '/rapports'
     | '/recompenses'
+    | '/rejoindre'
     | '/sensibilisation'
     | '/signaler'
     | '/sitemap.xml'
@@ -374,6 +386,7 @@ export interface RootRouteChildren {
   PredictifRoute: typeof PredictifRoute
   RapportsRoute: typeof RapportsRoute
   RecompensesRoute: typeof RecompensesRoute
+  RejoindreRoute: typeof RejoindreRoute
   SensibilisationRoute: typeof SensibilisationRoute
   SignalerRoute: typeof SignalerRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -408,6 +421,13 @@ declare module '@tanstack/react-router' {
       path: '/sensibilisation'
       fullPath: '/sensibilisation'
       preLoaderRoute: typeof SensibilisationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rejoindre': {
+      id: '/rejoindre'
+      path: '/rejoindre'
+      fullPath: '/rejoindre'
+      preLoaderRoute: typeof RejoindreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recompenses': {
@@ -609,6 +629,7 @@ const rootRouteChildren: RootRouteChildren = {
   PredictifRoute: PredictifRoute,
   RapportsRoute: RapportsRoute,
   RecompensesRoute: RecompensesRoute,
+  RejoindreRoute: RejoindreRoute,
   SensibilisationRoute: SensibilisationRoute,
   SignalerRoute: SignalerRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
