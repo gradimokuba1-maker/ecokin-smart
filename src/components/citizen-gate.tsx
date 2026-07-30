@@ -44,7 +44,7 @@ export function CitizenGate({ title, description, children }: Props) {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto grid min-h-screen max-w-md place-items-center px-4 py-10">
+      <div className="mx-auto grid max-w-md place-items-center px-4 py-10">
         <div className="w-full rounded-3xl border border-border bg-card p-7 shadow-xl shadow-black/5">
           <div className="flex items-center gap-3">
             <span className="grid size-11 place-items-center rounded-2xl bg-eco/10 text-eco">
