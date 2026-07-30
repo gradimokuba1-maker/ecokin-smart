@@ -1,3 +1,3 @@
-import { start } from "./src/start";
+import { startInstance } from "./src/start";
 
-export default start;
+export default startInstance;
