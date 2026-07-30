@@ -10,6 +10,7 @@ function RejoindrePage() {
     <CitizenGate
       title="Rejoignez EcoKin"
       description="Créez votre compte citoyen pour cumuler vos Green Points et suivre l'impact de vos actions."
+      forceForm
     />
   );
 }

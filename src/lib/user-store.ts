@@ -115,9 +115,14 @@ export function useEcoUser() {
     register(input: { name: string; commune?: string; phone: string; pin: string }) {
       const normalizedPhone = input.phone.trim();
       if (!normalizedPhone) return false;
+      const carriedPoints = user.registered ? 0 : user.points;
+      const carriedReports = user.registered ? 0 : user.reports;
       const record = findUserByCredentials("citoyen", normalizedPhone, input.pin);
       const saved = record
-        ? record
+        ? (updateUser(record.id, {
+            points: record.points + carriedPoints,
+            reports: record.reports + carriedReports,
+          }) ?? record)
         : upsertUser({
             role: "citoyen",
             identifier: normalizedPhone,
@@ -125,8 +130,8 @@ export function useEcoUser() {
             name: input.name,
             phone: normalizedPhone,
             commune: input.commune,
-            points: 0,
-            reports: 0,
+            points: carriedPoints,
+            reports: carriedReports,
             badges: [],
           });
       const next = userFromRecord(saved);

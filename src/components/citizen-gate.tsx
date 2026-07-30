@@ -9,9 +9,10 @@ type Props = {
   title: string;
   description?: string;
   children?: React.ReactNode;
+  forceForm?: boolean;
 };
 
-export function CitizenGate({ title, description, children }: Props) {
+export function CitizenGate({ title, description, children, forceForm = false }: Props) {
   const { user, register, signIn } = useEcoUser();
   const [mode, setMode] = useState<"signup" | "signin">("signup");
   const [form, setForm] = useState({
@@ -22,7 +23,7 @@ export function CitizenGate({ title, description, children }: Props) {
   });
   const [err, setErr] = useState<string | null>(null);
 
-  if (user.registered) return <>{children}</>;
+  if (user.registered && !forceForm) return <>{children}</>;
 
   const hasExisting = user.points > 0 || user.reports > 0 || user.phone;
 

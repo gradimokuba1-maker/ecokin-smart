@@ -26,18 +26,18 @@ type ModuleTile = {
 
 const MODULES: ModuleTile[] = [
   {
-    to: "/menagers",
-    icon: Recycle,
-    title: "Gestion des déchets ménagers",
-    desc: "Accédez à la collecte régulière, aux services ménagers et au suivi de votre compte.",
-    accent: "from-eco to-emerald-600",
-  },
-  {
     to: "/signaler",
     icon: Trash2,
     title: "Dépôt sauvage et tas de déchets",
     desc: "Signalez rapidement un dépôt sauvage et contribuez à la propreté de votre quartier.",
     accent: "from-sky-500 to-emerald-500",
+  },
+  {
+    to: "/menagers",
+    icon: Recycle,
+    title: "Gestion des déchets ménagers",
+    desc: "Accédez à la collecte régulière, aux services ménagers et au suivi de votre compte.",
+    accent: "from-eco to-emerald-600",
   },
 ];
 

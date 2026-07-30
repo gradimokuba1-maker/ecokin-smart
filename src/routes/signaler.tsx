@@ -36,7 +36,7 @@ function SignalementLoader({ label }: { label: string }) {
 
 function SignalerPage() {
   const navigate = useNavigate({ from: "/signaler" });
-  const { user } = useEcoUser();
+  const { user, login } = useEcoUser();
   const [step, setStep] = useState<PageStep>("camera");
 
   const [capture, setCapture] = useState<CaptureResult | null>(null);
@@ -141,6 +141,11 @@ function SignalerPage() {
 
       console.log("[CLIENT] Appel serveur réussi.");
       toast.success("Votre signalement a été envoyé avec succès !");
+      login({
+        ...user,
+        points: user.points + (user.registered ? 25 : 10),
+        reports: user.reports + 1,
+      });
       setStep("submitted");
     } catch (error) {
       console.error("[CLIENT] Erreur lors de la soumission du rapport :", error);
