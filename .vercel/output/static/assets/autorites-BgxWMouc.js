@@ -1,1 +1,0 @@
-import{t as e}from"./jsx-runtime-BtyjnKZj.js";var t=e();function n(){return(0,t.jsx)(`div`,{children:`Hello "/autorites"!`})}export{n as component};

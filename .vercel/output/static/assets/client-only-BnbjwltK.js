@@ -1,1 +1,0 @@
-import{a as e}from"./rolldown-runtime-CNC7AqOf.js";import{n as t,t as n}from"./jsx-runtime-BtyjnKZj.js";var r=e(t(),1),i=n();function a({children:e,fallback:t=null}){let[n,a]=(0,r.useState)(!1);return(0,r.useEffect)(()=>{a(!0)},[]),n?(0,i.jsx)(i.Fragment,{children:e}):t}export{a as t};
