@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, lazy, Suspense } from "react";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
 import { ClientOnly } from "@/components/client-only";
-import { FleetMap } from "@/components/fleet-map";
 import { useFleet, optimizeRoute, routeDistanceKm } from "@/lib/fleet-gps";
+
+const FleetMap = lazy(() =>
+  import("@/components/fleet-map").then((m) => ({ default: m.FleetMap })),
+);
 import { COLLECTION_POINTS } from "@/lib/data";
 import { Fuel, MapPin, Route as RouteIcon, Sparkles, Timer, TrendingDown } from "lucide-react";
 
@@ -111,12 +114,14 @@ function ItinerairesPage() {
               </h2>
             </div>
             <ClientOnly fallback={<div className="h-[520px] animate-pulse bg-muted" />}>
-              <FleetMap
-                vehicles={vehicles}
-                selectedId={selected}
-                onSelect={setSelected}
-                height={520}
-              />
+              <Suspense fallback={<div className="h-[520px] animate-pulse bg-muted" />}>
+                <FleetMap
+                  vehicles={vehicles}
+                  selectedId={selected}
+                  onSelect={setSelected}
+                  height={520}
+                />
+              </Suspense>
             </ClientOnly>
           </div>
 

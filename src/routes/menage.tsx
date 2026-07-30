@@ -3,11 +3,10 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Home, Trash2, Map, Users, Settings, Truck, CreditCard } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { HouseholdList } from "@/components/household-list";
 import { HouseholdForm } from "@/components/household-form";
-import { FleetMap } from "@/components/fleet-map";
-import { CollectionZones } from "@/components/collection-zones";
+import { ClientOnly } from "@/components/client-only";
 import { OperationalDashboard } from "@/components/operational-dashboard";
 import { useEcoUser, type User, type UserRole } from "@/lib/user-store";
 import {
@@ -19,6 +18,13 @@ import {
 } from "@/components/ui/select";
 import { Payments } from "@/components/payments";
 import { COLLECTION_SCHEDULE, SORT_TIPS } from "@/lib/household-store";
+
+const FleetMap = lazy(() =>
+  import("@/components/fleet-map").then((m) => ({ default: m.FleetMap })),
+);
+const CollectionZones = lazy(() =>
+  import("@/components/collection-zones").then((m) => ({ default: m.CollectionZones })),
+);
 
 export const Route = createFileRoute("/menage")({
   component: MenageRoute,
@@ -50,11 +56,35 @@ function MenageRoute() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-[500px]">
-                <FleetMap />
+                <ClientOnly>
+                  <Suspense
+                    fallback={<div className="h-full w-full animate-pulse bg-muted" />}
+                  >
+                    <FleetMap />
+                  </Suspense>
+                </ClientOnly>
               </CardContent>
             </Card>
           )}
-          {view === "zones" && <CollectionZones />}
+          {view === "zones" && (
+            <ClientOnly>
+              <Suspense
+                fallback={
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Zones de collecte</CardTitle>
+                      <CardDescription>Points de collecte réels à Kinshasa.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[400px] w-full animate-pulse bg-muted" />
+                    </CardContent>
+                  </Card>
+                }
+              >
+                <CollectionZones />
+              </Suspense>
+            </ClientOnly>
+          )}
           {view === "payments" && <Payments />}
           {view === "settings" && <HouseholdSettings />}
         </main>
