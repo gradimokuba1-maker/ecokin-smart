@@ -8,6 +8,7 @@ import { HouseholdList } from "@/components/household-list";
 import { HouseholdForm } from "@/components/household-form";
 import { ClientOnly } from "@/components/client-only";
 import { OperationalDashboard } from "@/components/operational-dashboard";
+import { CollectionOperationsPanel } from "@/components/collection-operations-panel";
 import { useEcoUser, type User, type UserRole } from "@/lib/user-store";
 import {
   Select,
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/menage")({
   component: MenageRoute,
 });
 
-type View = "dashboard" | "list" | "form" | "zones" | "settings" | "fleet" | "payments";
+type View = "dashboard" | "list" | "form" | "zones" | "settings" | "fleet" | "payments" | "operations";
 
 function MenageRoute() {
   const [view, setView] = useState<View>("dashboard");
@@ -84,6 +85,7 @@ function MenageRoute() {
             </ClientOnly>
           )}
           {view === "payments" && <Payments />}
+          {view === "operations" && <CollectionOperationsPanel />}
           {view === "settings" && <HouseholdSettings />}
         </main>
         <SiteFooter />
@@ -203,6 +205,14 @@ function AppSidebar({
         >
           <Map className="h-5 w-5" />
           <span className="sr-only">Collection Zones</span>
+        </a>
+        <a
+          href="#"
+          onClick={() => setView("operations")}
+          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "operations" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
+        >
+          <Truck className="h-5 w-5" />
+          <span className="sr-only">Opérations</span>
         </a>
         <a
           href="#"

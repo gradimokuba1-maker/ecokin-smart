@@ -81,6 +81,7 @@ import { Switch } from "@/components/ui/switch";
 import { resetAllEcoKinData } from "@/lib/utils";
 import { deleteUser, updateUser, upsertUser, useEcokinDb } from "@/lib/ecokin-db";
 import { filterReportsByScope } from "@/lib/dashboard-analytics";
+import { useCollectionOperations } from "@/lib/collection-operations-store";
 import {
   useAdminSettings,
   LANGUAGES,
@@ -132,6 +133,7 @@ function AdminPage() {
   const { totalPaid } = useWasteTax();
   const { session } = useAccess();
   const db = useEcokinDb();
+  const collectionOperations = useCollectionOperations();
   const scopedReports = useMemo(() => filterReportsByScope(reports, session), [reports, session]);
   const scopedUsers = useMemo(
     () =>
@@ -149,6 +151,9 @@ function AdminPage() {
     totalBudget,
     totalHouseholds: households.length,
     totalTaxPaid: totalPaid,
+    activePmes: collectionOperations.pmes.filter((pme) => pme.status === "active").length,
+    activeCollectors: collectionOperations.collectors.filter((collector) => collector.available).length,
+    activeMissions: collectionOperations.missions.filter((mission) => mission.status === "in_progress" || mission.status === "assigned").length,
   };
 
   return (
@@ -174,11 +179,10 @@ function AdminPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-                tab === t.id
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${tab === t.id
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground hover:bg-muted/50"
-              }`}
+                }`}
             >
               <t.icon className="size-4" /> {t.label}
             </button>
@@ -618,9 +622,8 @@ function UsersTab() {
               <td>{l.name}</td>
               <td>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                    l.status === "Actif" ? "bg-eco/15 text-eco" : "bg-slate-500/15 text-slate-600"
-                  }`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${l.status === "Actif" ? "bg-eco/15 text-eco" : "bg-slate-500/15 text-slate-600"
+                    }`}
                 >
                   {l.status}
                 </span>
@@ -1191,11 +1194,10 @@ function SettingsTab() {
           <button
             key={t.id}
             onClick={() => setSettingsTab(t.id)}
-            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
-              settingsTab === t.id
+            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${settingsTab === t.id
                 ? "bg-eco text-white shadow-sm"
                 : "text-muted-foreground hover:bg-muted/50"
-            }`}
+              }`}
           >
             <t.icon className="size-3.5" />
             {t.label}

@@ -25,6 +25,7 @@ import {
   type LiveReport,
 } from "@/lib/eco-store";
 import { useAuthorityLocalStore } from "@/lib/authority-local-store";
+import { useCollectionOperations } from "@/lib/collection-operations-store";
 import {
   Select,
   SelectContent,
@@ -849,6 +850,7 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
 
 function GovernorDashboard() {
   const { items: liveReports } = useLiveReports();
+  const collectionOperations = useCollectionOperations();
   const [filters, setFilters] = useState({
     commune: "all",
     period: "all",
@@ -866,6 +868,9 @@ function GovernorDashboard() {
   }, [liveReports, filters]);
 
   const kpiData = useKpiData(filteredReports);
+  const collectionCoverage = collectionOperations.pmes.length + collectionOperations.collectors.length;
+  const activeMissions = collectionOperations.missions.filter((mission) => mission.status === "in_progress" || mission.status === "assigned").length;
+  const activeVehicles = 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -883,7 +888,29 @@ function GovernorDashboard() {
               <TabsTrigger value="reports">Signalements</TabsTrigger>
             </TabsList>
             <TabsContent value="overview" className="mt-4">
-              {/* ... (overview content) */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Couverture collecte</CardTitle>
+                    <CardDescription>PME et collecteurs actifs alimentant la collecte.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold">{collectionCoverage}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Missions actives</CardTitle>
+                    <CardDescription>Suivi opérationnel des missions en cours.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold">{activeMissions}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>État flotte</CardTitle>
+                    <CardDescription>Véhicules en service et missions associées.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold">{activeVehicles}</CardContent>
+                </Card>
+              </div>
             </TabsContent>
             <TabsContent value="stats" className="mt-4">
               <GovernorStatsTab reports={filteredReports} />

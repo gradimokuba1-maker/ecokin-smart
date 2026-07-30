@@ -1,20 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useHouseholds } from "@/lib/household-store";
 import { useFleet } from "@/lib/fleet-store";
-import { Users, Truck, Wrench, CircleCheck } from "lucide-react";
+import { useCollectionOperations } from "@/lib/collection-operations-store";
+import { Users, Truck, Wrench, CircleCheck, Building2, Route } from "lucide-react";
 
 export function OperationalDashboard() {
   const { households } = useHouseholds();
   const { vehicles } = useFleet();
+  const operations = useCollectionOperations();
 
   const totalHouseholds = households.length;
-  const activeHouseholds = households.length; // Placeholder
-  const collectionsToday = 0; // Placeholder
+  const activeHouseholds = households.filter((household) => household.phone).length;
   const availableVehicles = vehicles.filter((v) => v.status === "en_service").length;
-  const activeVehicles = vehicles.filter((v) => v.status === "en_service").length; // Placeholder
+  const activeVehicles = vehicles.filter((v) => v.status === "en_service").length;
+  const activePmes = operations.pmes.filter((pme) => pme.status === "active").length;
+  const activeMissions = operations.missions.filter((mission) => mission.status === "in_progress" || mission.status === "assigned").length;
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <StatCard
         label="Ménages enregistrés"
         value={totalHouseholds.toString()}
@@ -38,6 +41,18 @@ export function OperationalDashboard() {
         value={activeVehicles.toString()}
         icon={<Wrench className="size-5 text-primary" />}
         sub="En cours de collecte"
+      />
+      <StatCard
+        label="PME actives"
+        value={activePmes.toString()}
+        icon={<Building2 className="size-5 text-amber-500" />}
+        sub="Acteurs opérationnels"
+      />
+      <StatCard
+        label="Missions actives"
+        value={activeMissions.toString()}
+        icon={<Route className="size-5 text-sky-500" />}
+        sub="Collectes en suivi"
       />
     </div>
   );

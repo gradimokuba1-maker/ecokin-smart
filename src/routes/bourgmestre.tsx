@@ -8,6 +8,7 @@ import { AlertTriangle, BarChart3, Building, CheckCircle2, FileDown, Percent } f
 import { useMemo, useState } from "react";
 import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports, type LiveReport } from "@/lib/eco-store";
 import { useAuthorityLocalStore } from "@/lib/authority-local-store";
+import { useCollectionOperations } from "@/lib/collection-operations-store";
 import { ClientOnly } from "@/components/client-only";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -185,6 +186,7 @@ function RecentReportsTable({
 
 function LocalManagement({ commune }: { commune: string }) {
   const store = useAuthorityLocalStore();
+  const collectionOperations = useCollectionOperations();
   const [pme, setPme] = useState({ name: "", manager: "", phone: "" });
   const [team, setTeam] = useState({ name: "", pmeId: "" });
   const [agent, setAgent] = useState({ name: "", phone: "", teamId: "" });
@@ -196,6 +198,9 @@ function LocalManagement({ commune }: { commune: string }) {
   });
 
   const pmes = store.pmes.filter((item) => item.commune === commune);
+  const localPmes = collectionOperations.pmes.filter((item) => item.commune === commune);
+  const localCollectors = collectionOperations.collectors.filter((item) => item.commune === commune);
+  const localMissions = collectionOperations.missions.filter((item) => item.commune === commune);
   const teams = store.teams.filter((item) => item.commune === commune);
   const agents = store.agents.filter((item) => item.commune === commune);
   const activities = store.activities.filter((item) => item.commune === commune);

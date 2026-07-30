@@ -314,23 +314,23 @@ function AgentDashboard() {
                     {doneReports.map((report) => (
                       <li key={report.id} className="py-3 flex justify-between items-center">
                         <div>
-                        <p className="font-semibold">
-                          {report.id} · {report.category}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(
-                            report.history.find((h) => h.label.includes("terminee"))?.at ??
+                          <p className="font-semibold">
+                            {report.id} · {report.category}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(
+                              report.history.find((h) => h.label.includes("terminee"))?.at ??
                               report.createdAt,
-                          ).toLocaleString("fr-FR")}
-                        </p>
+                            ).toLocaleString("fr-FR")}
+                          </p>
                         </div>
                         <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedReport(report)}
-                          >
-                            Voir détails
-                          </Button>
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedReport(report)}
+                        >
+                          Voir détails
+                        </Button>
                       </li>
                     ))}
                   </ul>
