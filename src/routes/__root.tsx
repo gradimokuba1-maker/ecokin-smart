@@ -78,45 +78,49 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "EcoKin Smart — Gestion intelligente des déchets à Kinshasa" },
+      { name: "robots", content: "index,follow" },
+      { name: "keywords", content: "EcoKin Smart, Kinshasa, gestion des déchets, cartographie, signalements, IA, inondations, smart city" },
+      { title: "EcoKin Smart" },
       {
         name: "description",
         content:
-          "Plateforme Smart City pour la gestion intelligente des déchets sur les 24 communes de Kinshasa. Signalement citoyen, IA, SIG, suivi GPS et récompenses Green Points.",
+          "Plateforme intelligente de gestion des déchets, de cartographie, de suivi environnemental et de prédiction des inondations à Kinshasa grâce à l'intelligence artificielle.",
       },
       { name: "author", content: "EcoKin Smart" },
       {
         property: "og:title",
-        content: "EcoKin Smart — Gestion intelligente des déchets à Kinshasa",
+        content: "EcoKin Smart",
       },
       {
         property: "og:description",
         content:
-          "Réduire les déchets et prévenir les inondations grâce à la participation citoyenne, l'IA et les SIG — sur toute la ville de Kinshasa.",
+          "Plateforme intelligente de gestion des déchets, de cartographie, de suivi environnemental et de prédiction des inondations à Kinshasa grâce à l'intelligence artificielle.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://ecokin-smart-76xj.vercel.app/" },
+      { property: "og:site_name", content: "EcoKin Smart" },
+      {
+        property: "og:image",
+        content: "https://ecokin-smart-76xj.vercel.app/images/ecokin-preview.png",
+      },
       { name: "twitter:card", content: "summary_large_image" },
       {
         name: "twitter:title",
-        content: "EcoKin Smart — Gestion intelligente des déchets à Kinshasa",
+        content: "EcoKin Smart",
       },
       {
         name: "twitter:description",
-        content: "Signalement citoyen, IA, SIG et suivi GPS sur les 24 communes de Kinshasa.",
-      },
-      {
-        property: "og:image",
         content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5baab05b-0e6f-4063-928d-dcfc32806996/id-preview-b4a4b4b4--e3bb42f9-7a4c-42fc-be4b-b5b7dd8374cc.lovable.app-1781852479674.png",
+          "Plateforme intelligente de gestion des déchets, de cartographie, de suivi environnemental et de prédiction des inondations à Kinshasa grâce à l'intelligence artificielle.",
       },
       {
         name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/5baab05b-0e6f-4063-928d-dcfc32806996/id-preview-b4a4b4b4--e3bb42f9-7a4c-42fc-be4b-b5b7dd8374cc.lovable.app-1781852479674.png",
+        content: "https://ecokin-smart-76xj.vercel.app/images/ecokin-preview.png",
       },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "canonical", href: "https://ecokin-smart-76xj.vercel.app/" },
       { rel: "icon", href: "/images/logo-ecokin.png", type: "image/png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
@@ -134,7 +138,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="fr">
       <head>
         <HeadContent />
       </head>
