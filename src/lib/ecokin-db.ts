@@ -26,6 +26,9 @@ export type EcokinUserRecord = TerritorialScope & {
   badges: string[];
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
+  deletedBy?: string;
+  archivedAt?: string;
 };
 
 export type EcokinDb = {
@@ -656,9 +659,39 @@ export function updateUser(id: string, patch: Partial<EcokinUserRecord>) {
   return updated;
 }
 
-export function deleteUser(id: string) {
+export function deleteUser(id: string, actor = "system") {
   const db = readDb();
-  db.users = db.users.filter((user) => user.id !== id);
+  const at = now();
+  db.users = db.users.map((user) => {
+    if (user.id !== id) return user;
+    return {
+      ...user,
+      active: false,
+      deletedAt: at,
+      deletedBy: actor,
+      archivedAt: at,
+      updatedAt: at,
+    };
+  });
+  writeDb(db);
+}
+
+export function restoreUser(id: string, actor = "system") {
+  const db = readDb();
+  const at = now();
+  db.users = db.users.map((user) => {
+    if (user.id !== id) return user;
+    return {
+      ...user,
+      active: true,
+      deletedAt: undefined,
+      deletedBy: undefined,
+      archivedAt: undefined,
+      restoredAt: at,
+      restoredBy: actor,
+      updatedAt: at,
+    };
+  });
   writeDb(db);
 }
 
@@ -705,6 +738,7 @@ export function updateReport(id: string, patch: Partial<LiveReport>, historyLabe
       ...report,
       ...patch,
       history: historyLabel ? [...report.history, { at, label: historyLabel }] : report.history,
+      active: patch.active ?? report.active ?? true,
     };
     return updated;
   });
@@ -712,9 +746,51 @@ export function updateReport(id: string, patch: Partial<LiveReport>, historyLabe
   return updated;
 }
 
+export function softDeleteReport(id: string, actor = "system") {
+  const db = readDb();
+  const at = now();
+  db.reports = db.reports.map((report) => {
+    if (report.id !== id) return report;
+    return {
+      ...report,
+      active: false,
+      archivedAt: at,
+      deletedAt: at,
+      deletedBy: actor,
+    };
+  });
+  writeDb(db);
+  return db.reports.find((report) => report.id === id);
+}
+
+export function restoreReport(id: string, actor = "system") {
+  const db = readDb();
+  const at = now();
+  db.reports = db.reports.map((report) => {
+    if (report.id !== id) return report;
+    return {
+      ...report,
+      active: true,
+      restoredAt: at,
+      restoredBy: actor,
+      deletedAt: undefined,
+      deletedBy: undefined,
+      archivedAt: undefined,
+    };
+  });
+  writeDb(db);
+  return db.reports.find((report) => report.id === id);
+}
+
 export function clearOperationalData() {
   const db = readDb();
-  db.reports = [];
+  db.reports = db.reports.map((report) => ({
+    ...report,
+    active: false,
+    archivedAt: now(),
+    deletedAt: now(),
+    deletedBy: "system",
+  }));
   db.counters["ECO-SIG"] = 0;
   writeDb(db);
 }

@@ -63,6 +63,10 @@ export type LiveReport = {
   greenPointsAwarded?: number;
   assignedAgentId?: string;
   assignedAgentName?: string;
+  deletedAt?: string;
+  deletedBy?: string;
+  archivedAt?: string;
+  active?: boolean;
 };
 
 const EVT = "ecokin:live-reports";

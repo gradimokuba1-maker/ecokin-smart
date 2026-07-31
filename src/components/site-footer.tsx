@@ -1,4 +1,5 @@
-import { Leaf } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Leaf, Lock } from "lucide-react";
 
 export function SiteFooter() {
   return (
@@ -47,7 +48,16 @@ export function SiteFooter() {
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground sm:flex-row sm:px-6 lg:px-8">
           <span>© 2026 EcoKin Smart · Tous droits réservés</span>
-          <span>Propulsé par l'IA et les SIG</span>
+          <span className="inline-flex items-center gap-2">
+            <span>Propulsé par l'IA et les SIG</span>
+            <Link
+              to="/autorite/connexion"
+              aria-label="Accès réservé aux autorités"
+              className="inline-flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:border-emerald-400/30 hover:text-eco"
+            >
+              <Lock className="size-2.5" />
+            </Link>
+          </span>
         </div>
       </div>
     </footer>

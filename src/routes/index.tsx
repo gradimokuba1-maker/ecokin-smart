@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
-import { Leaf, Recycle, ShieldCheck, Trash2 } from "lucide-react";
+import { Leaf, Lock, Recycle, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -102,13 +102,6 @@ function Home() {
               </Link>
             ))}
 
-            <Link
-              to="/autorite"
-              className="inline-flex items-center gap-2 self-center rounded-full border border-white/15 bg-white/10 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/70 shadow-sm backdrop-blur transition-colors hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-100"
-            >
-              <ShieldCheck className="size-3.5" />
-              Accès réservé aux autorités
-            </Link>
           </div>
         </section>
 
@@ -117,6 +110,15 @@ function Home() {
             <span className="font-semibold text-foreground">EcoKin Smart</span>
             <span>Pour une ville propre, durable et intelligente.</span>
             <span>© EcoKin Smart – Tous droits réservés.</span>
+          </div>
+          <div className="mt-3 flex justify-center">
+            <Link
+              to="/autorite/connexion"
+              aria-label="Accès réservé aux autorités"
+              className="inline-flex size-6 items-center justify-center rounded-full border border-border/70 bg-background/70 text-muted-foreground transition-colors hover:border-emerald-400/30 hover:text-eco"
+            >
+              <Lock className="size-3" />
+            </Link>
           </div>
         </footer>
       </main>

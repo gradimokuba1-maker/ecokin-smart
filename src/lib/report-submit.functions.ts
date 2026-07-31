@@ -6,6 +6,8 @@ import { detectCityCommune, DEFAULT_CITY } from "./cities";
 import { pushLiveReport } from "./live-reports";
 import { updateReport } from "./ecokin-db";
 import { computePerceptualHash } from "./image-hash";
+import { runServerWasteAIEngine, getServerAIAnalysis } from "./waste-ai/ai-engine";
+import { registerValidatedImage } from "./waste-ai/ai-learning";
 
 // Empreinte perceptuelle aHash 8x8 → 16 hex chars.
 const HashSchema = z.string().regex(/^[0-9a-f]{16}$/i, "Empreinte invalide");
@@ -207,6 +209,18 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
       });
       console.log("[5] Analyse IA terminée");
 
+      const engineResult = await runServerWasteAIEngine(item.id, capture, analysisResult);
+      registerValidatedImage(item.id, capture, engineResult.objects.map((object) => ({
+        reportId: item.id,
+        category: object.category,
+        material: object.material,
+        confidence: object.confidence,
+        boundingBox: object.boundingBox,
+        mask: object.segmentationMask,
+        correctedBy: "server-ai",
+        correctedAt: new Date().toISOString(),
+      })));
+
       const patch: Partial<import("./live-reports").LiveReport> = {
         category: analysisResult.mainCategory,
         description: analysisResult.description || item.description,
@@ -231,7 +245,11 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
       };
 
       console.log("[6] Envoi du patch d'analyse au client");
-      return { success: true, reportId: item.id, analysisPatch: patch };
+      return {
+        success: true,
+        reportId: item.id,
+        analysisPatch: patch,
+      };
     } catch (analysisError) {
       console.error(
         "Analyse IA en arrière-plan échouée pour le signalement :",
