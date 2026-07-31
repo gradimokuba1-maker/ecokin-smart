@@ -7,9 +7,11 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4 lg:px-8">
         <div className="md:col-span-2">
           <div className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-lg bg-eco text-white">
-              <Leaf className="size-4" />
-            </span>
+            <img
+              src="/images/logo-ecokin.png"
+              alt="EcoKin Smart"
+              className="size-8 rounded-lg object-cover"
+            />
             <span className="font-display text-lg font-bold">
               EcoKin <span className="text-eco">Smart</span>
             </span>

@@ -44,6 +44,7 @@ function MenageRoute() {
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <SiteNav minimal />
         </header>
+        <MobileQuickNav view={view} setView={setView} />
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           {view === "dashboard" && <OperationalDashboard />}
           {view === "list" && <HouseholdList setView={setView} />}
@@ -89,6 +90,49 @@ function MenageRoute() {
           {view === "settings" && <HouseholdSettings />}
         </main>
         <SiteFooter />
+      </div>
+    </div>
+  );
+}
+
+function MobileQuickNav({
+  view,
+  setView,
+}: {
+  view: View;
+  setView: (view: View) => void;
+}) {
+  const items: Array<{ key: View; label: string; icon: typeof Home }> = [
+    { key: "dashboard", label: "Accueil", icon: Home },
+    { key: "list", label: "Ménages", icon: Users },
+    { key: "fleet", label: "Flotte", icon: Truck },
+    { key: "zones", label: "Zones", icon: Map },
+    { key: "operations", label: "Opérations", icon: Truck },
+    { key: "payments", label: "Paiements", icon: CreditCard },
+    { key: "settings", label: "Réglages", icon: Settings },
+  ];
+
+  return (
+    <div className="border-b bg-background px-4 py-2 sm:hidden">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          const active = view === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setView(item.key)}
+              className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-muted/50 text-muted-foreground"
+                }`}
+            >
+              <Icon className="size-3.5" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

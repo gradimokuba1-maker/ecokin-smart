@@ -864,7 +864,21 @@ function GovernorDashboard() {
   };
 
   const filteredReports = useMemo(() => {
-    // ... (filtering logic)
+    const now = Date.now();
+
+    return liveReports
+      .filter((report) => report.active !== false)
+      .filter((report) => filters.commune === "all" || report.commune === filters.commune)
+      .filter((report) => filters.category === "all" || report.category === filters.category)
+      .filter((report) => filters.urgency === "all" || report.urgency === filters.urgency)
+      .filter((report) => {
+        if (filters.period === "all") return true;
+        const ageHours = (now - new Date(report.createdAt).getTime()) / (1000 * 60 * 60);
+        if (filters.period === "24h") return ageHours <= 24;
+        if (filters.period === "7d") return ageHours <= 7 * 24;
+        if (filters.period === "30d") return ageHours <= 30 * 24;
+        return true;
+      });
   }, [liveReports, filters]);
 
   const kpiData = useKpiData(filteredReports);

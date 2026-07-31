@@ -30,6 +30,18 @@ export function ReportDetailsDialog({
 }) {
   if (!report) return null;
 
+  const analysis = report.aiAnalysis as
+    | {
+      description?: string;
+      detectedObjects?: Array<{ label: string; count?: number; confidence?: number }>;
+      mainCategory?: string;
+      secondaryCategory?: string;
+      composition?: Array<{ material: string; percentage: number }>;
+      priorityScore?: number;
+      analysisConfidence?: number;
+    }
+    | undefined;
+  const volume = report.volumeM3 ?? report.dimensions?.volumeM3;
   const DetailItem = ({
     icon,
     label,
@@ -71,7 +83,7 @@ export function ReportDetailsDialog({
             <DetailItem
               icon={MapPin}
               label="Coordonnées GPS"
-              value={`${report.lat?.toFixed(5)}, ${report.lng?.toFixed(5)}`}
+              value={`${report.lat?.toFixed(5) ?? "N/A"}, ${report.lng?.toFixed(5) ?? "N/A"}`}
             />
             <DetailItem
               icon={Home}
@@ -83,43 +95,64 @@ export function ReportDetailsDialog({
               label="Date et heure"
               value={new Date(report.createdAt).toLocaleString("fr-FR")}
             />
+            <DetailItem
+              icon={Info}
+              label="Catégorie du déchet"
+              value={report.category || "Non renseignée"}
+            />
+            <DetailItem
+              icon={Layers}
+              label="Type de déchet identifié"
+              value={analysis?.mainCategory || report.category || "Non analysé"}
+            />
+            <DetailItem
+              icon={TrendingUp}
+              label="Historique du traitement"
+              value={
+                report.history?.length
+                  ? report.history.map((entry) => `${entry.label} (${new Date(entry.at).toLocaleString("fr-FR")})`).join(" · ")
+                  : "Aucun historique"
+              }
+            />
           </div>
           <div className="space-y-4">
             <h4 className="font-bold text-eco">Analyse IA</h4>
             <DetailItem
               icon={Scale}
               label="Volume estimé"
-              value={report.volumeM3 ? `${report.volumeM3} m³` : "Non calculé"}
+              value={volume ? `${volume} m³` : "Non calculé"}
             />
             <DetailItem
               icon={Layers}
-              label="Types de déchets"
+              label="Composition détectée"
               value={
                 report.composition
                   ?.map((c) => `${c.material} (${c.percentage}%)`)
-                  .join(", ") || "Non analysé"
+                  .join(", ") || analysis?.composition?.map((c) => `${c.material} (${c.percentage}%)`).join(", ") || "Non analysé"
               }
             />
             <DetailItem
               icon={TrendingUp}
               label="Niveau de priorité"
               value={
-                `${report.priorityLevel} (Score: ${report.priorityScore})` || "Non évalué"
+                report.priorityLevel || analysis?.mainCategory
+                  ? `${report.priorityLevel ?? "N/A"} (Score: ${report.priorityScore ?? analysis?.priorityScore ?? "N/A"})`
+                  : "Non évalué"
               }
             />
             <DetailItem
               icon={BadgePercent}
               label="Niveau de confiance IA"
               value={
-                report.analysisConfidence
-                  ? `${(report.analysisConfidence * 100).toFixed(0)}%`
+                report.analysisConfidence ?? analysis?.analysisConfidence
+                  ? `${((report.analysisConfidence ?? analysis?.analysisConfidence ?? 0) * 100).toFixed(0)}%`
                   : "Non évalué"
               }
             />
             <DetailItem
               icon={Info}
               label="Observations et recommandations"
-              value={report.aiAnalysis?.description || report.description || "Aucune"}
+              value={analysis?.description || report.description || "Aucune"}
             />
             <DetailItem
               icon={AlertTriangle}
@@ -133,6 +166,15 @@ export function ReportDetailsDialog({
                   .join(", ") || "Aucun risque majeur détecté"
               }
             />
+            {analysis?.detectedObjects?.length ? (
+              <DetailItem
+                icon={Layers}
+                label="Objets détectés"
+                value={analysis.detectedObjects
+                  .map((object) => `${object.label}${object.count ? ` × ${object.count}` : ""} (${Math.round((object.confidence ?? 0) * 100)}%)`)
+                  .join(", ")}
+              />
+            ) : null}
           </div>
         </div>
         <DialogFooter>

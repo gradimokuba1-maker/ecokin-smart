@@ -58,9 +58,11 @@ function Home() {
       <main className="relative z-10 flex min-h-screen flex-col">
         <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
           <div className="mb-8 flex items-center gap-3 rounded-full border border-eco/20 bg-white/80 px-4 py-2 shadow-sm backdrop-blur">
-            <div className="grid size-10 place-items-center rounded-full bg-eco text-white shadow-lg shadow-eco/20">
-              <Leaf className="size-5" />
-            </div>
+            <img
+              src="/images/logo-ecokin.png"
+              alt="EcoKin Smart"
+              className="size-10 rounded-full object-cover shadow-lg shadow-eco/20"
+            />
             <span className="text-lg font-semibold tracking-tight text-foreground">
               EcoKin <span className="text-eco">Smart</span>
             </span>

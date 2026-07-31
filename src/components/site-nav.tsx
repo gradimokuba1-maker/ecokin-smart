@@ -86,9 +86,11 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-2">
-          <span className="grid size-9 place-items-center rounded-xl bg-eco text-white shadow-sm shadow-eco/30">
-            <Leaf className="size-5" />
-          </span>
+          <img
+            src="/images/logo-ecokin.png"
+            alt="EcoKin Smart"
+            className="size-9 rounded-xl object-cover shadow-sm shadow-eco/30"
+          />
           <span className="font-display text-xl font-bold tracking-tight">
             EcoKin <span className="text-eco">Smart</span>
           </span>
