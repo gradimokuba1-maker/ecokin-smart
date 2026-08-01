@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Leaf, LogIn, ShieldCheck, UserPlus } from "lucide-react";
 import { useEcoUser } from "@/lib/user-store";
 import { KINSHASA_COMMUNES } from "@/lib/cities";
@@ -13,6 +13,7 @@ type Props = {
 };
 
 export function CitizenGate({ title, description, children, forceForm = false }: Props) {
+  const navigate = useNavigate();
   const { user, register, signIn } = useEcoUser();
   const [mode, setMode] = useState<"signup" | "signin">("signup");
   const [form, setForm] = useState({
@@ -22,6 +23,12 @@ export function CitizenGate({ title, description, children, forceForm = false }:
     pin: "",
   });
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user.registered) {
+      navigate({ to: "/menage", replace: true });
+    }
+  }, [user.registered, navigate]);
 
   if (user.registered && !forceForm) return <>{children}</>;
 
@@ -78,18 +85,16 @@ export function CitizenGate({ title, description, children, forceForm = false }:
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={`flex-1 rounded-full px-3 py-2 ${
-                mode === "signup" ? "bg-background shadow-sm" : "text-muted-foreground"
-              }`}
+              className={`flex-1 rounded-full px-3 py-2 ${mode === "signup" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
             >
               <UserPlus className="mr-1 inline size-3.5" /> Créer un compte
             </button>
             <button
               type="button"
               onClick={() => setMode("signin")}
-              className={`flex-1 rounded-full px-3 py-2 ${
-                mode === "signin" ? "bg-background shadow-sm" : "text-muted-foreground"
-              }`}
+              className={`flex-1 rounded-full px-3 py-2 ${mode === "signin" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
             >
               <LogIn className="mr-1 inline size-3.5" /> Se connecter
             </button>

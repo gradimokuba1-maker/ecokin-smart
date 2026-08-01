@@ -121,6 +121,16 @@ const CitizenReportSchema = z.object({
   capture: z.any(), // Zod schema for CaptureResult is complex, 'any' is pragmatic for now
   description: z.string().max(500).optional(),
   hash: HashSchema,
+  author: z.string().max(80).optional(),
+  authorId: z.string().max(80).optional(),
+  authorRole: z.union([
+    z.literal("citoyen"),
+    z.literal("agent"),
+    z.literal("bourgmestre"),
+    z.literal("gouverneur"),
+    z.literal("admin"),
+    z.literal("anonyme"),
+  ]).optional(),
 });
 
 export const submitCitizenReport = createServerFn({ method: "POST" })
@@ -159,9 +169,9 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
     ).id;
 
     const preliminaryReport = {
-      author: "Citoyen Anonyme",
-      authorId: "anonyme",
-      authorRole: "anonyme" as const,
+      author: data.author ?? "Citoyen Anonyme",
+      authorId: data.authorId ?? "anonyme",
+      authorRole: data.authorRole ?? "anonyme",
       province: "Kinshasa",
       city: "Kinshasa",
       commune: preliminaryCommune,

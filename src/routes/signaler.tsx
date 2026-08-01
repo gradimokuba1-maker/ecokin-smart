@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useCallback, useState } from "react";
-import { useEcoUser } from "@/lib/user-store";
+import { useEcoUser, queuePendingReportId } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { updateLiveReport } from "@/lib/live-reports";
@@ -77,7 +77,14 @@ function SignalerPage() {
     console.log("[CLIENT] Passage à l'étape 'submitting'");
     setStep("submitting");
 
-    const payload = { capture, description, hash };
+    const payload = {
+      capture,
+      description,
+      hash,
+      ...(user.registered
+        ? { author: user.name, authorId: user.id, authorRole: user.role as const }
+        : {}),
+    };
     console.log("[CLIENT] Données envoyées au serveur (extrait):", {
       description,
       hash,
@@ -92,9 +99,14 @@ function SignalerPage() {
       console.log("[CLIENT] Juste avant l'appel serveur.");
       const result = await submitCitizenReport({ data: payload });
 
-      if (result.success && result.reportId && result.analysisPatch) {
-        console.log("[CLIENT] Appel serveur réussi, mise à jour locale avec le patch IA.");
-        updateLiveReport(result.reportId, result.analysisPatch, "Analyse IA terminée");
+      if (result.success && result.reportId) {
+        if (!user.registered) {
+          queuePendingReportId(result.reportId);
+        }
+        if (result.analysisPatch) {
+          console.log("[CLIENT] Appel serveur réussi, mise à jour locale avec le patch IA.");
+          updateLiveReport(result.reportId, result.analysisPatch, "Analyse IA terminée");
+        }
       }
 
       toast.success("Votre signalement a été envoyé avec succès !");

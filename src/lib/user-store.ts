@@ -1,9 +1,41 @@
 // EcoKin Smart — Module utilisateur citoyen et simulation de compte.
 import { useEffect, useState, useCallback } from "react";
-import { upsertUser, findUserByCredentials, updateUser } from "./ecokin-db";
+import { upsertUser, findUserByCredentials, updateUser, updateReport } from "./ecokin-db";
 import type { EcokinUserRecord } from "./ecokin-db";
 
 export type UserRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
+
+const PENDING_REPORTS_KEY = "ecokin_pending_report_ids_v1";
+
+function readPendingReportIds(): string[] {
+  return read<string[]>(PENDING_REPORTS_KEY) ?? [];
+}
+
+export function queuePendingReportId(reportId: string) {
+  if (typeof window === "undefined") return;
+  const existing = readPendingReportIds();
+  if (!existing.includes(reportId)) {
+    write(PENDING_REPORTS_KEY, [...existing, reportId]);
+  }
+}
+
+function clearPendingReportIds() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(PENDING_REPORTS_KEY);
+}
+
+function linkPendingReportsToUser(user: User) {
+  const pending = readPendingReportIds();
+  if (!pending.length) return;
+  pending.forEach((reportId) => {
+    updateReport(reportId, {
+      author: user.name,
+      authorId: user.id,
+      authorRole: user.role,
+    });
+  });
+  clearPendingReportIds();
+}
 
 export type User = {
   id: string;
@@ -103,6 +135,12 @@ export function useEcoUser() {
   return {
     user,
     login(u: User) {
+      if (u.registered && u.role === "citoyen") {
+        const saved = updateUser(u.id, { points: u.points, reports: u.reports });
+        if (saved) {
+          u = userFromRecord(saved);
+        }
+      }
       write(K_USER, u);
       setUser(u);
     },
@@ -120,21 +158,24 @@ export function useEcoUser() {
       const record = findUserByCredentials("citoyen", normalizedPhone, input.pin);
       const saved = record
         ? (updateUser(record.id, {
-            points: record.points + carriedPoints,
-            reports: record.reports + carriedReports,
-          }) ?? record)
+          name: input.name,
+          commune: input.commune,
+          points: record.points + carriedPoints,
+          reports: record.reports + carriedReports,
+        }) ?? record)
         : upsertUser({
-            role: "citoyen",
-            identifier: normalizedPhone,
-            password: input.pin,
-            name: input.name,
-            phone: normalizedPhone,
-            commune: input.commune,
-            points: carriedPoints,
-            reports: carriedReports,
-            badges: [],
-          });
+          role: "citoyen",
+          identifier: normalizedPhone,
+          password: input.pin,
+          name: input.name,
+          phone: normalizedPhone,
+          commune: input.commune,
+          points: carriedPoints,
+          reports: carriedReports,
+          badges: [],
+        });
       const next = userFromRecord(saved);
+      linkPendingReportsToUser(next);
       write(K_USER, next);
       setUser(next);
       return true;
@@ -143,7 +184,16 @@ export function useEcoUser() {
       const normalizedPhone = phone.trim();
       const record = findUserByCredentials("citoyen", normalizedPhone, pin);
       if (!record) return false;
-      const next = userFromRecord(record);
+      const carriedPoints = user.registered ? 0 : user.points;
+      const carriedReports = user.registered ? 0 : user.reports;
+      const saved = carriedPoints || carriedReports
+        ? (updateUser(record.id, {
+          points: record.points + carriedPoints,
+          reports: record.reports + carriedReports,
+        }) ?? record)
+        : record;
+      const next = userFromRecord(saved);
+      linkPendingReportsToUser(next);
       write(K_USER, next);
       setUser(next);
       return true;
