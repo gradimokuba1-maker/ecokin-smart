@@ -79,7 +79,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "robots", content: "index,follow" },
-      { name: "keywords", content: "EcoKin Smart, Kinshasa, gestion des déchets, cartographie, signalements, IA, inondations, smart city" },
+      {
+        name: "keywords",
+        content:
+          "EcoKin Smart, Kinshasa, gestion des déchets, cartographie, signalements, IA, inondations, smart city",
+      },
       { title: "EcoKin Smart" },
       {
         name: "description",

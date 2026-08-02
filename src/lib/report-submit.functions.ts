@@ -17,6 +17,7 @@ const ValidateSchema = z.object({
   lat: z.number().gte(-90).lte(90).optional(),
   lng: z.number().gte(-180).lte(180).optional(),
   category: z.string().max(40).optional(),
+  reportId: z.string().min(3).max(60).optional(),
 });
 
 const CommitSchema = ValidateSchema.extend({
@@ -123,154 +124,154 @@ const CitizenReportSchema = z.object({
   hash: HashSchema,
   author: z.string().max(80).optional(),
   authorId: z.string().max(80).optional(),
-  authorRole: z.union([
-    z.literal("citoyen"),
-    z.literal("agent"),
-    z.literal("bourgmestre"),
-    z.literal("gouverneur"),
-    z.literal("admin"),
-    z.literal("anonyme"),
-  ]).optional(),
+  authorRole: z
+    .union([
+      z.literal("citoyen"),
+      z.literal("agent"),
+      z.literal("bourgmestre"),
+      z.literal("gouverneur"),
+      z.literal("admin"),
+      z.literal("anonyme"),
+    ])
+    .optional(),
+  reportId: z.string().min(3).max(60),
 });
 
 export const submitCitizenReport = createServerFn({ method: "POST" })
   .validator((d: unknown) => CitizenReportSchema.parse(d))
-  .handler(async ({ data }): Promise<{
-    success: true;
-    reportId: string;
-    analysisPatch: Partial<import("./live-reports").LiveReport>;
-  }> => {
-    console.log("[1] Début submitCitizenReport");
-    const { capture, description, hash } = data as {
-      capture: CaptureResult;
-      description?: string;
-      hash: string;
-    };
-    console.log("[1.1] Capture summary", {
-      hasLocation: Boolean(capture?.location),
-      imageUrlLength: capture?.imageDataUrl?.length ?? 0,
-      additionalCount: Array.isArray(capture?.additionalImages) ? capture.additionalImages.length : 0,
-    });
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      success: true;
+      reportId: string;
+      analysisPatch: Partial<import("./live-reports").LiveReport>;
+    }> => {
+      console.log("[1] Début submitCitizenReport");
+      const { capture, description, hash, reportId } = data;
+      console.log("[1.1] Capture summary", {
+        hasLocation: Boolean(capture?.location),
+        imageUrlLength: capture?.imageDataUrl?.length ?? 0,
+        additionalCount: Array.isArray(capture?.additionalImages)
+          ? capture.additionalImages.length
+          : 0,
+      });
 
-    if (!capture.location || typeof capture.location.lat !== "number" || typeof capture.location.lng !== "number") {
-      throw new Error("Localisation GPS invalide ou manquante.");
-    }
+      if (
+        !capture.location ||
+        typeof capture.location.lat !== "number" ||
+        typeof capture.location.lng !== "number"
+      ) {
+        throw new Error("Localisation GPS invalide ou manquante.");
+      }
 
-    console.log("[2] Vérification anti-fraude");
-    const duplicateCheck = await validateReportHash({
-      data: { hash, lat: capture.location.lat, lng: capture.location.lng },
-    });
-    console.log("[3] Validation anti-fraude terminée");
-    if (duplicateCheck.duplicate) {
-      console.log(
-        `Duplicate report detected (similarity: ${duplicateCheck.similarity}%), proceeding anyway but could be flagged.`,
-      );
-    }
+      console.log("[2] Vérification anti-fraude");
+      const duplicateCheck = await validateReportHash({
+        data: { hash, lat: capture.location.lat, lng: capture.location.lng },
+      });
+      console.log("[3] Validation anti-fraude terminée");
+      if (duplicateCheck.duplicate) {
+        console.log(
+          `Duplicate report detected (similarity: ${duplicateCheck.similarity}%), proceeding anyway but could be flagged.`,
+        );
+      }
 
-    const preliminaryCommune = detectCityCommune(
-      DEFAULT_CITY,
-      capture.location.lat,
-      capture.location.lng,
-    ).id;
-
-    const preliminaryReport = {
-      author: data.author ?? "Citoyen Anonyme",
-      authorId: data.authorId ?? "anonyme",
-      authorRole: data.authorRole ?? "anonyme",
-      province: "Kinshasa",
-      city: "Kinshasa",
-      commune: preliminaryCommune,
-      category: "mixte" as const,
-      urgency: "moyen" as const,
-      description: description || "Signalement citoyen rapide.",
-      lat: capture.location.lat,
-      lng: capture.location.lng,
-      photoUrl: capture.imageDataUrl,
-      cameraCapability:
-        capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
-          ? capture.cameraCapability
-          : "basic",
-    } as const;
-
-    const item = pushLiveReport(preliminaryReport);
-
-    await commitReportHash({
-      data: {
-        hash,
-        lat: capture.location.lat,
-        lng: capture.location.lng,
-        reportId: item.id,
-        category: "mixte",
-      },
-    });
-
-    try {
-      console.log("[4] Lancement de l'analyse IA");
-      const analysisResult = await analyzeWastePhotoAdvanced({
+      await commitReportHash({
         data: {
-          imageDataUrl: capture.imageDataUrl,
-          additionalImages: capture.additionalImages,
-          lat: capture.location?.lat,
-          lng: capture.location?.lng,
-          accuracy: capture.location?.accuracy,
-          altitudeM: capture.location?.altitudeM,
-          capturedAt: capture.capturedAt,
-          cameraCapability:
-            capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
-              ? capture.cameraCapability
-              : "basic",
-          depthData: capture.depthData,
+          hash,
+          lat: capture.location.lat,
+          lng: capture.location.lng,
+          reportId: reportId,
+          category: "mixte",
         },
       });
-      console.log("[5] Analyse IA terminée");
 
-      const engineResult = await runServerWasteAIEngine(item.id, capture, analysisResult);
-      registerValidatedImage(item.id, capture, engineResult.objects.map((object) => ({
-        reportId: item.id,
-        category: object.category,
-        material: object.material,
-        confidence: object.confidence,
-        boundingBox: object.boundingBox,
-        mask: object.segmentationMask,
-        correctedBy: "server-ai",
-        correctedAt: new Date().toISOString(),
-      })));
+      try {
+        console.log("[4] Lancement de l'analyse IA");
+        const analysisResult = await analyzeWastePhotoAdvanced({
+          data: {
+            imageDataUrl: capture.imageDataUrl,
+            additionalImages: capture.additionalImages,
+            lat: capture.location?.lat,
+            lng: capture.location?.lng,
+            accuracy: capture.location?.accuracy,
+            altitudeM: capture.location?.altitudeM,
+            capturedAt: capture.capturedAt,
+            cameraCapability:
+              capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
+                ? capture.cameraCapability
+                : "basic",
+            depthData: capture.depthData,
+          },
+        });
+        console.log("[5] Analyse IA terminée");
 
-      const patch: Partial<import("./live-reports").LiveReport> = {
-        category: analysisResult.mainCategory,
-        description: analysisResult.description || item.description,
-        volumeM3: analysisResult.dimensions?.volumeM3,
-        priorityScore: analysisResult.priorityScore,
-        priorityLevel: analysisResult.priorityLevel,
-        analysisConfidence: analysisResult.analysisConfidence,
-        dimensions: analysisResult.dimensions,
-        cameraCapability: analysisResult.cameraCapability ?? item.cameraCapability,
-        model3DAvailable: analysisResult.model3DAvailable ?? item.model3DAvailable,
-        healthRisk: analysisResult.healthRisk,
-        floodRisk: analysisResult.floodRisk,
-        interventionUrgent: analysisResult.interventionUrgent,
-        composition: analysisResult.composition?.map((c) => ({
-          material: c.material,
-          percentage: c.percentage,
-        })),
-        aiAnalysis: analysisResult,
-        ...(analysisResult.interventionUrgent || analysisResult.priorityLevel === "critique"
-          ? { status: "assignee" as const }
-          : {}),
-      };
+        const engineResult = await runServerWasteAIEngine(reportId, capture, analysisResult);
+        registerValidatedImage(
+          reportId,
+          capture,
+          engineResult.objects.map((object) => ({
+            reportId: reportId,
+            category: object.category,
+            material: object.material,
+            confidence: object.confidence,
+            boundingBox: object.boundingBox,
+            mask: object.segmentationMask,
+            correctedBy: "server-ai",
+            correctedAt: new Date().toISOString(),
+          })),
+        );
 
-      console.log("[6] Envoi du patch d'analyse au client");
-      return {
-        success: true,
-        reportId: item.id,
-        analysisPatch: patch,
-      };
-    } catch (analysisError) {
-      console.error(
-        "Analyse IA en arrière-plan échouée pour le signalement :",
-        analysisError instanceof Error ? analysisError.message : analysisError,
-      );
-      // En cas d'erreur de l'IA, on renvoie quand même un succès partiel.
-      return { success: true, reportId: item.id, analysisPatch: {} };
-    }
-  });
+        const patch: Partial<import("./live-reports").LiveReport> = {
+          category: analysisResult.mainCategory,
+          description: analysisResult.description || description,
+          volumeM3: analysisResult.dimensions?.volumeM3,
+          priorityScore: analysisResult.priorityScore,
+          priorityLevel: analysisResult.priorityLevel,
+          analysisConfidence: analysisResult.analysisConfidence,
+          dimensions: analysisResult.dimensions,
+          cameraCapability: analysisResult.cameraCapability ?? "basic",
+          model3DAvailable: analysisResult.model3DAvailable ?? false,
+          healthRisk: analysisResult.healthRisk,
+          floodRisk: analysisResult.floodRisk,
+          interventionUrgent: analysisResult.interventionUrgent,
+          composition: analysisResult.composition?.map((c) => ({
+            material: c.material,
+            percentage: c.percentage,
+          })),
+          aiAnalysis: analysisResult,
+          ...(analysisResult.interventionUrgent || analysisResult.priorityLevel === "critique"
+            ? { status: "assignee" as const }
+            : {}),
+        };
+
+        // Compute weight estimate when we have volume and composition
+        try {
+          const vol = patch.volumeM3;
+          const comp = patch.composition ?? (analysisResult.composition as any);
+          if (vol && comp && comp.length) {
+            const { calculateWeightFromVolume } = await import("./waste-ai/types");
+            const w = calculateWeightFromVolume(vol, comp as any);
+            patch.weightKg = w.weightKg;
+            patch.weightTons = w.weightTons;
+          }
+        } catch (e) {
+          // ignore weight calculation failures
+        }
+
+        console.log("[6] Envoi du patch d'analyse au client");
+        return {
+          success: true,
+          reportId: reportId,
+          analysisPatch: patch,
+        };
+      } catch (analysisError) {
+        console.error(
+          "Analyse IA en arrière-plan échouée pour le signalement :",
+          analysisError instanceof Error ? analysisError.message : analysisError,
+        );
+        // En cas d'erreur de l'IA, on renvoie quand même un succès partiel.
+        return { success: true, reportId: reportId, analysisPatch: {} };
+      }
+    },
+  );

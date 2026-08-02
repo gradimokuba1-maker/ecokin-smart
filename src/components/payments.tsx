@@ -1,7 +1,12 @@
 ﻿import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useHouseholds, type Household } from "@/lib/household-store";
-import { useWasteTax, generateInvoices, type PaymentMethod, PAYMENT_PROVIDERS } from "@/lib/eco-store";
+import {
+  useWasteTax,
+  generateInvoices,
+  type PaymentMethod,
+  PAYMENT_PROVIDERS,
+} from "@/lib/eco-store";
 import {
   Table,
   TableBody,
@@ -25,7 +30,9 @@ export function Payments() {
   const { allPayments, pay, totalPaid } = useWasteTax();
   const [selectedHousehold, setSelectedHousehold] = useState<Household | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>("mobile_money");
-  const [selectedProvider, setSelectedProvider] = useState<string>(PAYMENT_PROVIDERS.mobile_money[0]);
+  const [selectedProvider, setSelectedProvider] = useState<string>(
+    PAYMENT_PROVIDERS.mobile_money[0],
+  );
 
   useEffect(() => {
     setSelectedProvider(PAYMENT_PROVIDERS[selectedMethod][0] ?? "");
@@ -52,7 +59,9 @@ export function Payments() {
       <Card>
         <CardHeader>
           <CardTitle>Contribution obligatoire</CardTitle>
-          <CardDescription>Suivi des contributions payées et des contributions en attente.</CardDescription>
+          <CardDescription>
+            Suivi des contributions payées et des contributions en attente.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border p-4">
@@ -109,7 +118,9 @@ export function Payments() {
       <Card>
         <CardHeader>
           <CardTitle>Paiement de la contribution obligatoire</CardTitle>
-          <CardDescription>Choisissez un ménage, un mode de paiement et un prestataire.</CardDescription>
+          <CardDescription>
+            Choisissez un ménage, un mode de paiement et un prestataire.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -117,7 +128,9 @@ export function Payments() {
               {households.map((household) => {
                 const invoices = generateInvoices(household);
                 const latestInvoice = invoices[invoices.length - 1];
-                const alreadyPaid = allPayments.some((payment) => payment.invoiceId === latestInvoice?.id);
+                const alreadyPaid = allPayments.some(
+                  (payment) => payment.invoiceId === latestInvoice?.id,
+                );
                 return (
                   <div key={household.id} className="rounded-xl border p-4">
                     <div className="font-semibold">{household.name}</div>
@@ -183,13 +196,19 @@ export function Payments() {
                       Montant
                     </span>
                     <div className="rounded-lg border bg-muted px-3 py-2 text-sm">
-                      {generateInvoices(selectedHousehold).slice(-1)[0]?.amountCdf.toLocaleString("fr-FR") ?? 0}
+                      {generateInvoices(selectedHousehold)
+                        .slice(-1)[0]
+                        ?.amountCdf.toLocaleString("fr-FR") ?? 0}
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="submit">Enregistrer le paiement</Button>
-                  <Button type="button" variant="secondary" onClick={() => setSelectedHousehold(null)}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setSelectedHousehold(null)}
+                  >
                     Annuler
                   </Button>
                 </div>

@@ -60,6 +60,8 @@ export type LiveReport = {
   interventionUrgent?: boolean;
   photoUrl?: string;
   aiAnalysis?: unknown;
+  weightKg?: number;
+  weightTons?: number;
   greenPointsAwarded?: number;
   analysisFeedback?: {
     confirmed: boolean;

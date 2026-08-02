@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { InteractiveMap } from "@/components/interactive-map";
 import { useLearning } from "@/lib/learning-store";
 import { updateLiveReport } from "@/lib/live-reports";
+import { calculateWeightFromVolume } from "@/lib/waste-ai/types";
 import {
   AlertTriangle,
   BadgePercent,
@@ -56,16 +57,24 @@ export function ReportDetailsDialog({
 
   const analysis = report.aiAnalysis as
     | {
-      description?: string;
-      detectedObjects?: Array<{ label: string; count?: number; confidence?: number }>;
-      mainCategory?: string;
-      secondaryCategory?: string;
-      composition?: Array<{ material: string; percentage: number }>;
-      priorityScore?: number;
-      analysisConfidence?: number;
-    }
+        description?: string;
+        detectedObjects?: Array<{ label: string; count?: number; confidence?: number }>;
+        mainCategory?: string;
+        secondaryCategory?: string;
+        composition?: Array<{ material: string; percentage: number }>;
+        priorityScore?: number;
+        analysisConfidence?: number;
+      }
     | undefined;
   const volume = report.volumeM3 ?? report.dimensions?.volumeM3;
+  const weightEstimate =
+    (report as any).weight?.weightKg ??
+    (report as any).weightKg ??
+    (analysis as any)?.weight?.weightKg ??
+    (volume && (analysis?.composition || report.composition)
+      ? calculateWeightFromVolume(volume, (analysis?.composition || report.composition) as any)
+          .weightKg
+      : undefined);
   const feedbackHistory = report.analysisFeedback ?? [];
 
   const DetailItem = ({
@@ -79,7 +88,7 @@ export function ReportDetailsDialog({
   }) => (
     <div className="flex items-start gap-3">
       <div className="mt-1 flex-shrink-0">
-        <icon className="size-4 text-muted-foreground" />
+        {React.createElement(icon, { className: "size-4 text-muted-foreground" })}
       </div>
       <div>
         <div className="text-xs font-bold text-muted-foreground">{label}</div>
@@ -137,14 +146,16 @@ export function ReportDetailsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6 py-4 lg:grid-cols-[1.3fr_0.9fr]">
+        <div className="grid gap-6 py-4 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-4">
             {(report.photoUrl || report.photoBefore) && (
-              <img
-                src={report.photoUrl || report.photoBefore}
-                alt="Aperçu du signalement"
-                className="w-full rounded-xl border-2 border-border object-cover aspect-[4/3]"
-              />
+              <div className="overflow-hidden rounded-xl border-2 border-border bg-black/5">
+                <img
+                  src={report.photoUrl || report.photoBefore}
+                  alt="Aperçu du signalement"
+                  className="w-full rounded-xl object-contain max-h-[420px]"
+                />
+              </div>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
               <DetailItem
@@ -162,7 +173,11 @@ export function ReportDetailsDialog({
                 label="Date et heure"
                 value={new Date(report.createdAt).toLocaleString("fr-FR")}
               />
-              <DetailItem icon={Info} label="Green Points reçus" value={`${report.greenPointsAwarded ?? 0} GP`} />
+              <DetailItem
+                icon={Info}
+                label="Green Points reçus"
+                value={`${report.greenPointsAwarded ?? 0} GP`}
+              />
             </div>
             <div className="rounded-3xl border border-border bg-card p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -170,7 +185,9 @@ export function ReportDetailsDialog({
                   <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Carte du dépôt
                   </p>
-                  <p className="text-sm text-muted-foreground">Localisation exacte du signalement.</p>
+                  <p className="text-sm text-muted-foreground">
+                    Localisation exacte du signalement.
+                  </p>
                 </div>
               </div>
               <InteractiveMap reports={[report]} heightClassName="h-[260px]" />
@@ -192,13 +209,18 @@ export function ReportDetailsDialog({
                   value={volume ? `${volume.toFixed(2)} m³` : "Non calculé"}
                 />
                 <DetailItem
+                  icon={Scale}
+                  label="Poids estimé"
+                  value={weightEstimate ? `${Math.round(weightEstimate)} kg` : "Non calculé"}
+                />
+                <DetailItem
                   icon={Layers}
                   label="Composition détectée"
                   value={
-                    report.composition
+                    report.composition?.map((c) => `${c.material} (${c.percentage}%)`).join(", ") ||
+                    analysis?.composition
                       ?.map((c) => `${c.material} (${c.percentage}%)`)
                       .join(", ") ||
-                    analysis?.composition?.map((c) => `${c.material} (${c.percentage}%)`).join(", ") ||
                     "Non analysé"
                   }
                 />
@@ -208,18 +230,20 @@ export function ReportDetailsDialog({
                   value={
                     analysis?.detectedObjects?.length
                       ? analysis.detectedObjects
-                        .map((object) => `${object.label}${object.count ? ` × ${object.count}` : ""}`)
-                        .join(", ")
-                      : report.detectedObjects?.map((object) => object.label).join(", ") ||
-                      "Aucun"
+                          .map(
+                            (object) =>
+                              `${object.label}${object.count ? ` × ${object.count}` : ""}`,
+                          )
+                          .join(", ")
+                      : report.detectedObjects?.map((object) => object.label).join(", ") || "Aucun"
                   }
                 />
                 <DetailItem
                   icon={BadgePercent}
                   label="Confiance IA"
                   value={
-                    report.analysisConfidence ?? analysis?.analysisConfidence
-                      ? `${((report.analysisConfidence ?? analysis?.analysisConfidence ?? 0) * 100).toFixed(0)}%`
+                    (report.analysisConfidence ?? analysis?.analysisConfidence) != null
+                      ? `${Math.round((report.analysisConfidence ?? analysis?.analysisConfidence ?? 0) * 100)}%`
                       : "Non évalué"
                   }
                 />
@@ -267,7 +291,9 @@ export function ReportDetailsDialog({
                       <select
                         value={feedbackConfirmed === null ? "" : feedbackConfirmed ? "yes" : "no"}
                         onChange={(e) =>
-                          setFeedbackConfirmed(e.target.value === "" ? null : e.target.value === "yes")
+                          setFeedbackConfirmed(
+                            e.target.value === "" ? null : e.target.value === "yes",
+                          )
                         }
                         className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
                       >
@@ -305,13 +331,19 @@ export function ReportDetailsDialog({
                   </label>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-xs text-muted-foreground">
-                      Vos retours sont stockés localement pour contribuer aux futures phases d'entraînement.
+                      Vos retours sont stockés localement pour contribuer aux futures phases
+                      d'entraînement.
                     </div>
-                    <Button onClick={handleSaveFeedback} disabled={isSaving || feedbackConfirmed === null}>
+                    <Button
+                      onClick={handleSaveFeedback}
+                      disabled={isSaving || feedbackConfirmed === null}
+                    >
                       {isSaving ? "Enregistrement..." : "Enregistrer mon retour"}
                     </Button>
                   </div>
-                  {savedMessage && <p className="text-sm font-semibold text-emerald-700">{savedMessage}</p>}
+                  {savedMessage && (
+                    <p className="text-sm font-semibold text-emerald-700">{savedMessage}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -321,7 +353,10 @@ export function ReportDetailsDialog({
                 <h3 className="text-base font-semibold">Historique des retours</h3>
                 <div className="mt-3 space-y-3 text-sm text-muted-foreground">
                   {feedbackHistory.map((entry, index) => (
-                    <div key={`${entry.at}-${index}`} className="rounded-2xl border border-border/60 bg-card p-3">
+                    <div
+                      key={`${entry.at}-${index}`}
+                      className="rounded-2xl border border-border/60 bg-card p-3"
+                    >
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <div className="font-semibold text-foreground">
@@ -329,7 +364,9 @@ export function ReportDetailsDialog({
                           </div>
                           <div>{new Date(entry.at).toLocaleString("fr-FR")}</div>
                         </div>
-                        <div className="text-xs uppercase tracking-widest text-muted-foreground">{entry.by}</div>
+                        <div className="text-xs uppercase tracking-widest text-muted-foreground">
+                          {entry.by}
+                        </div>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
                         Catégorie : {entry.correctedCategory ?? report.category}
@@ -339,7 +376,11 @@ export function ReportDetailsDialog({
                           Déchets : {entry.correctedObjects.join(", ")}
                         </div>
                       ) : null}
-                      {entry.notes ? <div className="mt-1 text-xs text-muted-foreground">Remarque : {entry.notes}</div> : null}
+                      {entry.notes ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Remarque : {entry.notes}
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>

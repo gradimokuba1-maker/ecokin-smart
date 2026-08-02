@@ -14,7 +14,9 @@ export function OperationalDashboard() {
   const availableVehicles = vehicles.filter((v) => v.status === "en_service").length;
   const activeVehicles = vehicles.filter((v) => v.status === "en_service").length;
   const activePmes = operations.pmes.filter((pme) => pme.status === "active").length;
-  const activeMissions = operations.missions.filter((mission) => mission.status === "in_progress" || mission.status === "assigned").length;
+  const activeMissions = operations.missions.filter(
+    (mission) => mission.status === "in_progress" || mission.status === "assigned",
+  ).length;
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

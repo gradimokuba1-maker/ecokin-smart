@@ -320,7 +320,7 @@ function AgentDashboard() {
                           <p className="text-xs text-muted-foreground">
                             {new Date(
                               report.history.find((h) => h.label.includes("terminee"))?.at ??
-                              report.createdAt,
+                                report.createdAt,
                             ).toLocaleString("fr-FR")}
                           </p>
                         </div>

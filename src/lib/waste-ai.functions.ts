@@ -15,7 +15,6 @@ export type WasteMaterial =
   | "mixte"
   | "inconnu";
 
-
 export type CompositionEntry = { material: WasteMaterial; percentage: number };
 
 const AdvancedInputSchema = z.object({
@@ -67,13 +66,23 @@ export type WasteAnalysisResult = {
   cameraCapability?: "lidar" | "arcore" | "basic";
 };
 
-const FALLBACK_ADVANCED: Omit<WasteAnalysisResult, "location" | "cameraCapability" | "model3DAvailable"> = {
+const FALLBACK_ADVANCED: Omit<
+  WasteAnalysisResult,
+  "location" | "cameraCapability" | "model3DAvailable"
+> = {
   mainCategory: "mixte",
   composition: [{ material: "mixte", percentage: 100 }],
   detectedObjects: [],
   environmentDetected: ["inconnu"],
   wasteAreaPercent: 50,
-  dimensions: { lengthM: 2, widthM: 1.5, heightAvgM: 0.5, surfaceM2: 3, volumeM3: 1.5, confidence: 0.5 },
+  dimensions: {
+    lengthM: 2,
+    widthM: 1.5,
+    heightAvgM: 0.5,
+    surfaceM2: 3,
+    volumeM3: 1.5,
+    confidence: 0.5,
+  },
   healthRisk: "modere",
   environmentalRisk: "modere",
   obstructionRisk: "faible",
@@ -86,17 +95,21 @@ const FALLBACK_ADVANCED: Omit<WasteAnalysisResult, "location" | "cameraCapabilit
   analysisConfidence: 0.4,
 };
 
-
 export const analyzeWastePhotoAdvanced = createServerFn({ method: "POST" })
   .validator((data: unknown) => AdvancedInputSchema.parse(data))
   .handler(async ({ data }): Promise<WasteAnalysisResult> => {
     const key = process.env.LOVABLE_API_KEY;
 
     const fallbackResult: WasteAnalysisResult = {
-        ...FALLBACK_ADVANCED,
-        location: { lat: data.lat ?? 0, lng: data.lng ?? 0, accuracy: data.accuracy ?? 100, commune: "Inconnue" },
-        cameraCapability: data.cameraCapability ?? "basic",
-        model3DAvailable: !!data.depthData,
+      ...FALLBACK_ADVANCED,
+      location: {
+        lat: data.lat ?? 0,
+        lng: data.lng ?? 0,
+        accuracy: data.accuracy ?? 100,
+        commune: "Inconnue",
+      },
+      cameraCapability: data.cameraCapability ?? "basic",
+      model3DAvailable: !!data.depthData,
     };
 
     if (!key) return fallbackResult;

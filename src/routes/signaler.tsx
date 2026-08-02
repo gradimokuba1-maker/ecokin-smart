@@ -3,7 +3,7 @@ import { lazy, Suspense, useCallback, useState } from "react";
 import { useEcoUser, queuePendingReportId } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
-import { updateLiveReport } from "@/lib/live-reports";
+import { updateLiveReport, pushLiveReport } from "@/lib/live-reports";
 import { submitCitizenReport } from "@/lib/report-submit.functions";
 import { Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +43,41 @@ function SignalerPage() {
   const [hash, setHash] = useState<string | null>(null);
   const [description, setDescription] = useState("");
 
+  const createThumbnail = (
+    base64: string,
+    maxWidth: number,
+    maxHeight: number,
+  ): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = base64;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round(height * (maxWidth / width));
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round(width * (maxHeight / height));
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject("Could not get canvas context");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7)); // Compress to JPEG
+      };
+      img.onerror = (err) => reject(err);
+    });
+  };
+
   const handleCapture = useCallback(async (captureResult: CaptureResult) => {
     if (!captureResult.imageDataUrl) {
       toast.error("La capture a échoué. Veuillez réessayer.");
@@ -75,7 +110,8 @@ function SignalerPage() {
     capturedAt: captureResult.capturedAt,
     videoDurationSeconds: captureResult.videoDurationSeconds,
     imageQuality: captureResult.imageQuality,
-    videoPreviewUrl: typeof captureResult.videoPreviewUrl === "string" ? captureResult.videoPreviewUrl : undefined,
+    videoPreviewUrl:
+      typeof captureResult.videoPreviewUrl === "string" ? captureResult.videoPreviewUrl : undefined,
     depthData: typeof captureResult.depthData === "string" ? captureResult.depthData : undefined,
   });
 
@@ -97,6 +133,14 @@ function SignalerPage() {
     console.log("[CLIENT] Passage à l'étape 'submitting'");
     setStep("submitting");
 
+    // Create a thumbnail for the optimistic update to avoid blocking the main thread
+    let thumbnailUrl = capture.imageDataUrl; // Fallback to full image
+    try {
+      thumbnailUrl = await createThumbnail(capture.imageDataUrl, 400, 400);
+    } catch (e) {
+      console.warn("Could not create thumbnail for optimistic update, using full image.", e);
+    }
+
     const capturePayload = buildCapturePayload(capture);
     const payload = {
       capture: capturePayload,
@@ -117,18 +161,41 @@ function SignalerPage() {
     });
 
     try {
-      console.log("[CLIENT] Juste avant l'appel serveur.");
-      const result = await submitCitizenReport({ data: payload });
+      console.log("[CLIENT] Création locale du signalement pour visibilité immédiate.");
+      const preliminaryReport = {
+        author: user.registered ? user.name : "Citoyen Anonyme",
+        authorId: user.registered ? user.id : "anonyme",
+        authorRole: (user.role as any) || "anonyme",
+        province: "Kinshasa",
+        city: "Kinshasa",
+        commune: detectCityCommune(DEFAULT_CITY, capture.location.lat, capture.location.lng).id,
+        category: "mixte" as const,
+        urgency: "moyen" as const,
+        description: description || "Signalement citoyen rapide.",
+        lat: capture.location.lat,
+        lng: capture.location.lng,
+        photoUrl: thumbnailUrl, // Use the smaller thumbnail for local storage
+        cameraCapability:
+          capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
+            ? capture.cameraCapability
+            : "basic",
+      } as const;
 
-      if (result.success && result.reportId) {
-        if (!user.registered) {
-          queuePendingReportId(result.reportId);
-        }
-        if (result.analysisPatch) {
-          console.log("[CLIENT] Appel serveur réussi, mise à jour locale avec le patch IA.");
-          updateLiveReport(result.reportId, result.analysisPatch, "Analyse IA terminée");
-        }
-      }
+      const item = pushLiveReport(preliminaryReport as any);
+
+      // Start server processing in background; do not block UI (handles analysis, hashing, etc.)
+      submitCitizenReport({ data: { ...payload, reportId: item.id } })
+        .then((result) => {
+          if (result && result.success && result.reportId && result.analysisPatch) {
+            console.log("[CLIENT] Patch IA reçu, application locale.");
+            // Update the report with full analysis, which might include the final image URL from object storage later
+            updateLiveReport(result.reportId, result.analysisPatch, "Analyse IA terminée");
+          }
+        })
+        .catch((e) => console.error("Background submit failed:", e));
+
+      // Queue pending if anonymous
+      if (!user.registered) queuePendingReportId(item.id);
 
       toast.success("Votre signalement a été envoyé avec succès !");
       login({
@@ -138,14 +205,8 @@ function SignalerPage() {
       });
       setStep("submitted");
     } catch (error) {
-      console.error("[CLIENT] Erreur lors de la soumission du rapport :", error);
-      const errorMessage =
-        error instanceof Error && error.message.includes("Timeout")
-          ? "L'envoi a échoué (timeout). Vérifiez votre connexion et réessayez."
-          : "L'envoi a échoué. Veuillez réessayer.";
-
-      toast.error(errorMessage);
-      // Retour à l'écran de confirmation pour permettre une nouvelle tentative
+      console.error("[CLIENT] Erreur lors de la création locale du rapport :", error);
+      toast.error("L'envoi a échoué. Veuillez réessayer.");
       setStep("confirmation");
     }
   };
@@ -222,11 +283,13 @@ function SignalerPage() {
           </header>
 
           {capture?.imageDataUrl && (
-            <img
-              src={capture.imageDataUrl}
-              alt="Aperçu du signalement"
-              className="w-full rounded-xl border-2 border-border object-cover aspect-[4/3]"
-            />
+            <div className="overflow-hidden rounded-xl border-2 border-border bg-black/5">
+              <img
+                src={capture.imageDataUrl}
+                alt="Aperçu du signalement"
+                className="w-full rounded-xl object-contain max-h-[420px]"
+              />
+            </div>
           )}
 
           <section>

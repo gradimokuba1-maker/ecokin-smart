@@ -51,24 +51,32 @@ export function WasteReports({
               <td>{report.volumeM3 ? `${report.volumeM3} m³` : "-"}</td>
               <td className="capitalize">
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${report.priorityLevel === "critique"
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    report.priorityLevel === "critique"
                       ? "bg-red-500 text-white"
                       : report.priorityLevel === "eleve"
                         ? "bg-orange-500 text-white"
                         : "bg-slate-200 text-slate-700"
-                    }`}
+                  }`}
                 >
                   {report.priorityLevel ?? "N/A"}
                 </span>
               </td>
               <td className="text-xs font-semibold uppercase tracking-wide">
-                {report.analysisConfidence != null ? `${Math.round(report.analysisConfidence * 100)}%` : "N/A"}
+                {report.analysisConfidence != null
+                  ? `${Math.round(report.analysisConfidence * 100)}%`
+                  : "N/A"}
               </td>
-              <td>{report.detectedObjects?.map((object) => object.label).join(", ") || report.category || "-"}</td>
+              <td>
+                {report.detectedObjects?.map((object) => object.label).join(", ") ||
+                  report.category ||
+                  "-"}
+              </td>
               <td>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[report.status]?.color
-                    }`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    STATUS_META[report.status]?.color
+                  }`}
                 >
                   {STATUS_META[report.status]?.label}
                 </span>

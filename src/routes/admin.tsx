@@ -152,8 +152,11 @@ function AdminPage() {
     totalHouseholds: households.length,
     totalTaxPaid: totalPaid,
     activePmes: collectionOperations.pmes.filter((pme) => pme.status === "active").length,
-    activeCollectors: collectionOperations.collectors.filter((collector) => collector.available).length,
-    activeMissions: collectionOperations.missions.filter((mission) => mission.status === "in_progress" || mission.status === "assigned").length,
+    activeCollectors: collectionOperations.collectors.filter((collector) => collector.available)
+      .length,
+    activeMissions: collectionOperations.missions.filter(
+      (mission) => mission.status === "in_progress" || mission.status === "assigned",
+    ).length,
   };
 
   return (
@@ -179,10 +182,11 @@ function AdminPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${tab === t.id
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:bg-muted/50"
-                }`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                tab === t.id
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50"
+              }`}
             >
               <t.icon className="size-4" /> {t.label}
             </button>
@@ -622,8 +626,9 @@ function UsersTab() {
               <td>{l.name}</td>
               <td>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${l.status === "Actif" ? "bg-eco/15 text-eco" : "bg-slate-500/15 text-slate-600"
-                    }`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    l.status === "Actif" ? "bg-eco/15 text-eco" : "bg-slate-500/15 text-slate-600"
+                  }`}
                 >
                   {l.status}
                 </span>
@@ -769,7 +774,7 @@ function ReportsTab() {
   const { items: reports, setStatus } = useLiveReports();
   const { session } = useAccess();
   const [filters, setFilters] = useState({ q: "", commune: "all", status: "all", urgency: "all" });
-  const [selectedReport, setSelectedReport] = useState<typeof reports[number] | null>(null);
+  const [selectedReport, setSelectedReport] = useState<(typeof reports)[number] | null>(null);
 
   const filteredReports = useMemo(() => {
     const scopedReports = filterReportsByScope(reports, session);
@@ -942,7 +947,9 @@ function TaxSettings() {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
-      <h3 className="mb-4 font-display text-lg font-bold">Gestion des tarifs de la contribution déchets</h3>
+      <h3 className="mb-4 font-display text-lg font-bold">
+        Gestion des tarifs de la contribution déchets
+      </h3>
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -1195,10 +1202,11 @@ function SettingsTab() {
           <button
             key={t.id}
             onClick={() => setSettingsTab(t.id)}
-            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${settingsTab === t.id
-              ? "bg-eco text-white shadow-sm"
-              : "text-muted-foreground hover:bg-muted/50"
-              }`}
+            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+              settingsTab === t.id
+                ? "bg-eco text-white shadow-sm"
+                : "text-muted-foreground hover:bg-muted/50"
+            }`}
           >
             <t.icon className="size-3.5" />
             {t.label}
@@ -2532,5 +2540,3 @@ function IATab() {
     </div>
   );
 }
-
-

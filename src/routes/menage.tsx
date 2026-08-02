@@ -31,7 +31,8 @@ export const Route = createFileRoute("/menage")({
   component: MenageRoute,
 });
 
-type View = "dashboard" | "list" | "form" | "zones" | "settings" | "fleet" | "payments" | "operations";
+type View =
+  "dashboard" | "list" | "form" | "zones" | "settings" | "fleet" | "payments" | "operations";
 
 function MenageRoute() {
   const [view, setView] = useState<View>("dashboard");
@@ -95,13 +96,7 @@ function MenageRoute() {
   );
 }
 
-function MobileQuickNav({
-  view,
-  setView,
-}: {
-  view: View;
-  setView: (view: View) => void;
-}) {
+function MobileQuickNav({ view, setView }: { view: View; setView: (view: View) => void }) {
   const items: Array<{ key: View; label: string; icon: typeof Home }> = [
     { key: "dashboard", label: "Accueil", icon: Home },
     { key: "list", label: "Ménages", icon: Users },
@@ -123,10 +118,11 @@ function MobileQuickNav({
               key={item.key}
               type="button"
               onClick={() => setView(item.key)}
-              className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${active
+              className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${
+                active
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-muted/50 text-muted-foreground"
-                }`}
+              }`}
             >
               <Icon className="size-3.5" />
               <span>{item.label}</span>

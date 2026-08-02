@@ -4,7 +4,16 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Assurez-vous que ce chemin est correct
-import { AlertTriangle, Activity, BarChart3, Building, CheckCircle2, FileDown, Percent, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  Activity,
+  BarChart3,
+  Building,
+  CheckCircle2,
+  FileDown,
+  Percent,
+  ShieldCheck,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   COLLECTION_POINTS,
@@ -207,7 +216,9 @@ function LocalManagement({ commune }: { commune: string }) {
 
   const pmes = store.pmes.filter((item) => item.commune === commune);
   const localPmes = collectionOperations.pmes.filter((item) => item.commune === commune);
-  const localCollectors = collectionOperations.collectors.filter((item) => item.commune === commune);
+  const localCollectors = collectionOperations.collectors.filter(
+    (item) => item.commune === commune,
+  );
   const localMissions = collectionOperations.missions.filter((item) => item.commune === commune);
   const teams = store.teams.filter((item) => item.commune === commune);
   const agents = store.agents.filter((item) => item.commune === commune);
@@ -434,14 +445,17 @@ function BourgmestreDashboard() {
   );
 
   const communeVehicleCount = useMemo(
-    () => collectionOperations.collectors.filter((collector) => collector.commune === session.commune).length,
+    () =>
+      collectionOperations.collectors.filter((collector) => collector.commune === session.commune)
+        .length,
     [collectionOperations.collectors, session.commune],
   );
 
   const communeTricycleCount = useMemo(
     () =>
       collectionOperations.collectors.filter(
-        (collector) => collector.commune === session.commune && collector.vehicleType === "tricycle",
+        (collector) =>
+          collector.commune === session.commune && collector.vehicleType === "tricycle",
       ).length,
     [collectionOperations.collectors, session.commune],
   );
@@ -585,10 +599,7 @@ function BourgmestreDashboard() {
                 </CardContent>
               </Card>
               <BourgmestreCharts reports={communeReports} />
-              <RecentReportsTable
-                reports={communeReports}
-                onSelectReport={setSelectedReport}
-              />
+              <RecentReportsTable reports={communeReports} onSelectReport={setSelectedReport} />
             </div>
             {session.commune && (
               <div className="mt-8">

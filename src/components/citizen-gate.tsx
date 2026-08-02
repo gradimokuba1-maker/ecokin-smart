@@ -88,16 +88,18 @@ export function CitizenGate({ title, description, children, forceForm = false }:
             <button
               type="button"
               onClick={() => setMode("signup")}
-              className={`flex-1 rounded-full px-3 py-2 ${mode === "signup" ? "bg-background shadow-sm" : "text-muted-foreground"
-                }`}
+              className={`flex-1 rounded-full px-3 py-2 ${
+                mode === "signup" ? "bg-background shadow-sm" : "text-muted-foreground"
+              }`}
             >
               <UserPlus className="mr-1 inline size-3.5" /> Créer un compte
             </button>
             <button
               type="button"
               onClick={() => setMode("signin")}
-              className={`flex-1 rounded-full px-3 py-2 ${mode === "signin" ? "bg-background shadow-sm" : "text-muted-foreground"
-                }`}
+              className={`flex-1 rounded-full px-3 py-2 ${
+                mode === "signin" ? "bg-background shadow-sm" : "text-muted-foreground"
+              }`}
             >
               <LogIn className="mr-1 inline size-3.5" /> Se connecter
             </button>

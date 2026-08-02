@@ -845,7 +845,6 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
   }, [filteredReports]);
 }
 
-
 // ... (rest of the imports)
 
 // ... (rest of the components)
@@ -898,8 +897,11 @@ function GovernorDashboard() {
   }, [liveReports, filters]);
 
   const kpiData = useKpiData(filteredReports);
-  const collectionCoverage = collectionOperations.pmes.length + collectionOperations.collectors.length;
-  const activeMissions = collectionOperations.missions.filter((mission) => mission.status === "in_progress" || mission.status === "assigned").length;
+  const collectionCoverage =
+    collectionOperations.pmes.length + collectionOperations.collectors.length;
+  const activeMissions = collectionOperations.missions.filter(
+    (mission) => mission.status === "in_progress" || mission.status === "assigned",
+  ).length;
   const activeVehicles = 0;
 
   return (
@@ -922,7 +924,9 @@ function GovernorDashboard() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Couverture collecte</CardTitle>
-                    <CardDescription>PME et collecteurs actifs alimentant la collecte.</CardDescription>
+                    <CardDescription>
+                      PME et collecteurs actifs alimentant la collecte.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="text-2xl font-bold">{collectionCoverage}</CardContent>
                 </Card>
@@ -943,14 +947,18 @@ function GovernorDashboard() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Ménages enregistrés</CardTitle>
-                    <CardDescription>Foyers et PME couverts par la contribution déchets.</CardDescription>
+                    <CardDescription>
+                      Foyers et PME couverts par la contribution déchets.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="text-2xl font-bold">{householdCount}</CardContent>
                 </Card>
                 <Card>
                   <CardHeader>
                     <CardTitle>PME de collecte</CardTitle>
-                    <CardDescription>Structures de collecte actives sur la plateforme.</CardDescription>
+                    <CardDescription>
+                      Structures de collecte actives sur la plateforme.
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="text-2xl font-bold">{pmeCount}</CardContent>
                 </Card>
