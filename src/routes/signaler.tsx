@@ -66,6 +66,19 @@ function SignalerPage() {
     setStep("camera");
   };
 
+  const buildCapturePayload = (captureResult: CaptureResult) => ({
+    imageDataUrl: captureResult.imageDataUrl,
+    additionalImages: captureResult.additionalImages.filter(Boolean),
+    cameraCapability: captureResult.cameraCapability,
+    location: captureResult.location,
+    captureMode: captureResult.captureMode,
+    capturedAt: captureResult.capturedAt,
+    videoDurationSeconds: captureResult.videoDurationSeconds,
+    imageQuality: captureResult.imageQuality,
+    videoPreviewUrl: typeof captureResult.videoPreviewUrl === "string" ? captureResult.videoPreviewUrl : undefined,
+    depthData: typeof captureResult.depthData === "string" ? captureResult.depthData : undefined,
+  });
+
   const submitReport = async () => {
     console.log("[CLIENT] Début de submitReport()");
     if (!capture || !hash) {
@@ -74,11 +87,19 @@ function SignalerPage() {
       return;
     }
 
+    if (!capture.location) {
+      console.error("[CLIENT] Abandon : localisation manquante.");
+      toast.error("Localisation GPS introuvable. Activez la localisation et réessayez.");
+      setStep("confirmation");
+      return;
+    }
+
     console.log("[CLIENT] Passage à l'étape 'submitting'");
     setStep("submitting");
 
+    const capturePayload = buildCapturePayload(capture);
     const payload = {
-      capture,
+      capture: capturePayload,
       description,
       hash,
       ...(user.registered
@@ -89,7 +110,7 @@ function SignalerPage() {
       description,
       hash,
       capture: {
-        ...capture,
+        ...capturePayload,
         imageDataUrl: capture.imageDataUrl.substring(0, 50) + "...",
         additionalImages: capture.additionalImages.map((img) => img.substring(0, 50) + "..."),
       },

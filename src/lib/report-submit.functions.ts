@@ -146,9 +146,14 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
       description?: string;
       hash: string;
     };
+    console.log("[1.1] Capture summary", {
+      hasLocation: Boolean(capture?.location),
+      imageUrlLength: capture?.imageDataUrl?.length ?? 0,
+      additionalCount: Array.isArray(capture?.additionalImages) ? capture.additionalImages.length : 0,
+    });
 
-    if (!capture.location) {
-      throw new Error("Localisation GPS manquante.");
+    if (!capture.location || typeof capture.location.lat !== "number" || typeof capture.location.lng !== "number") {
+      throw new Error("Localisation GPS invalide ou manquante.");
     }
 
     console.log("[2] Vérification anti-fraude");

@@ -32,15 +32,12 @@ const ROLE_DETAILS = {
 function AuthorityLoginPage() {
   const navigate = useNavigate();
   const { role } = Route.useSearch();
-  const search = useRouterState((state) => state.location.search);
   const { session, login } = useAccess();
 
-  const rawRole = typeof search === "string" ? new URLSearchParams(search).get("role") : null;
-  const isSearchRoleValid = rawRole !== null && rawRole in ROLE_DETAILS;
   const details = ROLE_DETAILS[role];
 
   useEffect(() => {
-    if (!isSearchRoleValid) {
+    if (!details) {
       navigate({ to: "/autorite", replace: true });
       return;
     }
@@ -48,7 +45,7 @@ function AuthorityLoginPage() {
     if (session.role === role && (role === "admin" || role === "gouverneur" || session.commune)) {
       navigate({ to: getAuthorityDashboardPath(role), replace: true });
     }
-  }, [isSearchRoleValid, session.role, session.commune, role, navigate]);
+  }, [details, session.role, session.commune, role, navigate]);
 
   if (!isSearchRoleValid) {
     return null;

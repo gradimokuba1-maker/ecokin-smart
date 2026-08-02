@@ -53,8 +53,7 @@ export function RoleSelector() {
         return (
           <Link
             key={item.role}
-            to="/autorite/connexion"
-            search={{ role: item.role }}
+            to={`/autorite/connexion?role=${item.role}`}
             className="block w-full rounded-2xl border border-white/10 bg-white/10 p-4 text-left transition-all hover:border-emerald-400/30 hover:bg-white/15"
           >
             <div className="flex items-start gap-3">
