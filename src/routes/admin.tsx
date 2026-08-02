@@ -180,8 +180,8 @@ function AdminPage() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${tab === t.id
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted/50"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:bg-muted/50"
                 }`}
             >
               <t.icon className="size-4" /> {t.label}
@@ -356,7 +356,7 @@ function Overview({
             d: "Depuis le lancement",
           },
           {
-            l: "Recettes taxe (CDF)",
+            l: "Recettes contribution (CDF)",
             v: `${(kpis.totalTaxPaid / 1e6).toFixed(2)} M`,
             d: "Total perçu",
           },
@@ -898,6 +898,7 @@ function ReportsTab() {
           report={selectedReport}
           isOpen={!!selectedReport}
           onClose={() => setSelectedReport(null)}
+          canProvideFeedback={true}
         />
       )}
     </div>
@@ -936,12 +937,12 @@ function TaxSettings() {
 
   const handleSave = () => {
     updateRates(currentRates);
-    toast.success("Tarifs de la taxe déchets mis à jour.");
+    toast.success("Tarifs de la contribution déchets mis à jour.");
   };
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
-      <h3 className="mb-4 font-display text-lg font-bold">Gestion des tarifs de la taxe déchets</h3>
+      <h3 className="mb-4 font-display text-lg font-bold">Gestion des tarifs de la contribution déchets</h3>
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -1195,8 +1196,8 @@ function SettingsTab() {
             key={t.id}
             onClick={() => setSettingsTab(t.id)}
             className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${settingsTab === t.id
-                ? "bg-eco text-white shadow-sm"
-                : "text-muted-foreground hover:bg-muted/50"
+              ? "bg-eco text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted/50"
               }`}
           >
             <t.icon className="size-3.5" />

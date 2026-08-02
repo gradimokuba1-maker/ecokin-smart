@@ -21,6 +21,8 @@ import {
   COMMUNES,
   URGENCY_META,
   useLiveReports,
+  useHouseholds,
+  useWasteTax,
   WASTE_CATEGORIES,
   type LiveReport,
 } from "@/lib/eco-store";
@@ -851,6 +853,8 @@ function useKpiData(filteredReports: ReturnType<typeof useLiveReports>["items"])
 function GovernorDashboard() {
   const { items: liveReports } = useLiveReports();
   const collectionOperations = useCollectionOperations();
+  const { households } = useHouseholds();
+  const { allPayments } = useWasteTax();
   const [filters, setFilters] = useState({
     commune: "all",
     period: "all",
@@ -858,6 +862,18 @@ function GovernorDashboard() {
     urgency: "all",
   });
   const [selectedReport, setSelectedReport] = useState<LiveReport | null>(null);
+  const householdCount = households.length;
+  const totalPaymentCdf = allPayments.reduce((sum, payment) => sum + payment.amountCdf, 0);
+  const pmeCount = collectionOperations.pmes.length;
+  const vehicleCount = collectionOperations.collectors.length;
+  const tricycleCount = collectionOperations.collectors.filter(
+    (collector) => collector.vehicleType === "tricycle",
+  ).length;
+  const routeCount = collectionOperations.missions.length;
+  const zoneCount = new Set([
+    ...collectionOperations.collectors.map((collector) => collector.zone),
+    ...collectionOperations.missions.map((mission) => mission.zone),
+  ]).size;
 
   const handleFilterChange = (key: keyof typeof filters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -924,6 +940,34 @@ function GovernorDashboard() {
                   </CardHeader>
                   <CardContent className="text-2xl font-bold">{activeVehicles}</CardContent>
                 </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Ménages enregistrés</CardTitle>
+                    <CardDescription>Foyers et PME couverts par la contribution déchets.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold">{householdCount}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>PME de collecte</CardTitle>
+                    <CardDescription>Structures de collecte actives sur la plateforme.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold">{pmeCount}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Véhicules suivis</CardTitle>
+                    <CardDescription>Camions, tricycles et collecteurs actifs.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold">{vehicleCount}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Zones couvertes</CardTitle>
+                    <CardDescription>Zones de collecte et missions actives.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-2xl font-bold">{zoneCount}</CardContent>
+                </Card>
               </div>
             </TabsContent>
             <TabsContent value="stats" className="mt-4">
@@ -955,6 +999,7 @@ function GovernorDashboard() {
           report={selectedReport}
           isOpen={!!selectedReport}
           onClose={() => setSelectedReport(null)}
+          canProvideFeedback={true}
         />
       )}
     </div>

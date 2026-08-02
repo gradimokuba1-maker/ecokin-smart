@@ -1,9 +1,10 @@
-// EcoKin Smart — Taxe déchets ménagers.
+// EcoKin Smart — Contribution obligatoire déchets ménagers.
 // Génération de factures mensuelles, paiements et reçus.
 import { useEffect, useState, useCallback } from "react";
 import type { Household, BinType, HouseholdKind } from "./household-store";
 
-export type PaymentMethod = "mobile_money" | "bank" | "card";
+export type PaymentMethod = "mobile_money" | "bank" | "card" | "international";
+export type PaymentProviderLabels = Record<PaymentMethod, string>;
 
 export type Invoice = {
   id: string;
@@ -27,7 +28,8 @@ export type Payment = {
 
 const K_PAY = "ecokin_waste_tax_v1";
 const K_RATES = "ecokin_waste_tax_rates_v1";
-const EVT = "ecokin:tax";
+const EVT = "ecokin:contribution";
+const LEGACY_EVT = "ecokin:tax";
 
 const BASE_TARIFF: Record<BinType, number> = {
   "120L": 5000,
@@ -67,6 +69,7 @@ function writeRates(rates: WasteTaxRates) {
   if (typeof window === "undefined") return;
   localStorage.setItem(K_RATES, JSON.stringify(rates));
   window.dispatchEvent(new Event(EVT));
+  window.dispatchEvent(new Event(LEGACY_EVT));
 }
 
 export function monthlyAmount(h: Pick<Household, "binType" | "kind" | "occupants">) {
@@ -116,6 +119,7 @@ function writePayments(list: Payment[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(K_PAY, JSON.stringify(list));
   window.dispatchEvent(new Event(EVT));
+  window.dispatchEvent(new Event(LEGACY_EVT));
 }
 
 export function useWasteTax(household?: Household) {
@@ -130,9 +134,11 @@ export function useWasteTax(household?: Household) {
     refresh();
     const h = () => refresh();
     window.addEventListener(EVT, h);
+    window.addEventListener(LEGACY_EVT, h);
     window.addEventListener("storage", h);
     return () => {
       window.removeEventListener(EVT, h);
+      window.removeEventListener(LEGACY_EVT, h);
       window.removeEventListener("storage", h);
     };
   }, [refresh]);
@@ -187,10 +193,27 @@ export function useWasteTax(household?: Household) {
   };
 }
 
+export const PAYMENT_METHOD_LABELS: PaymentProviderLabels = {
+  mobile_money: "Mobile Money",
+  bank: "Banque",
+  card: "Carte bancaire",
+  international: "Paiement international",
+};
+
 export const PAYMENT_PROVIDERS: Record<PaymentMethod, string[]> = {
-  mobile_money: ["Orange Money", "Airtel Money", "M-Pesa (Vodacom)", "Africell Money"],
-  bank: ["Rawbank", "Equity BCDC", "TMB", "FBNBank"],
+  mobile_money: ["M-Pesa", "Orange Money", "Airtel Money", "Afrimoney"],
+  bank: [
+    "Rawbank",
+    "Equity BCDC",
+    "FirstBank DRC",
+    "Advans Banque Congo",
+    "Ecobank RDC",
+    "Standard Bank RDC",
+    "Sofibanque",
+    "Access Bank RDC",
+  ],
   card: ["Visa", "Mastercard"],
+  international: ["PayPal"],
 };
 
 export function formatCdf(n: number) {

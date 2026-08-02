@@ -61,6 +61,14 @@ export type LiveReport = {
   photoUrl?: string;
   aiAnalysis?: unknown;
   greenPointsAwarded?: number;
+  analysisFeedback?: {
+    confirmed: boolean;
+    correctedCategory?: string;
+    correctedObjects?: string[];
+    notes?: string;
+    by: "citoyen" | "agent" | "autorite" | "system";
+    at: string;
+  }[];
   assignedAgentId?: string;
   assignedAgentName?: string;
   deletedAt?: string;

@@ -6,7 +6,15 @@ import { AccessGate } from "@/components/access-gate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Assurez-vous que ce chemin est correct
 import { AlertTriangle, BarChart3, Building, CheckCircle2, FileDown, Percent } from "lucide-react";
 import { useMemo, useState } from "react";
-import { COLLECTION_POINTS, COMMUNES, URGENCY_META, useLiveReports, type LiveReport } from "@/lib/eco-store";
+import {
+  COLLECTION_POINTS,
+  COMMUNES,
+  URGENCY_META,
+  useLiveReports,
+  useHouseholds,
+  useWasteTax,
+  type LiveReport,
+} from "@/lib/eco-store";
 import { useAuthorityLocalStore } from "@/lib/authority-local-store";
 import { useCollectionOperations } from "@/lib/collection-operations-store";
 import { ClientOnly } from "@/components/client-only";
@@ -393,6 +401,8 @@ function LocalManagement({ commune }: { commune: string }) {
 function BourgmestreDashboard() {
   const { session } = useAccess();
   const { items: liveReports } = useLiveReports();
+  const { households } = useHouseholds();
+  const { allPayments } = useWasteTax();
   const localStore = useAuthorityLocalStore();
   const [selectedReport, setSelectedReport] = useState<LiveReport | null>(null);
 
@@ -404,9 +414,48 @@ function BourgmestreDashboard() {
     [liveReports, session.commune],
   );
 
+  const communeHouseholds = useMemo(
+    () => (session.commune ? households.filter((h) => h.commune === session.commune) : []),
+    [households, session.commune],
+  );
+
+  const communePayments = useMemo(
+    () =>
+      allPayments.filter((payment) =>
+        communeHouseholds.some((household) => household.id === payment.householdId),
+      ),
+    [allPayments, communeHouseholds],
+  );
+
   const communeCollectionPoints = useMemo(
     () => (session.commune ? COLLECTION_POINTS.filter((p) => p.commune === session.commune) : []),
     [session.commune],
+  );
+
+  const communeVehicleCount = useMemo(
+    () => collectionOperations.collectors.filter((collector) => collector.commune === session.commune).length,
+    [collectionOperations.collectors, session.commune],
+  );
+
+  const communeTricycleCount = useMemo(
+    () =>
+      collectionOperations.collectors.filter(
+        (collector) => collector.commune === session.commune && collector.vehicleType === "tricycle",
+      ).length,
+    [collectionOperations.collectors, session.commune],
+  );
+
+  const communeZoneCount = useMemo(
+    () =>
+      new Set([
+        ...collectionOperations.collectors
+          .filter((collector) => collector.commune === session.commune)
+          .map((collector) => collector.zone),
+        ...collectionOperations.missions
+          .filter((mission) => mission.commune === session.commune)
+          .map((mission) => mission.zone),
+      ]).size,
+    [collectionOperations.collectors, collectionOperations.missions, session.commune],
   );
 
   const kpiData = useMemo(() => {
@@ -425,6 +474,30 @@ function BourgmestreDashboard() {
     ).length;
     const tauxCollecte = total > 0 ? Math.round((resolus / total) * 100) : 0;
     return [
+      {
+        title: "Ménages enregistrés",
+        value: String(communeHouseholds.length),
+        icon: Building,
+        color: "text-green-500",
+      },
+      {
+        title: "Paiements reçus",
+        value: `${communePayments.length}`,
+        icon: Activity,
+        color: "text-emerald-700",
+      },
+      {
+        title: "Tricycles",
+        value: String(communeTricycleCount),
+        icon: CheckCircle2,
+        color: "text-blue-500",
+      },
+      {
+        title: "Zones couvertes",
+        value: String(communeZoneCount),
+        icon: ShieldCheck,
+        color: "text-eco",
+      },
       {
         title: "Volume total",
         value: `${Math.round(volume)} m³`,
