@@ -32,15 +32,20 @@ function clearPendingReportIds() {
 
 function linkPendingReportsToUser(user: User) {
   const pending = readPendingReportIds();
-  if (!pending.length) return;
+  if (!pending.length) return 0;
+
+  let linkedCount = 0;
   pending.forEach((reportId) => {
-    updateReport(reportId, {
+    const updated = updateReport(reportId, {
       author: user.name,
       authorId: user.id,
       authorRole: user.role,
     });
+    if (updated) linkedCount += 1;
   });
+
   clearPendingReportIds();
+  return linkedCount;
 }
 
 export type User = {
@@ -146,6 +151,13 @@ export function useEcoUser() {
         if (saved) {
           u = userFromRecord(saved);
         }
+        const linkedCount = linkPendingReportsToUser(u);
+        if (linkedCount > 0) {
+          const refreshed = readDb().users.find((record) => record.id === u.id);
+          if (refreshed) {
+            u = userFromRecord(refreshed);
+          }
+        }
       }
       write(K_USER, u);
       setUser(u);
@@ -180,8 +192,14 @@ export function useEcoUser() {
           reports: carriedReports,
           badges: [],
         });
-      const next = userFromRecord(saved);
-      linkPendingReportsToUser(next);
+      let next = userFromRecord(saved);
+      const linkedCount = linkPendingReportsToUser(next);
+      if (linkedCount > 0) {
+        const refreshed = readDb().users.find((record) => record.id === next.id);
+        if (refreshed) {
+          next = userFromRecord(refreshed);
+        }
+      }
       write(K_USER, next);
       setUser(next);
       return true;
@@ -198,8 +216,14 @@ export function useEcoUser() {
           reports: record.reports + carriedReports,
         }) ?? record)
         : record;
-      const next = userFromRecord(saved);
-      linkPendingReportsToUser(next);
+      let next = userFromRecord(saved);
+      const linkedCount = linkPendingReportsToUser(next);
+      if (linkedCount > 0) {
+        const refreshed = readDb().users.find((record) => record.id === next.id);
+        if (refreshed) {
+          next = userFromRecord(refreshed);
+        }
+      }
       write(K_USER, next);
       setUser(next);
       return true;
