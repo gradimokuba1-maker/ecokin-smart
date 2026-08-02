@@ -115,7 +115,7 @@ function Home() {
           </div>
           <div className="mt-3 flex justify-center">
             <Link
-              to="/autorite/connexion"
+              to="/autorite"
               aria-label="Accès réservé aux autorités"
               className="inline-flex size-6 items-center justify-center rounded-full border border-border/70 bg-background/70 text-muted-foreground transition-colors hover:border-emerald-400/30 hover:text-eco"
             >

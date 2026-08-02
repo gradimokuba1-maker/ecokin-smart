@@ -26,7 +26,7 @@ export function CitizenGate({ title, description, children, forceForm = false }:
 
   useEffect(() => {
     if (user.registered) {
-      navigate({ to: "/menage", replace: true });
+      navigate({ to: "/citoyen", replace: true });
     }
   }, [user.registered, navigate]);
 
@@ -42,7 +42,10 @@ export function CitizenGate({ title, description, children, forceForm = false }:
         setErr("Nom, téléphone et code PIN (4 chiffres min) sont obligatoires.");
         return;
       }
-      register(form);
+      const success = register(form);
+      if (!success) {
+        setErr("Impossible de créer le compte. Vérifiez les informations et réessayez.");
+      }
     } else {
       if (!signIn(form.phone, form.pin)) {
         setErr("Téléphone ou code PIN incorrect.");

@@ -1,6 +1,12 @@
 // EcoKin Smart — Module utilisateur citoyen et simulation de compte.
 import { useEffect, useState, useCallback } from "react";
-import { upsertUser, findUserByCredentials, updateUser, updateReport } from "./ecokin-db";
+import {
+  upsertUser,
+  findUserByCredentials,
+  updateUser,
+  updateReport,
+  readDb,
+} from "./ecokin-db";
 import type { EcokinUserRecord } from "./ecokin-db";
 
 export type UserRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
@@ -97,8 +103,8 @@ function readUser(): User {
   if (!stored) return DEFAULT_USER;
 
   if (stored.role === "citoyen" && stored.registered && stored.id) {
-    const record = findUserByCredentials("citoyen", stored.phone ?? "", "");
-    if (record && record.id === stored.id) {
+    const record = readDb().users.find((user) => user.id === stored.id && user.active);
+    if (record) {
       return userFromRecord(record);
     }
   }

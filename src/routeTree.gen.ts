@@ -26,6 +26,7 @@ import { Route as GpsFlotteRouteImport } from './routes/gps-flotte'
 import { Route as GouverneurRouteImport } from './routes/gouverneur'
 import { Route as DecisionsRouteImport } from './routes/decisions'
 import { Route as CriseRouteImport } from './routes/crise'
+import { Route as CitoyenRouteImport } from './routes/citoyen'
 import { Route as CarteRouteImport } from './routes/carte'
 import { Route as BourgmestreRouteImport } from './routes/bourgmestre'
 import { Route as AutoritesRouteImport } from './routes/autorites'
@@ -123,6 +124,11 @@ const CriseRoute = CriseRouteImport.update({
   path: '/crise',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CitoyenRoute = CitoyenRouteImport.update({
+  id: '/citoyen',
+  path: '/citoyen',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CarteRoute = CarteRouteImport.update({
   id: '/carte',
   path: '/carte',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/autorites': typeof AutoritesRoute
   '/bourgmestre': typeof BourgmestreRoute
   '/carte': typeof CarteRoute
+  '/citoyen': typeof CitoyenRoute
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
@@ -220,6 +227,7 @@ export interface FileRoutesByTo {
   '/autorites': typeof AutoritesRoute
   '/bourgmestre': typeof BourgmestreRoute
   '/carte': typeof CarteRoute
+  '/citoyen': typeof CitoyenRoute
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
@@ -251,6 +259,7 @@ export interface FileRoutesById {
   '/autorites': typeof AutoritesRoute
   '/bourgmestre': typeof BourgmestreRoute
   '/carte': typeof CarteRoute
+  '/citoyen': typeof CitoyenRoute
   '/crise': typeof CriseRoute
   '/decisions': typeof DecisionsRoute
   '/gouverneur': typeof GouverneurRoute
@@ -283,6 +292,7 @@ export interface FileRouteTypes {
     | '/autorites'
     | '/bourgmestre'
     | '/carte'
+    | '/citoyen'
     | '/crise'
     | '/decisions'
     | '/gouverneur'
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/autorites'
     | '/bourgmestre'
     | '/carte'
+    | '/citoyen'
     | '/crise'
     | '/decisions'
     | '/gouverneur'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/autorites'
     | '/bourgmestre'
     | '/carte'
+    | '/citoyen'
     | '/crise'
     | '/decisions'
     | '/gouverneur'
@@ -374,6 +386,7 @@ export interface RootRouteChildren {
   AutoritesRoute: typeof AutoritesRoute
   BourgmestreRoute: typeof BourgmestreRoute
   CarteRoute: typeof CarteRoute
+  CitoyenRoute: typeof CitoyenRoute
   CriseRoute: typeof CriseRoute
   DecisionsRoute: typeof DecisionsRoute
   GouverneurRoute: typeof GouverneurRoute
@@ -514,6 +527,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CriseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/citoyen': {
+      id: '/citoyen'
+      path: '/citoyen'
+      fullPath: '/citoyen'
+      preLoaderRoute: typeof CitoyenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/carte': {
       id: '/carte'
       path: '/carte'
@@ -617,6 +637,7 @@ const rootRouteChildren: RootRouteChildren = {
   AutoritesRoute: AutoritesRoute,
   BourgmestreRoute: BourgmestreRoute,
   CarteRoute: CarteRoute,
+  CitoyenRoute: CitoyenRoute,
   CriseRoute: CriseRoute,
   DecisionsRoute: DecisionsRoute,
   GouverneurRoute: GouverneurRoute,
