@@ -4,7 +4,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // Assurez-vous que ce chemin est correct
-import { AlertTriangle, Activity, BarChart3, Building, CheckCircle2, FileDown, Percent } from "lucide-react";
+import { AlertTriangle, Activity, BarChart3, Building, CheckCircle2, FileDown, Percent, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   COLLECTION_POINTS,
@@ -404,6 +404,7 @@ function BourgmestreDashboard() {
   const { households } = useHouseholds();
   const { allPayments } = useWasteTax();
   const localStore = useAuthorityLocalStore();
+  const collectionOperations = useCollectionOperations();
   const [selectedReport, setSelectedReport] = useState<LiveReport | null>(null);
 
   const commune = useMemo(() => COMMUNES.find((c) => c.id === session.commune), [session.commune]);
