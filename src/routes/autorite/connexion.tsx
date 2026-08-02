@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouterState, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useAccess, getAuthorityDashboardPath, type AuthorityRole } from "@/lib/access-store";
@@ -35,9 +35,10 @@ function AuthorityLoginPage() {
   const { session, login } = useAccess();
 
   const details = ROLE_DETAILS[role];
+  const isSearchRoleValid = Boolean(details);
 
   useEffect(() => {
-    if (!details) {
+    if (!isSearchRoleValid) {
       navigate({ to: "/autorite", replace: true });
       return;
     }
@@ -45,7 +46,7 @@ function AuthorityLoginPage() {
     if (session.role === role && (role === "admin" || role === "gouverneur" || session.commune)) {
       navigate({ to: getAuthorityDashboardPath(role), replace: true });
     }
-  }, [details, session.role, session.commune, role, navigate]);
+  }, [isSearchRoleValid, session.role, session.commune, role, navigate]);
 
   if (!isSearchRoleValid) {
     return null;
