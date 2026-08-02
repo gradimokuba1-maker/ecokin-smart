@@ -2,6 +2,7 @@
 // Génération de factures mensuelles, paiements et reçus.
 import { useEffect, useState, useCallback } from "react";
 import type { Household, BinType, HouseholdKind } from "./household-store";
+import { DB_EVT } from "./ecokin-db";
 
 export type PaymentMethod = "mobile_money" | "bank" | "card" | "international";
 export type PaymentProviderLabels = Record<PaymentMethod, string>;
@@ -135,10 +136,12 @@ export function useWasteTax(household?: Household) {
     const h = () => refresh();
     window.addEventListener(EVT, h);
     window.addEventListener(LEGACY_EVT, h);
+    window.addEventListener(DB_EVT, h);
     window.addEventListener("storage", h);
     return () => {
       window.removeEventListener(EVT, h);
       window.removeEventListener(LEGACY_EVT, h);
+      window.removeEventListener(DB_EVT, h);
       window.removeEventListener("storage", h);
     };
   }, [refresh]);
