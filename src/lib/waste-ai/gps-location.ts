@@ -25,29 +25,47 @@ export function requestGPSPosition(options?: {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          status: "ok",
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          altitudeM: position.coords.altitude ?? undefined,
-        });
-      },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          resolve({ status: "denied" });
-        } else {
-          resolve({ status: "unavailable" });
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: options?.timeout ?? 15000,
-        maximumAge: options?.maximumAge ?? 60000,
-      },
-    );
+    const attempt = (
+      enableHighAccuracy: boolean,
+      timeout: number,
+      resolveState: (state: GPSState) => void,
+    ) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolveState({
+            status: "ok",
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            altitudeM: position.coords.altitude ?? undefined,
+          });
+        },
+        (error) => {
+          if (error.code === error.PERMISSION_DENIED) {
+            resolveState({ status: "denied" });
+          } else {
+            resolveState({ status: "unavailable" });
+          }
+        },
+        {
+          enableHighAccuracy,
+          timeout,
+          maximumAge: options?.maximumAge ?? 60000,
+        },
+      );
+    };
+
+    const fallback = (state: GPSState) => {
+      if (state.status === "ok" || state.status === "denied") {
+        resolve(state);
+        return;
+      }
+
+      // Second chance without high accuracy for devices qui peinent sur mobile.
+      attempt(false, (options?.timeout ?? 15000) + 10000, resolve);
+    };
+
+    attempt(true, options?.timeout ?? 15000, fallback);
   });
 }
 
