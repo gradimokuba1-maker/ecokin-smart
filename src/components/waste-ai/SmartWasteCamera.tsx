@@ -342,8 +342,12 @@ export function SmartWasteCamera({ onCapture, onClose }: Props) {
       setIsProcessing(true);
       try {
         const gpsPosition = await requestGPSPosition({ maximumAge: 0, timeout: 15000 });
-        if (gpsPosition.status !== "ok") {
-          toast.error("Position GPS obligatoire. Activez la localisation et réessayez.");
+        if (
+          gpsPosition.status !== "ok" ||
+          typeof gpsPosition.lat !== "number" ||
+          typeof gpsPosition.lng !== "number"
+        ) {
+          toast.error("Impossible d'obtenir une position GPS précise. Activez la localisation et réessayez.");
           setIsProcessing(false);
           return;
         }
