@@ -31,7 +31,7 @@ function AdminLoginPage() {
 
   // Redirection automatique si déjà admin.
   useEffect(() => {
-    if (session.role === "admin" && session.commune) {
+    if ((session.role === "admin" || session.role === "superadmin") && (session.commune || session.role === "superadmin")) {
       navigate({ to: "/admin", replace: true });
     }
   }, [session.role, session.commune, navigate]);

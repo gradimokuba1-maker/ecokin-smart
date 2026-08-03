@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AUTH_USERS, type Role } from "./access-store";
 
 const loginSchema = z.object({
-  role: z.enum(["gouverneur", "bourgmestre", "admin", "agent"]),
+  role: z.enum(["gouverneur", "bourgmestre", "admin", "agent", "superadmin"]),
   identifier: z.string(),
   password: z.string(),
 });

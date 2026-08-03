@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Building2, ShieldCheck, UserCog, UserRound } from "lucide-react";
 
-type Role = "gouverneur" | "bourgmestre" | "admin" | "agent";
+type Role = "gouverneur" | "bourgmestre" | "admin" | "agent" | "superadmin";
 
 type RoleCard = {
   role: Role;
@@ -29,11 +29,19 @@ const ACCESS_TYPES: RoleCard[] = [
   },
   {
     role: "admin",
-    title: "Administrateur",
-    subtitle: "Gestion technique",
+    title: "Administrateur communal",
+    subtitle: "Gestion locale",
     description:
-      "Administration complète des utilisateurs, rôles, communes, infrastructures et statistiques.",
+      "Connexion dédiée à une commune, avec accès aux données et interventions de son périmètre.",
     icon: UserCog,
+  },
+  {
+    role: "superadmin",
+    title: "Administrateur technique global",
+    subtitle: "Supervision plateforme",
+    description:
+      "Vue centralisée sur tous les signalements, analyses IA, notifications et interventions de l’ensemble de la plateforme.",
+    icon: ShieldCheck,
   },
   {
     role: "agent",
@@ -53,7 +61,7 @@ export function RoleSelector() {
         return (
           <Link
             key={item.role}
-            to={`/autorite/connexion?role=${item.role}`}
+            to={item.role === "admin" ? "/autorite/administration" : item.role === "superadmin" ? "/autorite/connexion?role=superadmin" : `/autorite/connexion?role=${item.role}`}
             className="block w-full rounded-2xl border border-white/10 bg-white/10 p-4 text-left transition-all hover:border-emerald-400/30 hover:bg-white/15"
           >
             <div className="flex items-start gap-3">

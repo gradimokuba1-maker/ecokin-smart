@@ -3,8 +3,10 @@ import { lazy, Suspense, useCallback, useState } from "react";
 import { useEcoUser, queuePendingReportId } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
-import { updateLiveReport, pushLiveReport } from "@/lib/live-reports";
+import { updateLiveReport, pushLiveReport, confirmDuplicateReport } from "@/lib/live-reports";
 import { submitCitizenReport } from "@/lib/report-submit.functions";
+import { readDb } from "@/lib/ecokin-db";
+import { evaluateDuplicateReport, type DuplicateCandidate } from "@/lib/duplicate-detection";
 import { Loader2, ShieldCheck, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
@@ -42,6 +44,8 @@ function SignalerPage() {
   const [capture, setCapture] = useState<CaptureResult | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [description, setDescription] = useState("");
+  const [duplicateCandidate, setDuplicateCandidate] = useState<DuplicateCandidate | null>(null);
+  const [submissionMode, setSubmissionMode] = useState<"new" | "duplicate-confirmed">("new");
 
   const createThumbnail = (
     base64: string,
@@ -98,6 +102,8 @@ function SignalerPage() {
     setCapture(null);
     setHash(null);
     setDescription("");
+    setDuplicateCandidate(null);
+    setSubmissionMode("new");
     setStep("camera");
   };
 
@@ -115,7 +121,7 @@ function SignalerPage() {
     depthData: typeof captureResult.depthData === "string" ? captureResult.depthData : undefined,
   });
 
-  const submitReport = async () => {
+  const submitReport = async (forceCreateNew = false) => {
     console.log("[CLIENT] Début de submitReport()");
     if (!capture || !hash) {
       console.error("[CLIENT] Abandon : capture ou hash manquant.");
@@ -130,6 +136,22 @@ function SignalerPage() {
       return;
     }
 
+    const duplicateCheck = evaluateDuplicateReport({
+      reports: readDb().reports,
+      lat: capture.location.lat,
+      lng: capture.location.lng,
+      hash: hash ?? undefined,
+    });
+
+    if (duplicateCheck && !forceCreateNew) {
+      setDuplicateCandidate(duplicateCheck.candidate);
+      setSubmissionMode("new");
+      toast.message("Un dépôt similaire est déjà actif à proximité. Confirmez s’il s’agit du même dépôt.");
+      setStep("confirmation");
+      return;
+    }
+
+    setDuplicateCandidate(null);
     console.log("[CLIENT] Passage à l'étape 'submitting'");
     setStep("submitting");
 
@@ -175,6 +197,7 @@ function SignalerPage() {
         lat: capture.location.lat,
         lng: capture.location.lng,
         photoUrl: thumbnailUrl, // Use the smaller thumbnail for local storage
+        imageHash: hash,
         cameraCapability:
           capture.cameraCapability === "lidar" || capture.cameraCapability === "arcore"
             ? capture.cameraCapability
@@ -237,9 +260,13 @@ function SignalerPage() {
         <SiteNav minimal />
         <main className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 lg:px-8">
           <ShieldCheck className="mx-auto size-14 text-emerald-500" />
-          <h1 className="mt-4 font-display text-3xl font-bold">Signalement enregistré !</h1>
+          <h1 className="mt-4 font-display text-3xl font-bold">
+            {submissionMode === "duplicate-confirmed" ? "Dépôt confirmé !" : "Signalement enregistré !"}
+          </h1>
           <p className="mt-2 text-lg text-muted-foreground">
-            Merci de contribuer à un environnement plus propre.
+            {submissionMode === "duplicate-confirmed"
+              ? "Merci d’avoir confirmé que ce dépôt est toujours présent."
+              : "Merci de contribuer à un environnement plus propre."}
           </p>
 
           <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/50 p-6">
@@ -307,6 +334,40 @@ function SignalerPage() {
             />
           </section>
 
+          {duplicateCandidate && (
+            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-200">
+              <p className="font-semibold">Un dépôt similaire est déjà actif à proximité.</p>
+              <p className="mt-1 text-amber-800/90 dark:text-amber-300/90">
+                Distance estimée : {duplicateCandidate.distanceMeters} m. Confirmez s’il s’agit du même dépôt.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <Button
+                  onClick={() => {
+                    const reporterName = user.registered ? user.name : "Citoyen Anonyme";
+                    confirmDuplicateReport(duplicateCandidate.id, reporterName);
+                    setSubmissionMode("duplicate-confirmed");
+                    setDuplicateCandidate(null);
+                    setStep("submitted");
+                    toast.success("Le dépôt existant a été confirmé.");
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Oui, c’est le même dépôt
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    console.log("[CLIENT] Création d’un nouveau signalement malgré le doublon probable");
+                    void submitReport(true);
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  Créer un nouveau signalement
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
             <Button variant="outline" onClick={handleRetry} className="w-full sm:w-auto">
               Reprendre la photo
@@ -314,11 +375,12 @@ function SignalerPage() {
             <Button
               onClick={() => {
                 console.log("[CLIENT] Clic sur 'Envoyer le signalement'");
-                submitReport();
+                void submitReport();
               }}
               className="w-full"
+              disabled={Boolean(duplicateCandidate)}
             >
-              Envoyer le signalement
+              {duplicateCandidate ? "En attente de confirmation" : "Envoyer le signalement"}
             </Button>
           </div>
         </div>

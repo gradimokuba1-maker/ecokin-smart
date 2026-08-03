@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DEFAULT_CITY } from "./cities";
 import type { LiveReport } from "./live-reports";
 
-export type EcokinRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
+export type EcokinRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin" | "superadmin";
 
 export type TerritorialScope = {
   province: string;
@@ -77,6 +77,15 @@ export const ROLE_PERMISSIONS_DB: Record<EcokinRole, string[]> = {
     "moderate_reports",
     "reset_data",
   ],
+  superadmin: [
+    "signaler",
+    "export_data",
+    "manage_alerts",
+    "manage_activities",
+    "manage_fleet",
+    "moderate_reports",
+    "reset_data",
+  ],
 };
 
 const AUTHORITY_SEEDS: Array<Omit<EcokinUserRecord, "createdAt" | "updatedAt">> = [
@@ -134,6 +143,20 @@ const AUTHORITY_SEEDS: Array<Omit<EcokinUserRecord, "createdAt" | "updatedAt">> 
     city: DEFAULT_SCOPE.city,
     commune: DEFAULT_CITY.communes[0]?.id,
     permissions: ROLE_PERMISSIONS_DB.agent,
+    active: true,
+    points: 0,
+    reports: 0,
+    badges: [],
+  },
+  {
+    id: "ECO-USER-000005",
+    identifier: "ECOKIN-SUPER",
+    password: "SUPER2026",
+    role: "superadmin",
+    name: "Administrateur technique global",
+    province: DEFAULT_SCOPE.province,
+    city: DEFAULT_SCOPE.city,
+    permissions: ROLE_PERMISSIONS_DB.superadmin,
     active: true,
     points: 0,
     reports: 0,

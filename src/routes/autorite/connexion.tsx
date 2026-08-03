@@ -7,7 +7,7 @@ import { LoginForm } from "@/components/login-form";
 export const Route = createFileRoute("/autorite/connexion")({
   validateSearch: (search: Record<string, unknown>): { role: AuthorityRole } => {
     const role = search.role;
-    const validRoles: AuthorityRole[] = ["gouverneur", "bourgmestre", "admin", "agent"];
+    const validRoles: AuthorityRole[] = ["gouverneur", "bourgmestre", "admin", "agent", "superadmin"];
     return {
       role: validRoles.includes(role as AuthorityRole) ? (role as AuthorityRole) : "agent",
     };
@@ -25,8 +25,9 @@ export const Route = createFileRoute("/autorite/connexion")({
 const ROLE_DETAILS = {
   gouverneur: { title: "Gouverneur", icon: ShieldCheck },
   bourgmestre: { title: "Bourgmestre", icon: ShieldCheck },
-  admin: { title: "Administrateur", icon: ShieldCheck },
+  admin: { title: "Administrateur communal", icon: ShieldCheck },
   agent: { title: "Agent de terrain", icon: ShieldCheck },
+  superadmin: { title: "Administrateur technique global", icon: ShieldCheck },
 };
 
 function AuthorityLoginPage() {

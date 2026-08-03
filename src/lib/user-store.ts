@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { upsertUser, findUserByCredentials, updateUser, updateReport, readDb } from "./ecokin-db";
 import type { EcokinUserRecord } from "./ecokin-db";
 
-export type UserRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
+export type UserRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin" | "superadmin";
 
 const PENDING_REPORTS_KEY = "ecokin_pending_report_ids_v1";
 
@@ -170,22 +170,22 @@ export function useEcoUser() {
       const record = findUserByCredentials("citoyen", normalizedPhone, input.pin);
       const saved = record
         ? (updateUser(record.id, {
-            name: input.name,
-            commune: input.commune,
-            points: record.points + carriedPoints,
-            reports: record.reports + carriedReports,
-          }) ?? record)
+          name: input.name,
+          commune: input.commune,
+          points: record.points + carriedPoints,
+          reports: record.reports + carriedReports,
+        }) ?? record)
         : upsertUser({
-            role: "citoyen",
-            identifier: normalizedPhone,
-            password: input.pin,
-            name: input.name,
-            phone: normalizedPhone,
-            commune: input.commune,
-            points: carriedPoints,
-            reports: carriedReports,
-            badges: [],
-          });
+          role: "citoyen",
+          identifier: normalizedPhone,
+          password: input.pin,
+          name: input.name,
+          phone: normalizedPhone,
+          commune: input.commune,
+          points: carriedPoints,
+          reports: carriedReports,
+          badges: [],
+        });
       let next = userFromRecord(saved);
       const linkedCount = linkPendingReportsToUser(next);
       if (linkedCount > 0) {
@@ -207,9 +207,9 @@ export function useEcoUser() {
       const saved =
         carriedPoints || carriedReports
           ? (updateUser(record.id, {
-              points: record.points + carriedPoints,
-              reports: record.reports + carriedReports,
-            }) ?? record)
+            points: record.points + carriedPoints,
+            reports: record.reports + carriedReports,
+          }) ?? record)
           : record;
       let next = userFromRecord(saved);
       const linkedCount = linkPendingReportsToUser(next);

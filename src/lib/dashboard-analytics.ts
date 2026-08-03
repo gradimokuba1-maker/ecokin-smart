@@ -18,7 +18,7 @@ export function filterReportsByScope(
   reports: LiveReport[],
   session: Pick<Session, "role" | "commune" | "quartier" | "zone" | "userId">,
 ) {
-  if (session.role === "gouverneur") return reports;
+  if (session.role === "gouverneur" || session.role === "superadmin") return reports;
   if (session.role === "agent") {
     return reports.filter(
       (report) =>

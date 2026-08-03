@@ -92,11 +92,13 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
       ? { to: "/gouverneur", label: "Espace Gouverneur", icon: ShieldCheck }
       : session.role === "bourgmestre"
         ? { to: "/bourgmestre", label: "Espace Bourgmestre", icon: ShieldCheck }
-        : session.role === "admin"
-          ? { to: "/admin", label: "Administration", icon: ShieldCheck }
-          : session.role === "agent"
-            ? { to: "/agent", label: "Espace Agent", icon: ShieldCheck }
-            : null;
+        : session.role === "superadmin"
+          ? { to: "/superadmin", label: "Administration globale", icon: ShieldCheck }
+          : session.role === "admin"
+            ? { to: "/admin", label: "Administration", icon: ShieldCheck }
+            : session.role === "agent"
+              ? { to: "/agent", label: "Espace Agent", icon: ShieldCheck }
+              : null;
   const links = isAuthority ? (authorityLink ? [authorityLink] : []) : NAV;
 
   const handleBack = () => {

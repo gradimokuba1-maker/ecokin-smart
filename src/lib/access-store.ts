@@ -4,7 +4,7 @@ import { logAudit } from "./audit-log";
 import { DB_EVT, findUserByCredentials, readDb } from "./ecokin-db";
 import type { EcokinUserRecord } from "./ecokin-db";
 
-export type Role = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin";
+export type Role = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin" | "superadmin";
 export type AuthorityRole = Exclude<Role, "citoyen">;
 
 const KEY = "ecokin_access_v1";
@@ -14,6 +14,7 @@ export const ACCESS_CODES: Record<AuthorityRole, string> = {
   bourgmestre: "BOURG2026",
   gouverneur: "GOUV2026",
   admin: "ADMIN2026",
+  superadmin: "SUPER2026",
 };
 
 export const AUTH_USERS: Record<
@@ -24,6 +25,7 @@ export const AUTH_USERS: Record<
   bourgmestre: { identifier: "ECOKIN-BOURG", password: "BOURG2026", label: "Bourgmestre" },
   gouverneur: { identifier: "ECOKIN-GOUV", password: "GOUV2026", label: "Cabinet du Gouverneur" },
   admin: { identifier: "ECOKIN-ADMIN", password: "ADMIN2026", label: "Administrateur communal" },
+  superadmin: { identifier: "ECOKIN-SUPER", password: "SUPER2026", label: "Administrateur technique global" },
 };
 
 export function getAuthorityDashboardPath(role: Role) {
@@ -32,6 +34,8 @@ export function getAuthorityDashboardPath(role: Role) {
       return "/gouverneur";
     case "bourgmestre":
       return "/bourgmestre";
+    case "superadmin":
+      return "/superadmin";
     case "admin":
       return "/admin";
     case "agent":
@@ -42,20 +46,21 @@ export function getAuthorityDashboardPath(role: Role) {
 }
 
 export const ROUTE_ROLES: Record<string, Role[]> = {
-  "/gouverneur": ["gouverneur"],
-  "/situation": ["agent", "bourgmestre", "gouverneur", "admin"],
-  "/predictif": ["bourgmestre", "gouverneur", "admin"],
-  "/observatoire": ["citoyen", "agent", "bourgmestre", "gouverneur", "admin"],
-  "/crise": ["gouverneur"],
-  "/assistant-ia": ["bourgmestre", "gouverneur", "admin"],
-  "/decisions": ["bourgmestre", "gouverneur", "admin"],
-  "/interventions": ["agent", "bourgmestre", "gouverneur", "admin"],
-  "/itineraires": ["agent", "bourgmestre", "gouverneur", "admin"],
-  "/gps-flotte": ["agent", "bourgmestre", "gouverneur", "admin"],
-  "/autorites": ["bourgmestre", "gouverneur", "admin"],
-  "/rapports": ["bourgmestre", "gouverneur", "admin"],
-  "/audit": ["admin", "gouverneur"],
+  "/gouverneur": ["gouverneur", "superadmin"],
+  "/situation": ["agent", "bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/predictif": ["bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/observatoire": ["citoyen", "agent", "bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/crise": ["gouverneur", "superadmin"],
+  "/assistant-ia": ["bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/decisions": ["bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/interventions": ["agent", "bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/itineraires": ["agent", "bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/gps-flotte": ["agent", "bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/autorites": ["bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/rapports": ["bourgmestre", "gouverneur", "admin", "superadmin"],
+  "/audit": ["admin", "gouverneur", "superadmin"],
   "/admin": ["admin"],
+  "/superadmin": ["superadmin"],
 };
 
 export type Permission =
@@ -87,6 +92,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "moderate_reports",
   ],
   admin: [
+    "signaler",
+    "export_data",
+    "manage_alerts",
+    "manage_activities",
+    "manage_fleet",
+    "moderate_reports",
+    "reset_data",
+  ],
+  superadmin: [
     "signaler",
     "export_data",
     "manage_alerts",

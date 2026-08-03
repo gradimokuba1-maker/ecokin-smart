@@ -60,6 +60,10 @@ export type LiveReport = {
   floodRisk?: boolean;
   interventionUrgent?: boolean;
   photoUrl?: string;
+  imageHash?: string;
+  duplicateConfirmationCount?: number;
+  duplicateConfirmationHistory?: Array<{ at: string; by: string; note: string }>;
+  duplicateConfirmationLastAt?: string;
   aiAnalysis?: unknown;
   weightKg?: number;
   weightTons?: number;
@@ -252,6 +256,34 @@ export function setReportPhoto(
     target: id,
     details: `photo_${type}`,
   });
+}
+
+export function confirmDuplicateReport(id: string, by: string, note = "Confirmation de dépôt toujours présent") {
+  const report = read().find((item) => item.id === id);
+  if (!report) return null;
+  const at = new Date().toISOString();
+  const count = (report.duplicateConfirmationCount ?? 0) + 1;
+  const history = [
+    ...(report.duplicateConfirmationHistory ?? []),
+    { at, by, note },
+  ];
+  update(
+    id,
+    {
+      duplicateConfirmationCount: count,
+      duplicateConfirmationHistory: history,
+      duplicateConfirmationLastAt: at,
+    },
+    `Confirmation de doublon #${count}`,
+  );
+  logAudit({ user: by, role: "citoyen", action: "report_duplicate_confirm", target: id });
+  pushNotification({
+    kind: "status_changed",
+    title: "Dépôt confirmé",
+    message: `${id} a été confirmé comme dépôt toujours présent`,
+    targetId: id,
+  });
+  return { count, history };
 }
 
 export function useLiveReports() {

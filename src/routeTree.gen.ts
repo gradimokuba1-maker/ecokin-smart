@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SuperadminRouteImport } from './routes/superadmin'
 import { Route as SituationRouteImport } from './routes/situation'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignalerRouteImport } from './routes/signaler'
@@ -38,7 +39,13 @@ import { Route as AdminLoginRouteImport } from './routes/admin-login'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AutoriteConnexionRouteImport } from './routes/autorite/connexion'
+import { Route as AutoriteAdministrationRouteImport } from './routes/autorite/administration'
 
+const SuperadminRoute = SuperadminRouteImport.update({
+  id: '/superadmin',
+  path: '/superadmin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SituationRoute = SituationRouteImport.update({
   id: '/situation',
   path: '/situation',
@@ -184,6 +191,11 @@ const AutoriteConnexionRoute = AutoriteConnexionRouteImport.update({
   path: '/connexion',
   getParentRoute: () => AutoriteRoute,
 } as any)
+const AutoriteAdministrationRoute = AutoriteAdministrationRouteImport.update({
+  id: '/administration',
+  path: '/administration',
+  getParentRoute: () => AutoriteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -214,6 +226,8 @@ export interface FileRoutesByFullPath {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
+  '/superadmin': typeof SuperadminRoute
+  '/autorite/administration': typeof AutoriteAdministrationRoute
   '/autorite/connexion': typeof AutoriteConnexionRoute
 }
 export interface FileRoutesByTo {
@@ -245,6 +259,8 @@ export interface FileRoutesByTo {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
+  '/superadmin': typeof SuperadminRoute
+  '/autorite/administration': typeof AutoriteAdministrationRoute
   '/autorite/connexion': typeof AutoriteConnexionRoute
 }
 export interface FileRoutesById {
@@ -277,6 +293,8 @@ export interface FileRoutesById {
   '/signaler': typeof SignalerRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/situation': typeof SituationRoute
+  '/superadmin': typeof SuperadminRoute
+  '/autorite/administration': typeof AutoriteAdministrationRoute
   '/autorite/connexion': typeof AutoriteConnexionRoute
 }
 export interface FileRouteTypes {
@@ -310,6 +328,8 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
+    | '/superadmin'
+    | '/autorite/administration'
     | '/autorite/connexion'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -341,6 +361,8 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
+    | '/superadmin'
+    | '/autorite/administration'
     | '/autorite/connexion'
   id:
     | '__root__'
@@ -372,6 +394,8 @@ export interface FileRouteTypes {
     | '/signaler'
     | '/sitemap.xml'
     | '/situation'
+    | '/superadmin'
+    | '/autorite/administration'
     | '/autorite/connexion'
   fileRoutesById: FileRoutesById
 }
@@ -404,10 +428,18 @@ export interface RootRouteChildren {
   SignalerRoute: typeof SignalerRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SituationRoute: typeof SituationRoute
+  SuperadminRoute: typeof SuperadminRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/superadmin': {
+      id: '/superadmin'
+      path: '/superadmin'
+      fullPath: '/superadmin'
+      preLoaderRoute: typeof SuperadminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/situation': {
       id: '/situation'
       path: '/situation'
@@ -611,14 +643,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AutoriteConnexionRouteImport
       parentRoute: typeof AutoriteRoute
     }
+    '/autorite/administration': {
+      id: '/autorite/administration'
+      path: '/administration'
+      fullPath: '/autorite/administration'
+      preLoaderRoute: typeof AutoriteAdministrationRouteImport
+      parentRoute: typeof AutoriteRoute
+    }
   }
 }
 
 interface AutoriteRouteChildren {
+  AutoriteAdministrationRoute: typeof AutoriteAdministrationRoute
   AutoriteConnexionRoute: typeof AutoriteConnexionRoute
 }
 
 const AutoriteRouteChildren: AutoriteRouteChildren = {
+  AutoriteAdministrationRoute: AutoriteAdministrationRoute,
   AutoriteConnexionRoute: AutoriteConnexionRoute,
 }
 
@@ -655,6 +696,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignalerRoute: SignalerRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SituationRoute: SituationRoute,
+  SuperadminRoute: SuperadminRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
