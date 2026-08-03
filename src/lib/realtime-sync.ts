@@ -84,12 +84,12 @@ export function focusReport(reportId: string) {
     window.dispatchEvent(new CustomEvent(FOCUS_REPORT_EVENT, { detail: { reportId } }));
 }
 
-export function subscribeFocusedReport(handler: (reportId: string) => void) {
+export function subscribeFocusedReport(handler: (reportId: string | null) => void) {
     if (typeof window === "undefined") return () => undefined;
 
     const onFocus = (event: Event) => {
-        const customEvent = event as CustomEvent<{ reportId?: string }>;
-        if (customEvent.detail?.reportId) handler(customEvent.detail.reportId);
+        const customEvent = event as CustomEvent<{ reportId?: string | null }>;
+        handler(customEvent.detail?.reportId ?? null);
     };
 
     window.addEventListener(FOCUS_REPORT_EVENT, onFocus as EventListener);

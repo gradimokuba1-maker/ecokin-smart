@@ -37,15 +37,16 @@ export function ReportDetailsDialog({
 }) {
   const { validate, correct } = useLearning();
   const [feedbackConfirmed, setFeedbackConfirmed] = useState<boolean | null>(null);
-  const [correctedCategory, setCorrectedCategory] = useState(report.category || "");
+  const [correctedCategory, setCorrectedCategory] = useState(report?.category || "");
   const [correctedObjects, setCorrectedObjects] = useState(
-    report.detectedObjects?.map((item) => item.label).join(", ") || "",
+    report?.detectedObjects?.map((item) => item.label).join(", ") || "",
   );
-  const [feedbackNotes, setFeedbackNotes] = useState(report.description || "");
+  const [feedbackNotes, setFeedbackNotes] = useState(report?.description || "");
   const [isSaving, setIsSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!report) return;
     setCorrectedCategory(report.category || "");
     setCorrectedObjects(report.detectedObjects?.map((item) => item.label).join(", ") || "");
     setFeedbackNotes(report.description || "");
@@ -57,14 +58,14 @@ export function ReportDetailsDialog({
 
   const analysis = report.aiAnalysis as
     | {
-        description?: string;
-        detectedObjects?: Array<{ label: string; count?: number; confidence?: number }>;
-        mainCategory?: string;
-        secondaryCategory?: string;
-        composition?: Array<{ material: string; percentage: number }>;
-        priorityScore?: number;
-        analysisConfidence?: number;
-      }
+      description?: string;
+      detectedObjects?: Array<{ label: string; count?: number; confidence?: number }>;
+      mainCategory?: string;
+      secondaryCategory?: string;
+      composition?: Array<{ material: string; percentage: number }>;
+      priorityScore?: number;
+      analysisConfidence?: number;
+    }
     | undefined;
   const volume = report.volumeM3 ?? report.dimensions?.volumeM3;
   const weightEstimate =
@@ -73,7 +74,7 @@ export function ReportDetailsDialog({
     (analysis as any)?.weight?.weightKg ??
     (volume && (analysis?.composition || report.composition)
       ? calculateWeightFromVolume(volume, (analysis?.composition || report.composition) as any)
-          .weightKg
+        .weightKg
       : undefined);
   const feedbackHistory = report.analysisFeedback ?? [];
 
@@ -230,11 +231,11 @@ export function ReportDetailsDialog({
                   value={
                     analysis?.detectedObjects?.length
                       ? analysis.detectedObjects
-                          .map(
-                            (object) =>
-                              `${object.label}${object.count ? ` × ${object.count}` : ""}`,
-                          )
-                          .join(", ")
+                        .map(
+                          (object) =>
+                            `${object.label}${object.count ? ` × ${object.count}` : ""}`,
+                        )
+                        .join(", ")
                       : report.detectedObjects?.map((object) => object.label).join(", ") || "Aucun"
                   }
                 />
