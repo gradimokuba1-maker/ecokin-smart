@@ -7,11 +7,14 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { useLiveReports } from "../lib/live-reports";
+import { ReportDetailsDialog } from "../components/report-details-dialog";
+import { clearFocusedReport, subscribeFocusedReport } from "../lib/realtime-sync";
 
 function NotFoundComponent() {
   return (
@@ -154,12 +157,34 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function RealtimeFocusDialog() {
+  const { items: reports } = useLiveReports();
+  const [focusedReportId, setFocusedReportId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeFocusedReport((reportId) => setFocusedReportId(reportId));
+    return unsubscribe;
+  }, []);
+
+  const report = reports.find((item) => item.id === focusedReportId) ?? null;
+
+  return (
+    <ReportDetailsDialog
+      report={report as any}
+      isOpen={Boolean(focusedReportId && report)}
+      onClose={() => clearFocusedReport()}
+      canProvideFeedback
+    />
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <RealtimeFocusDialog />
       <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );

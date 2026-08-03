@@ -6,6 +6,7 @@ import { logAudit } from "./audit-log";
 import { assignMission, updateMissionStatus } from "./agent-tracking-store";
 import { DB_EVT, insertReport, readDb, updateReport } from "./ecokin-db";
 import { pushNotification } from "./notification-store";
+import { publishRealtimeEvent, subscribeRealtime } from "./realtime-sync";
 import type { EcokinRole } from "./ecokin-db";
 
 export type Urgency = "faible" | "moyen" | "eleve" | "critique";
@@ -92,9 +93,10 @@ function read(): LiveReport[] {
   return readDb().reports;
 }
 
-function broadcast() {
+function broadcast(reportId?: string) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(EVT));
+  publishRealtimeEvent("report", { reportId });
 }
 
 function pickTeam(commune: string): string {
@@ -152,12 +154,12 @@ export function pushLiveReport(
 
 export function updateLiveReport(id: string, patch: Partial<LiveReport>, logMsg?: string) {
   updateReport(id, patch, logMsg);
-  broadcast();
+  broadcast(id);
 }
 
 function update(id: string, patch: Partial<LiveReport>, logMsg?: string) {
   updateReport(id, patch, logMsg);
-  broadcast();
+  broadcast(id);
 }
 
 export function ackLiveReport(id: string, by: string) {
@@ -257,10 +259,16 @@ export function useLiveReports() {
   useEffect(() => {
     const refresh = () => setItems(read());
     refresh();
+    const unsubscribeRealtime = subscribeRealtime((payload) => {
+      if (payload.type === "report" || payload.type === "db" || payload.type === "notification") {
+        refresh();
+      }
+    });
     window.addEventListener(EVT, refresh);
     window.addEventListener(DB_EVT, refresh);
     window.addEventListener("storage", refresh);
     return () => {
+      unsubscribeRealtime();
       window.removeEventListener(EVT, refresh);
       window.removeEventListener(DB_EVT, refresh);
       window.removeEventListener("storage", refresh);

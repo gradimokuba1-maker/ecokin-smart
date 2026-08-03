@@ -1,5 +1,6 @@
 // EcoKin Smart — Système de notifications temps réel (localStorage + CustomEvent).
 import { useEffect, useState } from "react";
+import { publishRealtimeEvent, subscribeRealtime } from "./realtime-sync";
 
 export type NotificationKind =
   | "report_created"
@@ -36,6 +37,7 @@ function write(list: EcoNotification[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(KEY, JSON.stringify(list.slice(0, MAX)));
   window.dispatchEvent(new Event(EVT));
+  publishRealtimeEvent("notification");
 }
 
 export function pushNotification(input: Omit<EcoNotification, "id" | "at" | "read">) {
@@ -75,9 +77,15 @@ export function useNotifications() {
   useEffect(() => {
     const refresh = () => setItems(read());
     refresh();
+    const unsubscribeRealtime = subscribeRealtime((payload) => {
+      if (payload.type === "notification" || payload.type === "report" || payload.type === "db") {
+        refresh();
+      }
+    });
     window.addEventListener(EVT, refresh);
     window.addEventListener("storage", refresh);
     return () => {
+      unsubscribeRealtime();
       window.removeEventListener(EVT, refresh);
       window.removeEventListener("storage", refresh);
     };
