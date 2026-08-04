@@ -29,19 +29,11 @@ const ACCESS_TYPES: RoleCard[] = [
   },
   {
     role: "admin",
-    title: "Administrateur communal",
+    title: "Administrateur",
     subtitle: "Gestion locale",
     description:
       "Connexion dédiée à une commune, avec accès aux données et interventions de son périmètre.",
     icon: UserCog,
-  },
-  {
-    role: "superadmin",
-    title: "Administrateur technique global",
-    subtitle: "Supervision plateforme",
-    description:
-      "Vue centralisée sur tous les signalements, analyses IA, notifications et interventions de l’ensemble de la plateforme.",
-    icon: ShieldCheck,
   },
   {
     role: "agent",
@@ -61,7 +53,7 @@ export function RoleSelector() {
         return (
           <Link
             key={item.role}
-            to={item.role === "admin" ? "/autorite/administration" : item.role === "superadmin" ? "/autorite/connexion?role=superadmin" : `/autorite/connexion?role=${item.role}`}
+            to={item.role === "admin" ? "/autorite/administration" : `/autorite/connexion?role=${item.role}`}
             className="block w-full rounded-2xl border border-white/10 bg-white/10 p-4 text-left transition-all hover:border-emerald-400/30 hover:bg-white/15"
           >
             <div className="flex items-start gap-3">

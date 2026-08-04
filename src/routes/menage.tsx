@@ -2,23 +2,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Home, Trash2, Map, Users, Settings, Truck, CreditCard } from "lucide-react";
+import {
+  ArrowLeft,
+  CreditCard,
+  FileText,
+  MapPinned,
+  Truck,
+  Wallet,
+} from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { HouseholdList } from "@/components/household-list";
 import { HouseholdForm } from "@/components/household-form";
 import { ClientOnly } from "@/components/client-only";
-import { OperationalDashboard } from "@/components/operational-dashboard";
-import { CollectionOperationsPanel } from "@/components/collection-operations-panel";
-import { useEcoUser, type User, type UserRole } from "@/lib/user-store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Payments } from "@/components/payments";
-import { COLLECTION_SCHEDULE, SORT_TIPS } from "@/lib/household-store";
 
 const FleetMap = lazy(() =>
   import("@/components/fleet-map").then((m) => ({ default: m.FleetMap })),
@@ -31,64 +27,127 @@ export const Route = createFileRoute("/menage")({
   component: MenageRoute,
 });
 
-type View =
-  "dashboard" | "list" | "form" | "zones" | "settings" | "fleet" | "payments" | "operations";
+type View = "home" | "form" | "payments" | "zones" | "fleet";
 
 function MenageRoute() {
-  const [view, setView] = useState<View>("dashboard");
-  const { user, login } = useEcoUser();
+  const [view, setView] = useState<View>("home");
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <AppSidebar view={view} setView={setView} user={user} login={login} />
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <div className="flex flex-col">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <SiteNav minimal />
         </header>
-        <MobileQuickNav view={view} setView={setView} />
-        <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-          {view === "dashboard" && <OperationalDashboard />}
-          {view === "list" && <HouseholdList setView={setView} />}
-          {view === "form" && <HouseholdForm />}
-          {view === "fleet" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Suivi de la flotte</CardTitle>
-                <CardDescription>
-                  Localisation en temps réel des véhicules de collecte.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-[500px]">
+        <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6">
+          {view === "home" ? (
+            <div className="mx-auto max-w-6xl space-y-4">
+              <div className="rounded-3xl border border-border bg-card px-4 py-5 sm:px-6">
+                <div className="text-xs font-bold uppercase tracking-[0.34em] text-eco">
+                  Gestion des déchets ménagers
+                </div>
+                <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
+                  Accès rapide aux 4 services du ménage
+                </h1>
+                <p className="mt-2 max-w-3xl text-sm text-muted-foreground sm:text-base">
+                  Une seule page, quatre grandes fonctionnalités pour l’enregistrement, la contribution, les zones de collecte et le suivi de la flotte.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <FeatureCard
+                  icon={FileText}
+                  title="Enregistrement du ménage"
+                  description="Enregistrez votre ménage, mettez à jour vos informations et consultez votre statut en un seul endroit."
+                  tone="rose"
+                  onClick={() => setView("form")}
+                />
+                <FeatureCard
+                  icon={Wallet}
+                  title="Contribution obligatoire"
+                  description="Consultez le montant à payer, le statut du paiement et l’historique des contributions."
+                  tone="blue"
+                  onClick={() => setView("payments")}
+                />
+                <FeatureCard
+                  icon={MapPinned}
+                  title="Zones de collecte"
+                  description="Visualisez les points de collecte, les horaires et les jours de passage pour votre quartier."
+                  tone="amber"
+                  onClick={() => setView("zones")}
+                />
+                <FeatureCard
+                  icon={Truck}
+                  title="Suivi de la flotte"
+                  description="Suivez la position des véhicules et recevez le repérage de leur progression jusqu’à votre quartier."
+                  tone="emerald"
+                  onClick={() => setView("fleet")}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="mx-auto max-w-6xl space-y-4">
+              <div className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setView("home")}
+                  className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <ArrowLeft className="size-4" />
+                  Retour
+                </button>
+                <div className="text-sm font-semibold text-muted-foreground">
+                  {view === "form" && "Enregistrement du ménage"}
+                  {view === "payments" && "Contribution obligatoire"}
+                  {view === "zones" && "Zones de collecte"}
+                  {view === "fleet" && "Suivi de la flotte"}
+                </div>
+              </div>
+
+              {view === "form" && (
+                <div className="space-y-4">
+                  <HouseholdForm />
+                  <HouseholdList setView={setView} />
+                </div>
+              )}
+              {view === "payments" && <Payments />}
+              {view === "zones" && (
                 <ClientOnly>
-                  <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
-                    <FleetMap />
+                  <Suspense
+                    fallback={
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Zones de collecte</CardTitle>
+                          <CardDescription>Points de collecte réels à Kinshasa.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="h-[420px] w-full animate-pulse bg-muted" />
+                        </CardContent>
+                      </Card>
+                    }
+                  >
+                    <CollectionZones />
                   </Suspense>
                 </ClientOnly>
-              </CardContent>
-            </Card>
+              )}
+              {view === "fleet" && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Suivi de la flotte</CardTitle>
+                    <CardDescription>
+                      Localisation en temps réel des véhicules de collecte.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-[520px]">
+                    <ClientOnly>
+                      <Suspense fallback={<div className="h-full w-full animate-pulse bg-muted" />}>
+                        <FleetMap />
+                      </Suspense>
+                    </ClientOnly>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
-          {view === "zones" && (
-            <ClientOnly>
-              <Suspense
-                fallback={
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Zones de collecte</CardTitle>
-                      <CardDescription>Points de collecte réels à Kinshasa.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="h-[400px] w-full animate-pulse bg-muted" />
-                    </CardContent>
-                  </Card>
-                }
-              >
-                <CollectionZones />
-              </Suspense>
-            </ClientOnly>
-          )}
-          {view === "payments" && <Payments />}
-          {view === "operations" && <CollectionOperationsPanel />}
-          {view === "settings" && <HouseholdSettings />}
         </main>
         <SiteFooter />
       </div>
@@ -96,213 +155,43 @@ function MenageRoute() {
   );
 }
 
-function MobileQuickNav({ view, setView }: { view: View; setView: (view: View) => void }) {
-  const items: Array<{ key: View; label: string; icon: typeof Home }> = [
-    { key: "dashboard", label: "Accueil", icon: Home },
-    { key: "list", label: "Ménages", icon: Users },
-    { key: "fleet", label: "Flotte", icon: Truck },
-    { key: "zones", label: "Zones", icon: Map },
-    { key: "operations", label: "Opérations", icon: Truck },
-    { key: "payments", label: "Paiements", icon: CreditCard },
-    { key: "settings", label: "Réglages", icon: Settings },
-  ];
-
-  return (
-    <div className="border-b bg-background px-4 py-2 sm:hidden">
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const active = view === item.key;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setView(item.key)}
-              className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition-colors ${
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-muted/50 text-muted-foreground"
-              }`}
-            >
-              <Icon className="size-3.5" />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function HouseholdSettings() {
-  const days = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-  const schedule = COLLECTION_SCHEDULE.default;
-
-  return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <Card>
-        <CardHeader>
-          <CardTitle>Parametres de collecte</CardTitle>
-          <CardDescription>Configuration active pour la demonstration.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="rounded-lg border p-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Passage hebdomadaire
-            </div>
-            <div className="mt-1 font-semibold">
-              {schedule.days.map((day) => days[day]).join(" et ")} - {schedule.window}
-            </div>
-          </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Bacs standards
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {["120L", "240L", "660L"].map((bin) => (
-                <span
-                  key={bin}
-                  className="rounded-full bg-eco/10 px-3 py-1 text-xs font-bold text-eco"
-                >
-                  {bin}
-                </span>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Consignes de tri</CardTitle>
-          <CardDescription>Rappels visibles par les agents et les menages.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          {SORT_TIPS.slice(0, 4).map((tip) => (
-            <div key={tip.id} className="rounded-lg border p-3">
-              <div className="flex items-center gap-2">
-                <span className="size-3 rounded-full" style={{ backgroundColor: tip.color }} />
-                <div className="font-semibold">{tip.label}</div>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{tip.tips[0]}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function AppSidebar({
-  view,
-  setView,
-  user,
-  login,
+function FeatureCard({
+  icon: Icon,
+  title,
+  description,
+  tone,
+  onClick,
 }: {
-  view: View;
-  setView: (view: View) => void;
-  user: User | null;
-  login: (user: User) => void;
+  icon: typeof FileText;
+  title: string;
+  description: string;
+  tone: "rose" | "blue" | "amber" | "emerald";
+  onClick: () => void;
 }) {
+  const toneClass = {
+    rose: "from-rose-500/20 to-rose-100 text-rose-600",
+    blue: "from-sky-500/20 to-sky-100 text-sky-600",
+    amber: "from-amber-500/20 to-amber-100 text-amber-700",
+    emerald: "from-emerald-500/20 to-emerald-100 text-emerald-700",
+  }[tone];
+
   return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
-      <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
-        <a
-          href="#"
-          className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
-        >
-          <Trash2 className="h-4 w-4 transition-all group-hover:scale-110" />
-          <span className="sr-only">EcoKin Smart</span>
-        </a>
-        <a
-          href="#"
-          onClick={() => setView("dashboard")}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "dashboard" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-        >
-          <Home className="h-5 w-5" />
-          <span className="sr-only">Dashboard</span>
-        </a>
-        <a
-          href="#"
-          onClick={() => setView("list")}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "list" || view === "form" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-        >
-          <Users className="h-5 w-5" />
-          <span className="sr-only">Households</span>
-        </a>
-        <a
-          href="#"
-          onClick={() => setView("fleet")}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "fleet" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-        >
-          <Truck className="h-5 w-5" />
-          <span className="sr-only">Suivi des véhicules</span>
-        </a>
-        <a
-          href="#"
-          onClick={() => setView("zones")}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "zones" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-        >
-          <Map className="h-5 w-5" />
-          <span className="sr-only">Collection Zones</span>
-        </a>
-        <a
-          href="#"
-          onClick={() => setView("operations")}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "operations" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-        >
-          <Truck className="h-5 w-5" />
-          <span className="sr-only">Opérations</span>
-        </a>
-        <a
-          href="#"
-          onClick={() => setView("payments")}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "payments" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-        >
-          <CreditCard className="h-5 w-5" />
-          <span className="sr-only">Paiements</span>
-        </a>
-      </nav>
-      <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
-        <div className="w-full px-2">
-          <Select
-            value={user?.role}
-            onValueChange={(role) => {
-              const newUser: User = {
-                id: user?.id || "U-1",
-                name: role,
-                role: role as UserRole,
-                points: user?.points ?? 0,
-                reports: user?.reports ?? 0,
-                badges: user?.badges ?? [],
-                registered: user?.registered ?? false,
-              };
-              if (role === "bourgmestre") {
-                newUser.commune = "Kalamu";
-              }
-              login(newUser);
-            }}
-          >
-            <SelectTrigger className="w-full h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="citoyen">Citoyen</SelectItem>
-              <SelectItem value="bourgmestre">Bourgmestre</SelectItem>
-              <SelectItem value="gouverneur">Gouverneur</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
+    <button
+      type="button"
+      onClick={onClick}
+      className="group overflow-hidden rounded-[28px] border border-border bg-card text-left shadow-sm transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+    >
+      <div className={`bg-gradient-to-br ${toneClass} p-5 sm:p-6`}>
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/85 shadow-sm sm:h-16 sm:w-16">
+          <Icon className="size-8 sm:size-9" />
         </div>
-        <a
-          href="#"
-          onClick={() => setView("settings")}
-          className={`flex h-9 w-9 items-center justify-center rounded-lg ${view === "settings" ? "bg-accent text-accent-foreground" : "text-muted-foreground"} transition-colors hover:text-foreground md:h-8 md:w-8`}
-        >
-          <Settings className="h-5 w-5" />
-          <span className="sr-only">Settings</span>
-        </a>
-      </nav>
-    </aside>
+        <div className="mt-5">
+          <div className="text-xl font-bold sm:text-2xl">{title}</div>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-700 sm:text-base">
+            {description}
+          </p>
+        </div>
+      </div>
+    </button>
   );
 }

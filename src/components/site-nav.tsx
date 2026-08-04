@@ -93,7 +93,7 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
       : session.role === "bourgmestre"
         ? { to: "/bourgmestre", label: "Espace Bourgmestre", icon: ShieldCheck }
         : session.role === "superadmin"
-          ? { to: "/superadmin", label: "Administration globale", icon: ShieldCheck }
+          ? { to: "/superadmin", label: "Administration technique globale", icon: ShieldCheck }
           : session.role === "admin"
             ? { to: "/admin", label: "Administration", icon: ShieldCheck }
             : session.role === "agent"

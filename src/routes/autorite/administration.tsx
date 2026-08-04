@@ -54,7 +54,7 @@ function AdminSelectionPage() {
                                 <Building2 className="size-5" />
                             </span>
                             <div>
-                                <div className="font-display text-lg font-semibold">Administrateur communal</div>
+                                <div className="font-display text-lg font-semibold">Administration communale</div>
                                 <div className="text-sm text-muted-foreground">Accès aux données de sa commune</div>
                             </div>
                         </div>
@@ -73,7 +73,7 @@ function AdminSelectionPage() {
                                 <UserCog className="size-5" />
                             </span>
                             <div>
-                                <div className="font-display text-lg font-semibold">Administrateur technique global</div>
+                                <div className="font-display text-lg font-semibold">Administration technique globale</div>
                                 <div className="text-sm text-muted-foreground">Vue globale de la plateforme</div>
                             </div>
                         </div>

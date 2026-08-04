@@ -24,8 +24,8 @@ export const AUTH_USERS: Record<
   agent: { identifier: "ECOKIN-AGENT", password: "AGENT2026", label: "Agent terrain" },
   bourgmestre: { identifier: "ECOKIN-BOURG", password: "BOURG2026", label: "Bourgmestre" },
   gouverneur: { identifier: "ECOKIN-GOUV", password: "GOUV2026", label: "Cabinet du Gouverneur" },
-  admin: { identifier: "ECOKIN-ADMIN", password: "ADMIN2026", label: "Administrateur communal" },
-  superadmin: { identifier: "ECOKIN-SUPER", password: "SUPER2026", label: "Administrateur technique global" },
+  admin: { identifier: "ECOKIN-ADMIN", password: "ADMIN2026", label: "Administrateur" },
+  superadmin: { identifier: "ECOKIN-SUPER", password: "SUPER2026", label: "Administration technique globale" },
 };
 
 export function getAuthorityDashboardPath(role: Role) {

@@ -25,9 +25,9 @@ export const Route = createFileRoute("/autorite/connexion")({
 const ROLE_DETAILS = {
   gouverneur: { title: "Gouverneur", icon: ShieldCheck },
   bourgmestre: { title: "Bourgmestre", icon: ShieldCheck },
-  admin: { title: "Administrateur communal", icon: ShieldCheck },
+  admin: { title: "Administrateur", icon: ShieldCheck },
   agent: { title: "Agent de terrain", icon: ShieldCheck },
-  superadmin: { title: "Administrateur technique global", icon: ShieldCheck },
+  superadmin: { title: "Administration technique globale", icon: ShieldCheck },
 };
 
 function AuthorityLoginPage() {
