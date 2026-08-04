@@ -7,7 +7,7 @@ import { updateLiveReport, pushLiveReport, confirmDuplicateReport } from "@/lib/
 import { submitCitizenReport } from "@/lib/report-submit.functions";
 import { readDb } from "@/lib/ecokin-db";
 import { evaluateDuplicateReport, type DuplicateCandidate } from "@/lib/duplicate-detection";
-import { Loader2, ShieldCheck, Trophy } from "lucide-react";
+import { Check, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { Button } from "@/components/ui/button";
@@ -258,37 +258,54 @@ function SignalerPage() {
     return (
       <div className="min-h-screen bg-background">
         <SiteNav minimal />
-        <main className="mx-auto max-w-lg px-4 py-16 text-center sm:px-6 lg:px-8">
-          <ShieldCheck className="mx-auto size-14 text-emerald-500" />
-          <h1 className="mt-4 font-display text-3xl font-bold">
-            {submissionMode === "duplicate-confirmed" ? "Dépôt confirmé !" : "Signalement enregistré !"}
-          </h1>
-          <p className="mt-2 text-lg text-muted-foreground">
+        <main className="mx-auto flex max-w-lg flex-col items-center px-4 py-16 text-center sm:px-6 lg:px-8">
+          <div className="relative mx-auto grid size-32 place-items-center rounded-full bg-emerald-500/10 ring-8 ring-emerald-500/5 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]">
+            <div className="absolute inset-0 rounded-full border-4 border-emerald-500/25 animate-ping [animation-duration:2s]" />
+            <div className="absolute inset-2 rounded-full border-2 border-emerald-400/40 animate-pulse" />
+            <div className="relative grid size-20 place-items-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 animate-[bounce_0.9s_ease-out_1]">
+              <Check className="size-10 stroke-[3]" />
+            </div>
+          </div>
+
+          <h1 className="mt-6 font-display text-3xl font-bold text-emerald-700 dark:text-emerald-400 sm:text-4xl">
             {submissionMode === "duplicate-confirmed"
-              ? "Merci d’avoir confirmé que ce dépôt est toujours présent."
-              : "Merci de contribuer à un environnement plus propre."}
+              ? "Dépôt confirmé avec succès !"
+              : "Signalement envoyé avec succès !"}
+          </h1>
+          <p className="mt-3 max-w-md text-base leading-7 text-muted-foreground sm:text-lg">
+            {submissionMode === "duplicate-confirmed"
+              ? "Votre confirmation a bien été prise en compte. Merci pour votre vigilance et votre contribution à la protection de l’environnement."
+              : "Votre signalement a été transmis avec succès. Merci pour votre contribution à la protection de l’environnement."}
           </p>
 
-          <div className="mt-10 rounded-2xl border border-dashed border-border bg-card/50 p-6">
-            <div className="flex items-center justify-center gap-3">
-              <Trophy className="size-6 text-amber-400" />
-              <h3 className="font-display text-xl font-bold">Gagnez des Green Points !</h3>
+          <div className="mt-8 w-full rounded-3xl border border-emerald-300/30 bg-emerald-500/[0.06] p-5 text-left shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 place-items-center rounded-full bg-emerald-500/10">
+                <ShieldCheck className="size-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                  Envoi validé
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Votre contribution a bien été enregistrée sur la plateforme.
+                </p>
+              </div>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              Créez un compte gratuit pour suivre vos signalements, recevoir des notifications et
-              accumuler des points pour chaque action positive.
-            </p>
+          </div>
+
+          <div className="mt-8 flex w-full flex-col items-center gap-3">
             <Button
               onClick={() => navigate({ to: "/rejoindre" })}
               size="lg"
-              className="mt-5 w-full max-w-xs"
+              className="w-full max-w-xs"
             >
               Créer un compte citoyen
             </Button>
+            <Button onClick={() => navigate({ to: "/" })} variant="ghost" className="w-full max-w-xs">
+              Continuer anonymement
+            </Button>
           </div>
-          <Button onClick={() => navigate({ to: "/" })} variant="ghost" className="mt-8">
-            Continuer anonymement
-          </Button>
         </main>
       </div>
     );
