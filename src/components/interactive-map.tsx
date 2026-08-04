@@ -6,6 +6,7 @@ type Props = {
   commune?: string;
   reports?: LiveReport[];
   heightClassName?: string;
+  showCollectionPoints?: boolean;
 };
 
 const ICONS: Record<string, { label: string; color: string; glyph: string }> = {
@@ -18,7 +19,12 @@ const ICONS: Record<string, { label: string; color: string; glyph: string }> = {
   recyclage: { label: "Recyclage", color: "#84cc16", glyph: "♻" },
 };
 
-export function InteractiveMap({ commune, reports = [], heightClassName = "h-[420px]" }: Props) {
+export function InteractiveMap({
+  commune,
+  reports = [],
+  heightClassName = "h-[420px]",
+  showCollectionPoints = true,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
 
@@ -30,44 +36,53 @@ export function InteractiveMap({ commune, reports = [], heightClassName = "h-[42
       if (cancelled || !containerRef.current) return;
 
       const focusedCommune = commune ? COMMUNES.find((item) => item.id === commune) : null;
+      const reportPoint = reports[0];
+      const defaultView = reportPoint?.lat != null && reportPoint?.lng != null
+        ? [reportPoint.lat, reportPoint.lng]
+        : focusedCommune?.center ?? DEFAULT_CITY.center;
+      const defaultZoom = reportPoint?.lat != null && reportPoint?.lng != null ? 16 : focusedCommune ? 14 : DEFAULT_CITY.defaultZoom;
       const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom: true }).setView(
-        focusedCommune?.center ?? DEFAULT_CITY.center,
-        focusedCommune ? 14 : DEFAULT_CITY.defaultZoom,
+        defaultView,
+        defaultZoom,
       );
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
         attribution: "© OpenStreetMap · © CARTO · EcoKin Smart",
         maxZoom: 19,
       }).addTo(map);
 
-      const communes = focusedCommune ? [focusedCommune] : COMMUNES;
-      communes.forEach((item) => {
-        L.circle(item.center, {
-          radius: focusedCommune ? 1900 : 1200,
-          color: item.color,
-          weight: 1.6,
-          opacity: 0.55,
-          fillOpacity: 0.06,
-          dashArray: "5 5",
-        })
-          .bindTooltip(`Commune de ${item.name}`, { direction: "top" })
-          .addTo(map);
-      });
-
-      COLLECTION_POINTS.filter((point) => !commune || point.commune === commune).forEach(
-        (point) => {
-          const meta = ICONS[point.kind] ?? ICONS.collecte;
-          L.marker([point.lat, point.lng], {
-            icon: L.divIcon({
-              className: "",
-              html: `<div style="background:${meta.color};color:#fff;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);font:800 10px/1 Inter,sans-serif;">${meta.glyph}</div>`,
-              iconSize: [28, 28],
-              iconAnchor: [14, 14],
-            }),
+      if (!reportPoint?.lat || !reportPoint?.lng) {
+        const communes = focusedCommune ? [focusedCommune] : COMMUNES;
+        communes.forEach((item) => {
+          L.circle(item.center, {
+            radius: focusedCommune ? 1900 : 1200,
+            color: item.color,
+            weight: 1.6,
+            opacity: 0.55,
+            fillOpacity: 0.06,
+            dashArray: "5 5",
           })
-            .bindPopup(`<strong>${point.name}</strong><br/>${meta.label}`)
+            .bindTooltip(`Commune de ${item.name}`, { direction: "top" })
             .addTo(map);
-        },
-      );
+        });
+      }
+
+      if (showCollectionPoints) {
+        COLLECTION_POINTS.filter((point) => !commune || point.commune === commune).forEach(
+          (point) => {
+            const meta = ICONS[point.kind] ?? ICONS.collecte;
+            L.marker([point.lat, point.lng], {
+              icon: L.divIcon({
+                className: "",
+                html: `<div style="background:${meta.color};color:#fff;width:28px;height:28px;display:grid;place-items:center;border-radius:8px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);font:800 10px/1 Inter,sans-serif;">${meta.glyph}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+              }),
+            })
+              .bindPopup(`<strong>${point.name}</strong><br/>${meta.label}`)
+              .addTo(map);
+          },
+        );
+      }
 
       reports.forEach((report) => {
         if (!report.lat || !report.lng) return;
@@ -108,24 +123,22 @@ export function InteractiveMap({ commune, reports = [], heightClassName = "h-[42
                   ${report.volumeM3 ? `<div><span style="color:#64748b;">Volume :</span> <strong>${report.volumeM3} m³</strong></div>` : ""}
                   ${report.priorityScore ? `<div><span style="color:#64748b;">Priorité :</span> <strong>${report.priorityScore}/100</strong></div>` : ""}
                 </div>
-                ${
-                  report.composition && report.composition.length > 0
-                    ? `
+                ${report.composition && report.composition.length > 0
+              ? `
                   <div style="margin-top:4px;font-size:10px;color:#64748b;">
                     Composition : ${report.composition.map((c: any) => `${c.material} ${c.percentage}%`).join(" · ")}
                   </div>
                 `
-                    : ""
-                }
-                ${
-                  report.dimensions
-                    ? `
+              : ""
+            }
+                ${report.dimensions
+              ? `
                   <div style="margin-top:2px;font-size:10px;color:#64748b;">
                     ${report.dimensions.lengthM}m × ${report.dimensions.widthM}m × ${report.dimensions.heightAvgM}m
                   </div>
                 `
-                    : ""
-                }
+              : ""
+            }
               </div>
               <div style="margin-top:6px;font-size:10px;color:#94a3b8;">
                 ${new Date(report.createdAt).toLocaleString("fr-FR")}

@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { InteractiveMap } from "@/components/interactive-map";
 import { useLearning } from "@/lib/learning-store";
 import { updateLiveReport } from "@/lib/live-reports";
-import { calculateWeightFromVolume } from "@/lib/waste-ai/types";
 import {
   AlertTriangle,
   BadgePercent,
@@ -68,14 +67,6 @@ export function ReportDetailsDialog({
     }
     | undefined;
   const volume = report.volumeM3 ?? report.dimensions?.volumeM3;
-  const weightEstimate =
-    (report as any).weight?.weightKg ??
-    (report as any).weightKg ??
-    (analysis as any)?.weight?.weightKg ??
-    (volume && (analysis?.composition || report.composition)
-      ? calculateWeightFromVolume(volume, (analysis?.composition || report.composition) as any)
-        .weightKg
-      : undefined);
   const feedbackHistory = report.analysisFeedback ?? [];
 
   const DetailItem = ({
@@ -192,7 +183,11 @@ export function ReportDetailsDialog({
                     </p>
                   </div>
                 </div>
-                <InteractiveMap reports={[report]} heightClassName="h-[260px] sm:h-[300px]" />
+                <InteractiveMap
+                  reports={[report]}
+                  heightClassName="h-[260px] sm:h-[300px]"
+                  showCollectionPoints={false}
+                />
               </div>
             </div>
 
@@ -209,11 +204,6 @@ export function ReportDetailsDialog({
                     icon={Scale}
                     label="Volume estimé"
                     value={volume ? `${volume.toFixed(2)} m³` : "Non calculé"}
-                  />
-                  <DetailItem
-                    icon={Scale}
-                    label="Poids estimé"
-                    value={weightEstimate ? `${Math.round(weightEstimate)} kg` : "Non calculé"}
                   />
                   <DetailItem
                     icon={Layers}
