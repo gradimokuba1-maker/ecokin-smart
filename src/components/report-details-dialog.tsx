@@ -387,6 +387,22 @@ export function ReportDetailsDialog({
                 </div>
               </div>
             )}
+
+            {report.history && report.history.length > 0 && (
+              <div className="rounded-3xl border border-border bg-card p-4">
+                <h3 className="text-base font-semibold">Historique du signalement</h3>
+                <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {report.history.map((h, idx) => (
+                    <div key={`${h.at}-${idx}`} className="rounded-2xl border border-border/60 bg-background/60 p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold">{h.label}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(h.at).toLocaleString("fr-FR")}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -6,7 +6,6 @@
 
 import type { WasteMaterial, CompositionEntry, Dimensions3D, WeightEstimate } from "./types";
 import {
-  detectWasteObjects,
   calculateCompositionFromDetections,
   type DetectionResult,
 } from "./detection";
@@ -14,6 +13,8 @@ import type { DetectedObject } from "./detection";
 import { segmentWasteAreas, type SegmentationResult, type SegmentMask } from "./segmentation";
 import { estimateWasteVolume, type DepthEstimate } from "./volume-estimator";
 import { estimateWasteWeight } from "./weight-estimator";
+import type { ModelAdapter } from "./adapters/types";
+import { defaultWasteAIAdapter } from "./adapters/default-adapter";
 
 export type QuantificationResult = {
   /** Objets détectés, avec libellé métier, boîte et confiance. */
@@ -70,6 +71,9 @@ export type QuantificationOptions = {
 
   // Options de densité
   onProgress?: (message: string) => void;
+
+  // Adaptateur IA pluggable pour remplacer la détection/segmentation/volume
+  adapter?: ModelAdapter;
 };
 
 /**
@@ -81,9 +85,10 @@ export async function quantifyWaste(
   options?: QuantificationOptions,
 ): Promise<QuantificationResult> {
   const startTime = performance.now();
+  const adapter = options?.adapter ?? defaultWasteAIAdapter;
 
   // Étape 1: DÉTECTION YOLOv8/YOLO11
-  const detectionResult = await detectWasteObjects(imageDataUrl, {
+  const detectionResult = await adapter.detect(imageDataUrl, {
     minConfidence: options?.detectionMinConfidence ?? 0.35,
     modelType: options?.detectionModelType ?? "yolo11",
     onProgress: options?.onProgress,
@@ -100,14 +105,12 @@ export async function quantifyWaste(
     confidence: obj.confidence,
   }));
 
-  const segmentationResult = await segmentWasteAreas(
-    imageDataUrl,
-    detectionHints,
-    options?.onProgress,
-  );
+  const segmentationResult = await adapter.segment(imageDataUrl, detectionHints, {
+    onProgress: options?.onProgress,
+  });
 
   // Étape 3: ESTIMATION DE VOLUME
-  const volumeResult = await estimateWasteVolume(imageDataUrl, segmentationResult.segments, {
+  const volumeResult = await adapter.estimateVolume(imageDataUrl, segmentationResult.segments, {
     focalLength: options?.focalLength,
     sensorWidth: options?.sensorWidth,
     sensorHeight: options?.sensorHeight,
@@ -312,9 +315,9 @@ export async function quickQuantify(
   const wasteRatio =
     detectionResult.objects.length > 0
       ? Math.min(
-          1,
-          detectionResult.objects.reduce((sum, o) => sum + o.area, 0),
-        )
+        1,
+        detectionResult.objects.reduce((sum, o) => sum + o.area, 0),
+      )
       : 0.5;
 
   const wasteWidth = widthAtDistance * Math.sqrt(wasteRatio);

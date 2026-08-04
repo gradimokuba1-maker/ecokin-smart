@@ -21,6 +21,10 @@ export type { DepthEstimate } from "./volume-estimator";
 export { quantifyWaste, quickQuantify } from "./quantification-pipeline";
 export type { QuantificationResult, QuantificationOptions } from "./quantification-pipeline";
 
+export { defaultWasteAIAdapter } from "./adapters/default-adapter";
+export { serverWasteAIAdapter } from "./adapters/server-adapter";
+export type { ModelAdapter } from "./adapters/types";
+
 export {
   MATERIAL_DENSITIES,
   calculateWeightFromVolume,
