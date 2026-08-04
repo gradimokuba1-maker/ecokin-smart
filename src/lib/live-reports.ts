@@ -7,6 +7,12 @@ import { assignMission, updateMissionStatus } from "./agent-tracking-store";
 import { DB_EVT, insertReport, readDb, updateReport } from "./ecokin-db";
 import { pushNotification } from "./notification-store";
 import { publishRealtimeEvent, subscribeRealtime } from "./realtime-sync";
+import {
+  isSupabaseCentralReportingEnabled,
+  loadSharedReportsFromSupabase,
+  subscribeSharedReports,
+  syncReportToSupabase,
+} from "./supabase-reports";
 import type { EcokinRole } from "./ecokin-db";
 
 export type Urgency = "faible" | "moyen" | "eleve" | "critique";
@@ -289,21 +295,43 @@ export function confirmDuplicateReport(id: string, by: string, note = "Confirmat
 export function useLiveReports() {
   const [items, setItems] = useState<LiveReport[]>([]);
   useEffect(() => {
-    const refresh = () => setItems(read());
-    refresh();
+    const refresh = async () => {
+      const local = read();
+      const remote = isSupabaseCentralReportingEnabled() ? await loadSharedReportsFromSupabase() : [];
+
+      if (isSupabaseCentralReportingEnabled() && remote.length === 0 && local.length > 0) {
+        await Promise.all(local.map((report) => syncReportToSupabase(report)));
+      }
+
+      const hydrated = remote.length ? remote : local;
+      setItems(hydrated);
+    };
+
+    void refresh();
+
     const unsubscribeRealtime = subscribeRealtime((payload) => {
       if (payload.type === "report" || payload.type === "db" || payload.type === "notification") {
-        refresh();
+        void refresh();
       }
     });
-    window.addEventListener(EVT, refresh);
-    window.addEventListener(DB_EVT, refresh);
-    window.addEventListener("storage", refresh);
+
+    const unsubscribeShared = subscribeSharedReports((reports) => {
+      setItems(reports.length ? reports : read());
+    });
+
+    const onEvt = () => {
+      void refresh();
+    };
+
+    window.addEventListener(EVT, onEvt);
+    window.addEventListener(DB_EVT, onEvt);
+    window.addEventListener("storage", onEvt);
     return () => {
       unsubscribeRealtime();
-      window.removeEventListener(EVT, refresh);
-      window.removeEventListener(DB_EVT, refresh);
-      window.removeEventListener("storage", refresh);
+      unsubscribeShared();
+      window.removeEventListener(EVT, onEvt);
+      window.removeEventListener(DB_EVT, onEvt);
+      window.removeEventListener("storage", onEvt);
     };
   }, []);
   return {

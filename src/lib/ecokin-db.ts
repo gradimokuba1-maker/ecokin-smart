@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_CITY } from "./cities";
 import type { LiveReport } from "./live-reports";
+import { syncReportToSupabase } from "./supabase-reports";
 
 export type EcokinRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin" | "superadmin";
 
@@ -748,6 +749,7 @@ export function insertReport(
   };
   db.reports = [item, ...db.reports];
   writeDb(db);
+  void syncReportToSupabase(item);
   return item;
 }
 
@@ -766,6 +768,9 @@ export function updateReport(id: string, patch: Partial<LiveReport>, historyLabe
     return updated;
   });
   writeDb(db);
+  if (updated) {
+    void syncReportToSupabase(updated);
+  }
   return updated;
 }
 

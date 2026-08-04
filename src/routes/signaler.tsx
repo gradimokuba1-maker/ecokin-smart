@@ -6,6 +6,10 @@ import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { updateLiveReport, pushLiveReport, confirmDuplicateReport } from "@/lib/live-reports";
 import { submitCitizenReport } from "@/lib/report-submit.functions";
 import { readDb } from "@/lib/ecokin-db";
+import {
+  isSupabaseCentralReportingEnabled,
+  loadSharedReportsFromSupabase,
+} from "@/lib/supabase-reports";
 import { evaluateDuplicateReport, type DuplicateCandidate } from "@/lib/duplicate-detection";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -136,8 +140,12 @@ function SignalerPage() {
       return;
     }
 
+    const sharedReports = isSupabaseCentralReportingEnabled()
+      ? await loadSharedReportsFromSupabase()
+      : readDb().reports;
+
     const duplicateCheck = evaluateDuplicateReport({
-      reports: readDb().reports,
+      reports: sharedReports,
       lat: capture.location.lat,
       lng: capture.location.lng,
       hash: hash ?? undefined,
