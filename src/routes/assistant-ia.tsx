@@ -4,7 +4,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
 import { useServerFn } from "@tanstack/react-start";
-import { askDecisionAssistant } from "@/lib/waste-ai.functions";
+import { askDecisionAssistant } from "@/lib/waste-ai";
 import {
   COMMUNE_PERFORMANCE,
   IPK,
@@ -115,9 +115,8 @@ function Page() {
                 className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm ${
-                    m.role === "user" ? "bg-eco text-white" : "bg-secondary text-foreground"
-                  }`}
+                  className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm ${m.role === "user" ? "bg-eco text-white" : "bg-secondary text-foreground"
+                    }`}
                 >
                   {m.content}
                 </div>

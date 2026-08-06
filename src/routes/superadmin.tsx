@@ -3,7 +3,7 @@ import { SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { AccessGate } from "@/components/access-gate";
 import { useAccess } from "@/lib/access-store";
-import { useLiveReports } from "@/lib/live-reports";
+import { useLiveReports, updateLiveReport } from "@/lib/live-reports";
 import { useNotifications } from "@/lib/notification-store";
 import { useEcokinDb } from "@/lib/ecokin-db";
 import {
@@ -21,7 +21,7 @@ import {
     TrendingUp,
     Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from "recharts";
 import { EcoMap } from "@/components/eco-map";
 import { ReportDetailsDialog } from "@/components/report-details-dialog";
@@ -29,8 +29,9 @@ import { useAgentTracking } from "@/lib/agent-tracking-store";
 import { useCollectionOperations } from "@/lib/collection-operations-store";
 import { useFleet } from "@/lib/fleet-store";
 import { DEFAULT_CITY } from "@/lib/cities";
-import { useAuditLog } from "@/lib/audit-log";
-import { deleteUser, restoreUser, updateUser, upsertUser, ROLE_PERMISSIONS_DB } from "@/lib/ecokin-db";
+import { useAuditLog, logAudit } from "@/lib/audit-log";
+import { deleteUser, restoreUser, updateUser, upsertUser, ROLE_PERMISSIONS_DB, softDeleteReport, restoreReport } from "@/lib/ecokin-db";
+import { loadRolesFromSupabase, upsertRoleToSupabase, deleteRoleFromSupabase, loadActivitiesFromSupabase, upsertActivityToSupabase, deleteActivityFromSupabase, upsertUserToSupabase, deleteUserFromSupabase } from "@/lib/supabase-admin";
 
 export const Route = createFileRoute("/superadmin")({
     head: () => ({
@@ -48,7 +49,7 @@ export const Route = createFileRoute("/superadmin")({
 
 function SuperAdminPage() {
     const { session } = useAccess();
-    const { items: reports } = useLiveReports();
+    const { items: reports, assign: assignReport, assignToAgent: assignReportToAgent, setStatus: setReportStatus, ack: ackReport } = useLiveReports();
     const { items: notifications } = useNotifications();
     const db = useEcokinDb();
     const { vehicles } = useFleet();
@@ -157,15 +158,21 @@ function SuperAdminPage() {
     const [query, setQuery] = useState("");
     const [filterCommune, setFilterCommune] = useState<string | "all">("all");
     const [filterStatus, setFilterStatus] = useState<string | "all">("all");
+    const [filterCategory, setFilterCategory] = useState<string | "all">("all");
+    const [filterPriority, setFilterPriority] = useState<string | "all">("all");
     const [filterUser, setFilterUser] = useState<string | "all">("all");
     const [startDate, setStartDate] = useState<string | null>(null);
     const [endDate, setEndDate] = useState<string | null>(null);
     const [selectedReport, setSelectedReport] = useState<import("@/lib/live-reports").LiveReport | null>(null);
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(12);
 
     const filteredReports = useMemo(() => {
         return reports.filter((r) => {
             if (filterCommune !== "all" && r.commune !== filterCommune) return false;
             if (filterStatus !== "all" && r.status !== filterStatus) return false;
+            if (filterCategory !== "all" && (r.category ?? "") !== filterCategory) return false;
+            if (filterPriority !== "all" && (r.priorityLevel ?? r.urgency ?? "") !== filterPriority) return false;
             if (filterUser !== "all" && (r.authorId ?? r.author) !== filterUser) return false;
             if (startDate) {
                 const s = new Date(startDate).getTime();
@@ -178,11 +185,11 @@ function SuperAdminPage() {
             if (query) {
                 const q = query.toLowerCase();
                 const iaText = (r.analysis?.summary || r.iaAnalysis?.text || r.ai?.description || r.ia?.text) ?? "";
-                if (!(`${r.id} ${r.description ?? ""} ${r.author ?? ""} ${r.commune} ${iaText}`.toLowerCase().includes(q))) return false;
+                if (!(`${r.id} ${r.description ?? ""} ${r.author ?? ""} ${r.commune} ${iaText} ${r.quartier ?? r.zone ?? ""} ${r.category ?? ""}`.toLowerCase().includes(q))) return false;
             }
             return true;
         });
-    }, [reports, filterCommune, filterStatus, filterUser, startDate, endDate, query]);
+    }, [reports, filterCommune, filterStatus, filterCategory, filterPriority, filterUser, startDate, endDate, query]);
 
     function setPresetRange(days: number | null) {
         if (days === null) {
@@ -220,6 +227,59 @@ function SuperAdminPage() {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
+    }
+
+    // Action handlers pour les signalements
+    function handleView(report: any) {
+        setSelectedReport(report);
+    }
+
+    function handleEdit(report: any) {
+        const newStatus = window.prompt("Nouveau statut (en_attente|assignee|en_cours|terminee|rejete)", report.status);
+        if (!newStatus) return;
+        try {
+            updateLiveReport(report.id, { status: newStatus }, `Modifié par ${session.name}`);
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function handleReassign(report: any) {
+        const team = window.prompt("Nom de l'équipe / nouveau responsable", report.team ?? "");
+        if (!team) return;
+        try {
+            assignReport(report.id, team, session.name);
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function handleValidate(report: any) {
+        if (!window.confirm(`Confirmer la validation du signalement ${report.id} ?`)) return;
+        try {
+            setReportStatus(report.id, "terminee", session.name);
+        } catch (e) { }
+    }
+
+    function handleReject(report: any) {
+        if (!window.confirm(`Confirmer le rejet du signalement ${report.id} ?`)) return;
+        try {
+            setReportStatus(report.id, "rejete", session.name);
+        } catch (e) { }
+    }
+
+    function handleArchive(report: any) {
+        if (!window.confirm(`Archiver le signalement ${report.id} ?`)) return;
+        try {
+            softDeleteReport(report.id, session.name);
+        } catch (e) { }
+    }
+
+    function handleDelete(report: any) {
+        if (!window.confirm(`Supprimer définitivement ${report.id} ? Cette action va archiver et marquer comme supprimé.`)) return;
+        try {
+            softDeleteReport(report.id, session.name);
+        } catch (e) { }
     }
 
     return (
@@ -397,6 +457,19 @@ function SuperAdminPage() {
                                         <option key={u.id || u.name} value={u.id || u.name}>{u.name || u.id}</option>
                                     ))}
                                 </datalist>
+                                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value as any)} className="rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                                    <option value="all">Toutes les catégories</option>
+                                    {[...new Set(reports.map((r) => r.category).filter(Boolean))].map((c) => (
+                                        <option key={c} value={c as any}>{c}</option>
+                                    ))}
+                                </select>
+                                <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value as any)} className="rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                                    <option value="all">Toutes priorités</option>
+                                    <option value="critique">Critique</option>
+                                    <option value="eleve">Eleve</option>
+                                    <option value="moyen">Moyen</option>
+                                    <option value="faible">Faible</option>
+                                </select>
                                 <input type="date" value={startDate ?? ""} onChange={(e) => setStartDate(e.target.value || null)} className="rounded-xl border border-border bg-background px-3 py-2 text-sm" />
                                 <input type="date" value={endDate ?? ""} onChange={(e) => setEndDate(e.target.value || null)} className="rounded-xl border border-border bg-background px-3 py-2 text-sm" />
                                 <div className="flex items-center gap-2">
@@ -416,13 +489,35 @@ function SuperAdminPage() {
                         </div>
                         <div className="space-y-2">
                             {filteredReports.slice(0, 12).map((report) => (
-                                <div key={report.id} onClick={() => setSelectedReport(report)} className="cursor-pointer rounded-xl border border-border/70 bg-background/70 p-3 text-sm hover:shadow-lg">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="font-semibold">{report.id}</span>
-                                        <span className="rounded-full bg-eco/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-eco">{report.status}</span>
+                                <div key={report.id} className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm hover:shadow-lg">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-20 shrink-0">
+                                            {report.photoUrl ? (
+                                                <img src={report.photoUrl} alt={report.id} className="h-16 w-20 rounded-lg object-cover" />
+                                            ) : (
+                                                <div className="h-16 w-20 rounded-lg bg-slate-100" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <div className="font-semibold">{report.id} · {report.category}</div>
+                                                <div className="text-xs text-muted-foreground">{new Date(report.createdAt).toLocaleString("fr-FR")}</div>
+                                            </div>
+                                            <div className="mt-1 text-muted-foreground text-sm">{report.commune} · {report.quartier ?? report.zone ?? "—"} · {report.lat ? `${report.lat.toFixed(4)}, ${report.lng?.toFixed(4)}` : "Coordonnées inconnues"}</div>
+                                            <div className="mt-2 flex items-center justify-between">
+                                                <div className="text-xs text-muted-foreground">Priorité: <strong className="ml-1">{report.priorityLevel ?? report.urgency ?? "—"}</strong> · Volume: <strong className="ml-1">{report.volumeM3 ?? "—"} m³</strong> · IA: <strong className="ml-1">{(report.analysisConfidence ?? report.dimensions?.confidence ?? 0).toFixed(2)}</strong></div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleView(report)} className="rounded-xl border border-border px-2 py-1 text-xs">Voir</button>
+                                                    <button onClick={() => handleEdit(report)} className="rounded-xl border border-border px-2 py-1 text-xs">Modifier</button>
+                                                    <button onClick={() => handleReassign(report)} className="rounded-xl border border-border px-2 py-1 text-xs">Réaffecter</button>
+                                                    <button onClick={() => handleValidate(report)} className="rounded-xl border border-border px-2 py-1 text-xs text-green-600">Valider</button>
+                                                    <button onClick={() => handleReject(report)} className="rounded-xl border border-border px-2 py-1 text-xs text-yellow-600">Rejeter</button>
+                                                    <button onClick={() => handleArchive(report)} className="rounded-xl border border-border px-2 py-1 text-xs">Archiver</button>
+                                                    <button onClick={() => handleDelete(report)} className="rounded-xl border border-border px-2 py-1 text-xs text-red-600">Supprimer</button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="mt-1 text-muted-foreground">{report.category} · {report.commune} · {report.quartier ?? report.zone ?? "—"}</div>
-                                    <div className="mt-1 text-xs text-muted-foreground">Priorité {report.priorityLevel ?? report.urgency} · {report.author}</div>
                                 </div>
                             ))}
                         </div>
@@ -478,6 +573,13 @@ function SuperAdminPage() {
 
                 <div className="rounded-2xl border border-border bg-card p-4">
                     <div className="mb-3 flex items-center gap-2 font-semibold">
+                        <Activity className="size-4 text-eco" /> Gestion des activités
+                    </div>
+                    <ActivitiesPanel />
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4">
+                    <div className="mb-3 flex items-center gap-2 font-semibold">
                         <ShieldCheck className="size-4 text-eco" /> Gestion des rôles et permissions
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -493,6 +595,9 @@ function SuperAdminPage() {
                                 <div className="text-muted-foreground">{item.count} comptes · {item.permissions} permissions</div>
                             </div>
                         ))}
+                    </div>
+                    <div className="mt-4">
+                        <RolesEditor />
                     </div>
                 </div>
 
@@ -530,6 +635,7 @@ function SuperAdminPage() {
 
 function UserManagementPanel() {
     const db = useEcokinDb();
+    const [usersQuery, setUsersQuery] = useState("");
     const [draft, setDraft] = useState({
         name: "",
         role: "admin",
@@ -572,13 +678,22 @@ function UserManagementPanel() {
             password: draft.password || "0000",
             commune: draft.commune,
             active: draft.active,
-            permissions: ROLE_PERMISSIONS_DB[draft.role as keyof typeof ROLE_PERMISSIONS_DB],
+            permissions: (() => {
+                try {
+                    const custom = JSON.parse(localStorage.getItem("ecokin_custom_roles") || "{}");
+                    return custom[draft.role] ?? ROLE_PERMISSIONS_DB[draft.role as keyof typeof ROLE_PERMISSIONS_DB];
+                } catch {
+                    return ROLE_PERMISSIONS_DB[draft.role as keyof typeof ROLE_PERMISSIONS_DB];
+                }
+            })(),
         } as any;
 
         if (editingId) {
-            updateUser(editingId, payload);
+            const updated = updateUser(editingId, payload);
+            try { void upsertUserToSupabase(updated); } catch { }
         } else {
-            upsertUser(payload);
+            const created = upsertUser(payload);
+            try { void upsertUserToSupabase(created); } catch { }
         }
         resetDraft();
     };
@@ -630,7 +745,7 @@ function UserManagementPanel() {
                 </div>
             </div>
             <div className="space-y-2">
-                {db.users.slice(0, 12).map((user) => (
+                {db.users.filter((u) => `${u.name} ${u.identifier} ${u.role}`.toLowerCase().includes(usersQuery.toLowerCase())).slice(0, 12).map((user) => (
                     <div key={user.id} className="flex flex-col gap-2 rounded-xl border border-border bg-background/60 p-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <div className="font-semibold">{user.name}</div>
@@ -640,11 +755,265 @@ function UserManagementPanel() {
                             <button onClick={() => startEdit(user)} className="rounded-xl border border-border px-2 py-1 text-xs">Modifier</button>
                             <button onClick={() => toggleActive(user)} className="rounded-xl border border-border px-2 py-1 text-xs">{user.active ? "Désactiver" : "Réactiver"}</button>
                             <button onClick={() => resetPassword(user)} className="rounded-xl border border-border px-2 py-1 text-xs"><RefreshCcw className="mr-1 inline size-3" />Réinit.</button>
-                            <button onClick={() => { if (user.active) deleteUser(user.id); else restoreUser(user.id); }} className="rounded-xl border border-border px-2 py-1 text-xs text-red-600"><Trash2 className="mr-1 inline size-3" />{user.active ? "Supprimer" : "Restaurer"}</button>
+                            <button onClick={() => {
+                                const action = user.active ? 'supprimer' : 'restaurer';
+                                if (!window.confirm(`Confirmer ${action} l\u0027utilisateur ${user.name} ?`)) return;
+                                if (user.active) {
+                                    deleteUser(user.id);
+                                    try { void deleteUserFromSupabase(user.id); } catch { }
+                                } else {
+                                    restoreUser(user.id);
+                                    try { void upsertUserToSupabase(user); } catch { }
+                                }
+                            }} className="rounded-xl border border-border px-2 py-1 text-xs text-red-600"><Trash2 className="mr-1 inline size-3" />{user.active ? "Supprimer" : "Restaurer"}</button>
                         </div>
                     </div>
                 ))}
             </div>
+            <div className="mt-2">
+                <input placeholder="Recherche utilisateurs" value={usersQuery} onChange={(e) => setUsersQuery(e.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+            </div>
+        </div>
+    );
+}
+
+function RolesEditor() {
+    const [customRoles, setCustomRoles] = useState<Record<string, string[]>>(() => {
+        try {
+            return JSON.parse(localStorage.getItem("ecokin_custom_roles") || "{}");
+        } catch {
+            return {};
+        }
+    });
+    const [loadingRoles, setLoadingRoles] = useState(false);
+
+    useEffect(() => {
+        let mounted = true;
+        setLoadingRoles(true);
+        void (async () => {
+            try {
+                const remote = await loadRolesFromSupabase();
+                if (!mounted) return;
+                if (remote && remote.length) {
+                    const map: Record<string, string[]> = {};
+                    remote.forEach((r: any) => (map[r.name] = r.permissions ?? []));
+                    setCustomRoles((prev) => ({ ...prev, ...map }));
+                }
+            } catch { }
+            setLoadingRoles(false);
+        })();
+        return () => { mounted = false; };
+    }, []);
+
+    const allPerms = Array.from(new Set(Object.values(ROLE_PERMISSIONS_DB).flat()));
+    const mergedRoles = { ...ROLE_PERMISSIONS_DB, ...customRoles } as Record<string, string[]>;
+
+    function toggle(role: string, perm: string) {
+        const base = mergedRoles[role] ?? [];
+        const list = new Set(base);
+        if (list.has(perm)) list.delete(perm); else list.add(perm);
+        setCustomRoles((prev) => ({ ...prev, [role]: Array.from(list) }));
+    }
+
+    async function createRole(name: string) {
+        if (!name) return;
+        if (mergedRoles[name]) return window.alert("Le rôle existe déjà.");
+        setCustomRoles((prev) => ({ ...prev, [name]: [] }));
+        try {
+            await upsertRoleToSupabase({ id: `role_${name}`, name, permissions: [] });
+        } catch { }
+    }
+
+    async function deleteRole(name: string) {
+        if (!window.confirm(`Supprimer le rôle ${name} et réassigner ses utilisateurs en 'citoyen' ?`)) return;
+        const next = { ...customRoles };
+        delete next[name];
+        setCustomRoles(next);
+        // reassign users
+        try {
+            const db = JSON.parse(localStorage.getItem("ecokin_db_v1") || "{}");
+            if (db && Array.isArray(db.users)) {
+                db.users = db.users.map((u: any) => (u.role === name ? { ...u, role: "citoyen" } : u));
+                localStorage.setItem("ecokin_db_v1", JSON.stringify(db));
+                window.dispatchEvent(new Event("ecokin:db"));
+            }
+        } catch { }
+        try {
+            await deleteRoleFromSupabase(`role_${name}`);
+        } catch { }
+    }
+
+    async function save() {
+        localStorage.setItem("ecokin_custom_roles", JSON.stringify(customRoles));
+        try {
+            await Promise.all(Object.entries(customRoles).map(([name, perms]) => upsertRoleToSupabase({ id: `role_${name}`, name, permissions: perms })));
+        } catch { }
+        window.alert("Rôles enregistrés. Redémarrer la page pour appliquer.");
+    }
+
+    return (
+        <div className="space-y-3">
+            <div className="text-sm font-semibold">Éditeur de rôles</div>
+            <div className="flex gap-2">
+                <RoleCreator onCreate={createRole} />
+                <button onClick={save} className="rounded-xl bg-eco px-3 py-2 text-sm font-bold text-white">Sauvegarder</button>
+                <button onClick={() => { localStorage.removeItem("ecokin_custom_roles"); setCustomRoles({}); }} className="rounded-xl border border-border px-3 py-2 text-sm">Réinitialiser</button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.keys(mergedRoles).map((role) => (
+                    <div key={role} className="rounded-xl border border-border bg-background/60 p-3 text-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="font-semibold">{role}</div>
+                            {customRoles[role] && (
+                                <button onClick={() => deleteRole(role)} className="text-xs text-red-600">Supprimer</button>
+                            )}
+                        </div>
+                        <div className="mt-2 space-y-1">
+                            {allPerms.map((perm) => {
+                                const checked = (mergedRoles[role] ?? []).includes(perm);
+                                return (
+                                    <label key={perm} className="flex items-center gap-2 text-xs">
+                                        <input type="checkbox" checked={checked} onChange={() => toggle(role, perm)} />
+                                        <span>{perm}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ActivitiesPanel() {
+    const [activities, setActivities] = useState<Array<any>>([]);
+    const [loadingActivities, setLoadingActivities] = useState(false);
+    useEffect(() => {
+        let mounted = true;
+        setLoadingActivities(true);
+        void (async () => {
+            try {
+                const remote = await loadActivitiesFromSupabase();
+                if (!mounted) return;
+                if (remote && remote.length) {
+                    setActivities(remote.map((r: any) => ({ ...r, id: r.id })));
+                    return;
+                }
+            } catch { }
+            try {
+                const local = JSON.parse(localStorage.getItem("ecokin_activities_v1") || "[]");
+                if (mounted) setActivities(local);
+            } catch {
+                if (mounted) setActivities([]);
+            }
+            setLoadingActivities(false);
+        })();
+        return () => { mounted = false; };
+    }, []);
+    const db = useEcokinDb();
+    const [draft, setDraft] = useState({ title: "", description: "", assignRole: "", assignUser: "", status: "planned" });
+    const [editingId, setEditingId] = useState<string | null>(null);
+
+    async function persist(list: any[]) {
+        localStorage.setItem("ecokin_activities_v1", JSON.stringify(list));
+        setActivities(list);
+        try {
+            await Promise.all(list.map((a) => upsertActivityToSupabase(a)));
+        } catch { }
+        window.alert("Activités mises à jour");
+    }
+
+    async function save() {
+        if (editingId) {
+            const list = activities.map((a) => (a.id === editingId ? { ...a, ...draft, updatedAt: new Date().toISOString() } : a));
+            await persist(list);
+            logAudit({ user: "System", role: "superadmin", action: "settings_update", details: `Activité modifiée ${editingId}` });
+        } else {
+            const id = "ACT-" + Math.random().toString(36).slice(2, 9);
+            const item = { id, ...draft, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+            await persist([item, ...activities]);
+            logAudit({ user: "System", role: "superadmin", action: "settings_update", details: `Activité créée ${id}` });
+        }
+        setDraft({ title: "", description: "", assignRole: "", assignUser: "", status: "planned" });
+        setEditingId(null);
+    }
+
+    function startEdit(a: any) {
+        setEditingId(a.id);
+        setDraft({ title: a.title, description: a.description, assignRole: a.assignRole ?? "", assignUser: a.assignUser ?? "", status: a.status ?? "planned" });
+    }
+
+    async function remove(id: string) {
+        if (!window.confirm("Supprimer cette activité ?")) return;
+        const list = activities.filter((a) => a.id !== id);
+        await persist(list);
+        try { await deleteActivityFromSupabase(id); } catch { }
+    }
+
+    async function setStatus(id: string, status: string) {
+        const list = activities.map((a) => (a.id === id ? { ...a, status, updatedAt: new Date().toISOString() } : a));
+        await persist(list);
+    }
+
+    const roles = Object.keys(ROLE_PERMISSIONS_DB).concat(Object.keys(JSON.parse(localStorage.getItem("ecokin_custom_roles") || "{}")));
+
+    return (
+        <div className="space-y-4">
+            <div className="grid gap-3 lg:grid-cols-2">
+                <div className="rounded-xl border border-border bg-background/60 p-3">
+                    <div className="text-sm font-semibold">Créer / modifier une activité</div>
+                    <div className="mt-2 space-y-2">
+                        <input placeholder="Titre" value={draft.title} onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+                        <textarea placeholder="Description" value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+                        <select value={draft.assignRole} onChange={(e) => setDraft((d) => ({ ...d, assignRole: e.target.value }))} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                            <option value="">Aucun rôle</option>
+                            {roles.map((r) => (<option key={r} value={r}>{r}</option>))}
+                        </select>
+                        <select value={draft.assignUser} onChange={(e) => setDraft((d) => ({ ...d, assignUser: e.target.value }))} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
+                            <option value="">Aucun utilisateur</option>
+                            {db.users.map((u) => (<option key={u.id} value={u.id}>{u.name} · {u.role}</option>))}
+                        </select>
+                        <div className="flex gap-2">
+                            <button onClick={save} className="rounded-xl bg-eco px-3 py-2 text-sm font-bold text-white">{editingId ? "Enregistrer" : "Créer"}</button>
+                            <button onClick={() => { setDraft({ title: "", description: "", assignRole: "", assignUser: "", status: "planned" }); setEditingId(null); }} className="rounded-xl border border-border px-3 py-2 text-sm">Annuler</button>
+                        </div>
+                    </div>
+                </div>
+                <div className="rounded-xl border border-border bg-background/60 p-3">
+                    <div className="text-sm font-semibold">Vue d'ensemble</div>
+                    <div className="mt-2 text-sm text-muted-foreground">
+                        <div>Activités enregistrées : {activities.length}</div>
+                        <div>Assignées : {activities.filter((a) => a.assignRole || a.assignUser).length}</div>
+                    </div>
+                </div>
+            </div>
+            <div className="space-y-2">
+                {activities.map((a) => (
+                    <div key={a.id} className="rounded-xl border border-border bg-background/60 p-3 flex items-center justify-between">
+                        <div>
+                            <div className="font-semibold">{a.title} <span className="text-xs text-muted-foreground">· {a.status}</span></div>
+                            <div className="text-xs text-muted-foreground">{a.assignRole ? `Rôle: ${a.assignRole}` : ''} {a.assignUser ? ` · Util.: ${a.assignUser}` : ''}</div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => startEdit(a)} className="rounded-xl border border-border px-2 py-1 text-xs">Modifier</button>
+                            <button onClick={() => setStatus(a.id, 'in_progress')} className="rounded-xl border border-border px-2 py-1 text-xs">Démarrer</button>
+                            <button onClick={() => setStatus(a.id, 'completed')} className="rounded-xl border border-border px-2 py-1 text-xs">Terminer</button>
+                            <button onClick={() => remove(a.id)} className="rounded-xl border border-border px-2 py-1 text-xs text-red-600">Supprimer</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function RoleCreator({ onCreate }: { onCreate: (name: string) => void }) {
+    const [name, setName] = useState("");
+    return (
+        <div className="flex gap-2">
+            <input placeholder="Nouveau rôle" value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+            <button onClick={() => { onCreate(name.trim()); setName(""); }} className="rounded-xl border border-border px-3 py-2 text-sm">Créer</button>
         </div>
     );
 }

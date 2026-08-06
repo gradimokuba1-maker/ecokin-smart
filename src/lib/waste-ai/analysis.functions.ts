@@ -279,12 +279,12 @@ RÈGLES IMPORTANTES :
         const imageContent: Array<
           { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
         > = [
-          {
-            type: "text",
-            text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète.",
-          },
-          { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
-        ];
+            {
+              type: "text",
+              text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète.",
+            },
+            { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
+          ];
 
         for (const image of payloadForAI.additionalImages?.slice(0, 3) ?? []) {
           imageContent.push({ type: "image_url", image_url: { url: image } });
@@ -448,5 +448,46 @@ RÈGLES IMPORTANTES :
       }
       console.log("Création d'un signalement de secours (fallback).");
       return createFallback(data);
+    }
+  });
+
+// Assistant IA pour les décideurs (réutilisé par l'UI)
+const ChatSchema = z.object({
+  question: z.string().min(2).max(500),
+  context: z.string().max(8000).optional(),
+});
+
+export const askDecisionAssistant = createServerFn({ method: "POST" })
+  .validator((data: unknown) => ChatSchema.parse(data))
+  .handler(async ({ data }): Promise<{ answer: string }> => {
+    const key = process.env.LOVABLE_API_KEY;
+    const fallbackAnswer =
+      "Service IA momentanément indisponible. Consultez le tableau de bord du Gouverneur pour les indicateurs clés (IPK, alertes prioritaires, hotspots).";
+    if (!key) return { answer: fallbackAnswer };
+
+    const sys = `Tu es l'Assistant IA d'EcoKin Smart pour les décideurs (Gouverneur, Bourgmestres) de Kinshasa. Réponds en français, de façon concise, structurée (listes courtes, chiffres clés), orientée action. Tu disposes des données de plateforme suivantes :\n${data.context ?? "(données non fournies)"}\nSi la question dépasse ces données, indique-le honnêtement. Toujours conclure par une recommandation prioritaire si pertinent.`;
+
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: data.question },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        console.error("Assistant gateway error", res.status, await res.text());
+        return { answer: fallbackAnswer };
+      }
+      const json: any = await res.json();
+      const answer = String(json?.choices?.[0]?.message?.content ?? fallbackAnswer);
+      return { answer };
+    } catch (e) {
+      console.error("Assistant failed", e);
+      return { answer: fallbackAnswer };
     }
   });

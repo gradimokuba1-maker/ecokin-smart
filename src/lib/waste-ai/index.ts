@@ -44,6 +44,7 @@ export type {
 } from "./types";
 
 export { analyzeWastePhotoAdvanced } from "./analysis.functions";
+export { askDecisionAssistant } from "./analysis.functions";
 export {
   detectDeviceCapability,
   requestCameraPermission,

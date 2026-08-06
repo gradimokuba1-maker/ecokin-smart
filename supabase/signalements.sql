@@ -129,3 +129,104 @@ using (
 );
 
 -- End of RLS policies
+
+-- Additional tables for admin features
+create table if not exists public.ecokin_roles (
+  id text primary key,
+  name text not null unique,
+  permissions jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.set_ecokin_roles_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_set_ecokin_roles_updated_at on public.ecokin_roles;
+create trigger trg_set_ecokin_roles_updated_at
+before update on public.ecokin_roles
+for each row
+execute function public.set_ecokin_roles_updated_at();
+
+alter table public.ecokin_roles enable row level security;
+create policy if not exists "manage roles by privileged" on public.ecokin_roles
+for all
+using (public.current_role() IN ('admin','superadmin'))
+with check (public.current_role() IN ('admin','superadmin'));
+
+create table if not exists public.ecokin_activities (
+  id text primary key,
+  title text not null,
+  description text,
+  assign_role text,
+  assign_user text,
+  status text not null default 'planned',
+  meta jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.set_ecokin_activities_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_set_ecokin_activities_updated_at on public.ecokin_activities;
+create trigger trg_set_ecokin_activities_updated_at
+before update on public.ecokin_activities
+for each row
+execute function public.set_ecokin_activities_updated_at();
+
+alter table public.ecokin_activities enable row level security;
+create policy if not exists "manage activities by privileged" on public.ecokin_activities
+for all
+using (public.current_role() IN ('admin','superadmin'))
+with check (public.current_role() IN ('admin','superadmin'));
+
+create table if not exists public.ecokin_users (
+  id text primary key,
+  identifier text,
+  name text,
+  phone text,
+  role text,
+  commune text,
+  permissions jsonb,
+  active boolean default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
+);
+
+create or replace function public.set_ecokin_users_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_set_ecokin_users_updated_at on public.ecokin_users;
+create trigger trg_set_ecokin_users_updated_at
+before update on public.ecokin_users
+for each row
+execute function public.set_ecokin_users_updated_at();
+
+alter table public.ecokin_users enable row level security;
+create policy if not exists "manage ecokin users" on public.ecokin_users
+for all
+using (public.current_role() IN ('admin','superadmin'))
+with check (public.current_role() IN ('admin','superadmin'));

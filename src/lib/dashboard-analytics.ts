@@ -3,7 +3,7 @@ import type { AgentMission } from "./agent-tracking-store";
 import type { Session } from "./access-store";
 import type { EcokinUserRecord } from "./ecokin-db";
 import type { LiveReport, LiveStatus } from "./live-reports";
-import type { WasteAnalysisResult } from "./waste-ai.functions";
+import type { WasteAnalysisResult } from "./waste-ai";
 
 export function priorityScoreFromAnalysis(
   analysisResult: WasteAnalysisResult,

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { analyzeWastePhotoAdvanced } from "./waste-ai.functions";
+import { analyzeWastePhotoAdvanced } from "./waste-ai";
 import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { detectCityCommune, DEFAULT_CITY } from "./cities";
 import { pushLiveReport } from "./live-reports";
@@ -207,6 +207,43 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
         console.log("[5] Analyse IA terminée");
 
         const engineResult = await runServerWasteAIEngine(reportId, capture, analysisResult);
+        // Reconcile analysisResult (LLM or fallback) with server-side quantification.
+        // If the server quantification is more confident or analysis returned a generic "mixte",
+        // prefer the server-derived main category and composition computed from detected objects.
+        const engineConfidence = engineResult.summary?.confidence ?? 0;
+        const analysisConfidence = analysisResult.analysisConfidence ?? 0;
+
+        // Build composition from engine detected objects when available
+        function compositionFromEngineObjects() {
+          const map = new Map<string, number>();
+          for (const obj of engineResult.objects ?? []) {
+            const key = (obj.material || "mixte") as string;
+            const weight = (obj.surface || 0) * (obj.confidence || 1);
+            map.set(key, (map.get(key) || 0) + weight);
+          }
+          const total = Array.from(map.values()).reduce((s, v) => s + v, 0);
+          if (total === 0) return [{ material: "mixte", percentage: 100 }];
+          const arr = Array.from(map.entries())
+            .map(([material, v]) => ({ material, percentage: Math.round((v / total) * 100) }))
+            .sort((a, b) => b.percentage - a.percentage);
+          const corr = 100 - arr.reduce((s, it) => s + it.percentage, 0);
+          if (arr[0]) arr[0].percentage += corr;
+          return arr;
+        }
+
+        const engineComposition = compositionFromEngineObjects();
+        const engineMain = engineComposition[0]?.material ?? engineResult.summary?.mainCategory ?? "mixte";
+
+        let finalMainCategory = analysisResult.mainCategory;
+        let finalComposition = analysisResult.composition;
+        // Choose engine result when it's meaningfully more confident or analysis gave a generic mixte
+        if (
+          engineResult.objects.length > 0 &&
+          (analysisResult.mainCategory === "mixte" || engineConfidence > analysisConfidence + 0.05)
+        ) {
+          finalMainCategory = engineMain as any;
+          finalComposition = engineComposition as any;
+        }
         registerValidatedImage(
           reportId,
           capture,
@@ -222,20 +259,22 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
           })),
         );
 
+        const combinedConfidence = Math.max(analysisConfidence, engineConfidence);
+
         const patch: Partial<import("./live-reports").LiveReport> = {
-          category: analysisResult.mainCategory,
+          category: finalMainCategory,
           description: analysisResult.description || description,
           volumeM3: analysisResult.dimensions?.volumeM3,
           priorityScore: analysisResult.priorityScore,
           priorityLevel: analysisResult.priorityLevel,
-          analysisConfidence: analysisResult.analysisConfidence,
+          analysisConfidence: combinedConfidence,
           dimensions: analysisResult.dimensions,
           cameraCapability: analysisResult.cameraCapability ?? "basic",
           model3DAvailable: analysisResult.model3DAvailable ?? false,
           healthRisk: analysisResult.healthRisk,
           floodRisk: analysisResult.floodRisk,
           interventionUrgent: analysisResult.interventionUrgent,
-          composition: analysisResult.composition?.map((c) => ({
+          composition: finalComposition?.map((c) => ({
             material: c.material,
             percentage: c.percentage,
           })),

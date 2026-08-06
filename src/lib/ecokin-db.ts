@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DEFAULT_CITY } from "./cities";
 import type { LiveReport } from "./live-reports";
 import { syncReportToSupabase } from "./supabase-reports";
+import { upsertUserToSupabase, deleteUserFromSupabase } from "./supabase-admin";
 
 export type EcokinRole = "citoyen" | "agent" | "bourgmestre" | "gouverneur" | "admin" | "superadmin";
 
@@ -662,6 +663,9 @@ export function upsertUser(
     db.users.unshift(base);
   }
   writeDb(db);
+  try {
+    void upsertUserToSupabase(existingIndex >= 0 ? db.users[existingIndex] : base);
+  } catch { }
   return existingIndex >= 0 ? db.users[existingIndex] : base;
 }
 
@@ -680,6 +684,9 @@ export function updateUser(id: string, patch: Partial<EcokinUserRecord>) {
     return updated;
   });
   writeDb(db);
+  try {
+    if (updated) void upsertUserToSupabase(updated);
+  } catch { }
   return updated;
 }
 
@@ -698,6 +705,7 @@ export function deleteUser(id: string, actor = "system") {
     };
   });
   writeDb(db);
+  try { void deleteUserFromSupabase(id); } catch { }
 }
 
 export function restoreUser(id: string, actor = "system") {
@@ -717,6 +725,7 @@ export function restoreUser(id: string, actor = "system") {
     };
   });
   writeDb(db);
+  try { const u = db.users.find((u) => u.id === id); if (u) void upsertUserToSupabase(u); } catch { }
 }
 
 export function findUserByCredentials(role: EcokinRole, identifier: string, password: string) {
