@@ -3,6 +3,27 @@ import type { DetectionResult } from "../detection";
 import type { SegmentationResult } from "../segmentation";
 import type { DepthEstimate } from "../volume-estimator";
 import type { DetectedObject } from "../detection";
+import type { WasteMaterial } from "../types";
+
+function mapLabelToMaterial(label: string): WasteMaterial {
+    const s = String(label || "").toLowerCase();
+    if (!s) return "inconnu";
+    if (s.includes("plast") || s.includes("pet") || s.includes("bottle") || s.includes("sac") || s.includes("bag") || s.includes("plastic") || s.includes("film")) return "plastique";
+    if (s.includes("glass") || s.includes("verre")) return "verre";
+    if (s.includes("cardboard") || s.includes("carton") || s.includes("box")) return "carton";
+    if (s.includes("paper") || s.includes("papier") || s.includes("newspaper") || s.includes("journal")) return "papier";
+    if (s.includes("metal") || s.includes("can") || s.includes("aluminium") || s.includes("canette") || s.includes("tin")) return "metal";
+    if (s.includes("food") || s.includes("organic") || s.includes("vegetable") || s.includes("fruit") || s.includes("organic")) return "organique";
+    if (s.includes("electro") || s.includes("phone") || s.includes("laptop") || s.includes("tv") || s.includes("electron")) return "electronique";
+    if (s.includes("rubble") || s.includes("brick") || s.includes("grav") || s.includes("concrete") || s.includes("construction")) return "construction";
+    if (s.includes("cloth") || s.includes("textile") || s.includes("clothes") || s.includes("vetement") || s.includes("vêtement")) return "textile";
+    if (s.includes("tire") || s.includes("tyre") || s.includes("pneu")) return "pneu";
+    if (s.includes("furniture") || s.includes("meuble") || s.includes("chair") || s.includes("table")) return "meuble";
+    if (s.includes("medical") || s.includes("syringe") || s.includes("needle") || s.includes("biohazard") || s.includes("hospital")) return "dangereux";
+    if (s.includes("rubber") || s.includes("caoutchouc")) return "menager";
+    // fallback to unknown
+    return "inconnu";
+}
 
 async function callVisionAI(imageDataUrl: string, prompt: string, signal?: AbortSignal) {
     const key = process.env.LOVABLE_API_KEY;
@@ -45,20 +66,25 @@ export const serverWasteAIAdapter: ModelAdapter = {
             const prompt = `Vous êtes un service de vision qui détecte des objets de déchets. Répondez uniquement en JSON avec la clé \"objects\" contenant une liste d'objets { label: string, confidence: number, bbox: [xmin, ymin, xmax, ymax] } en coordonnées normalisées (0-1). Ne renvoyez aucun texte autre que le JSON.`;
             const data = await callVisionAI(imageDataUrl, prompt);
             const objs = Array.isArray(data.objects) ? data.objects : [];
-            const detected: DetectedObject[] = objs.map((o: any) => ({
-                classId: 0,
-                label: String(o.label || "inconnu").toLowerCase(),
-                displayLabel: String(o.label || "inconnu"),
-                confidence: Number(o.confidence || 0),
-                bbox: {
-                    x: ((Number(o.bbox?.[0] ?? 0) + Number(o.bbox?.[2] ?? 0)) / 2) || 0.5,
-                    y: ((Number(o.bbox?.[1] ?? 0) + Number(o.bbox?.[3] ?? 0)) / 2) || 0.5,
-                    width: Math.abs(Number(o.bbox?.[2] ?? 0) - Number(o.bbox?.[0] ?? 0)) || 0.1,
-                    height: Math.abs(Number(o.bbox?.[3] ?? 0) - Number(o.bbox?.[1] ?? 0)) || 0.1,
-                },
-                area: (Math.abs(Number(o.bbox?.[2] ?? 0) - Number(o.bbox?.[0] ?? 0)) || 0.1) *
-                    (Math.abs(Number(o.bbox?.[3] ?? 0) - Number(o.bbox?.[1] ?? 0)) || 0.1),
-            }));
+            const detected: DetectedObject[] = objs.map((o: any) => {
+                const rawLabel = String(o.label || "inconnu");
+                const material = mapLabelToMaterial(rawLabel);
+                const display = material;
+                return {
+                    classId: 0,
+                    label: material as any,
+                    displayLabel: display as any,
+                    confidence: Number(o.confidence || 0),
+                    bbox: {
+                        x: ((Number(o.bbox?.[0] ?? 0) + Number(o.bbox?.[2] ?? 0)) / 2) || 0.5,
+                        y: ((Number(o.bbox?.[1] ?? 0) + Number(o.bbox?.[3] ?? 0)) / 2) || 0.5,
+                        width: Math.abs(Number(o.bbox?.[2] ?? 0) - Number(o.bbox?.[0] ?? 0)) || 0.1,
+                        height: Math.abs(Number(o.bbox?.[3] ?? 0) - Number(o.bbox?.[1] ?? 0)) || 0.1,
+                    },
+                    area: (Math.abs(Number(o.bbox?.[2] ?? 0) - Number(o.bbox?.[0] ?? 0)) || 0.1) *
+                        (Math.abs(Number(o.bbox?.[3] ?? 0) - Number(o.bbox?.[1] ?? 0)) || 0.1),
+                } as DetectedObject;
+            });
 
             const confidence = detected.length ? detected.reduce((s, x) => s + x.confidence, 0) / detected.length : 0;
             // Attempt to get image size via a lightweight approach: not available server-side, default to 800x600
