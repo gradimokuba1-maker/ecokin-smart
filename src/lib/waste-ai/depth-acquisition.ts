@@ -1,6 +1,6 @@
 import type { DepthAcquisition } from "./depth-service";
 
-export type DepthSource = "lidar" | "tof" | "arcore" | "arkit" | "ai";
+export type DepthSource = DepthAcquisition["source"];
 
 // This is a placeholder for actual browser/device APIs.
 // In a real implementation, you would check for things like:
@@ -10,7 +10,12 @@ export type DepthSource = "lidar" | "tof" | "arcore" | "arkit" | "ai";
 async function detectDepthSensor(): Promise<DepthAcquisition> {
   const nav = typeof navigator !== "undefined" ? (navigator as any) : undefined;
   if (typeof window === "undefined" || !nav || !("xr" in nav)) {
-    return { source: "ai", label: "IA (serveur/sans-XR)", supported: true };
+    return {
+      source: "ai",
+      label: "Estimation visuelle sans capteur de profondeur",
+      supported: false,
+      confidence: 0.35,
+    };
   }
 
   // Use WebXR Device API to detect depth sensing capabilities
@@ -28,14 +33,14 @@ async function detectDepthSensor(): Promise<DepthAcquisition> {
         // Let's check if it's likely ARKit or ARCore
         const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
         const source: DepthSource =
-          /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream ? "arkit" : "arcore";
+          /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream ? "lidar" : "arcore";
 
         return {
           source,
-          label: source === "arkit" ? "ARKit Depth" : "ARCore Depth",
+          label: source === "lidar" ? "LiDAR / ARKit Depth" : "ARCore Depth",
           supported: true,
           confidence: 0.85,
-          resolution: { width: 256, height: 192 }, // Typical low-res depth map
+          resolution: { width: 256, height: 192 },
         };
       }
     }
@@ -43,24 +48,11 @@ async function detectDepthSensor(): Promise<DepthAcquisition> {
     console.warn("WebXR depth sensing detection failed, may not be supported.", e);
   }
 
-  // Simulate ToF sensor detection as a fallback example (no standard web API exists)
-  if (Math.random() > 0.8) {
-    // Simulate 20% chance
-    return {
-      source: "tof",
-      label: "Capteur ToF (simulé)",
-      supported: true,
-      confidence: 0.7,
-      resolution: { width: 320, height: 240 },
-    };
-  }
-
-  // Default to AI-based monocular depth estimation
   return {
     source: "ai",
-    label: "IA monoculaire",
-    supported: true,
-    confidence: 0.6,
+    label: "Estimation visuelle sans capteur de profondeur",
+    supported: false,
+    confidence: 0.35,
   };
 }
 
@@ -72,9 +64,9 @@ export const getDepthAcquisition = async (): Promise<DepthAcquisition> => {
     console.error("Erreur lors de la détection du capteur de profondeur:", error);
     return {
       source: "ai",
-      label: "IA monoculaire (fallback)",
-      supported: true,
-      confidence: 0.5,
+      label: "Estimation visuelle sans capteur de profondeur",
+      supported: false,
+      confidence: 0.3,
     };
   }
 };

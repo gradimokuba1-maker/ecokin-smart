@@ -99,8 +99,8 @@ export type WeightEstimate = {
 };
 
 export type AnalysisMethodMetadata = {
-  detection: "yolo11" | "yolo11+zero-shot" | "unavailable";
-  segmentation: "sam2" | "bounding-box" | "unavailable";
+  detection: "yolo11" | "yolo11+zero-shot" | "server-vision" | "unavailable";
+  segmentation: "sam2" | "bounding-box" | "server-segmentation" | "unavailable";
   volume: "lidar" | "ai-depth" | "depth-api" | "perspective" | "reference" | "estimation";
   captureMode: "single" | "multi" | "video";
   viewsAnalyzed: number;

@@ -52,13 +52,17 @@ const MATERIALS: readonly WasteMaterial[] = [
 ];
 
 function toMaterial(value: unknown, fallback: WasteMaterial = "inconnu"): WasteMaterial {
+  if (typeof value === "string" && value.trim().toLowerCase() === "mist") return fallback;
   return typeof value === "string" && MATERIALS.includes(value as WasteMaterial)
     ? (value as WasteMaterial)
     : fallback;
 }
 
-function toRisk(value: unknown): "faible" | "modere" | "eleve" {
-  return value === "faible" || value === "modere" || value === "eleve" ? value : "modere";
+function toRisk(
+  value: unknown,
+  fallback: "faible" | "modere" | "eleve" = "faible",
+): "faible" | "modere" | "eleve" {
+  return value === "faible" || value === "modere" || value === "eleve" ? value : fallback;
 }
 
 function detectedObjects(value: unknown) {
@@ -66,8 +70,8 @@ function detectedObjects(value: unknown) {
   return value.slice(0, 12).flatMap((object) => {
     if (!object || typeof object !== "object") return [];
     const item = object as Record<string, unknown>;
-    const label =
-      typeof item.label === "string" ? item.label.trim().slice(0, 60) : "déchet non précisé";
+    const label = typeof item.label === "string" ? item.label.trim().slice(0, 60) : "";
+    if (!label || label.toLowerCase() === "mist") return [];
     const count = Math.max(1, Math.min(999, Math.round(Number(item.count) || 1)));
     const confidence = Math.max(0, Math.min(1, Number(item.confidence) || 0));
     return label ? [{ label, count, confidence }] : [];
@@ -78,17 +82,25 @@ function detectedObjects(value: unknown) {
 function createFallback(input: Input): WasteAnalysisResult {
   const now = new Date().toISOString();
   const id = "ECO-" + Date.now().toString(36).toUpperCase();
-  const composition: CompositionEntry[] = [{ material: "mixte", percentage: 100 }];
+  const composition: CompositionEntry[] = [];
   const dimensions: Dimensions3D = {
-    lengthM: 1.5,
-    widthM: 1.0,
-    heightAvgM: 0.8,
-    surfaceM2: 1.5,
-    volumeM3: 1.2,
-    confidence: 0.4,
-    uncertaintyPercent: 60,
+    lengthM: 0,
+    widthM: 0,
+    heightAvgM: 0,
+    surfaceM2: 0,
+    volumeM3: 0,
+    confidence: 0,
+    uncertaintyPercent: 100,
   };
-  const weight = calculateWeightFromVolume(dimensions.volumeM3, composition);
+  const weight: WeightEstimate = {
+    weightKg: 0,
+    weightTons: 0,
+    densityKgM3: 0,
+    minWeightKg: 0,
+    maxWeightKg: 0,
+    confidence: 0,
+    uncertaintyPercent: 100,
+  };
   const location: LocationInfo = {
     lat: input.lat ?? -4.3317,
     lng: input.lng ?? 15.3139,
@@ -97,14 +109,14 @@ function createFallback(input: Input): WasteAnalysisResult {
     altitudeM: input.altitudeM,
     capturedAt: input.capturedAt ?? now,
   };
-  const priorityScore = 45;
+  const priorityScore = 0;
   return {
     id,
     timestamp: now,
     photoUrl: input.imageDataUrl,
     model3DAvailable: false,
     composition,
-    mainCategory: "mixte",
+    mainCategory: "inconnu",
     dimensions,
     weight,
     location,
@@ -112,9 +124,9 @@ function createFallback(input: Input): WasteAnalysisResult {
     priorityLevel: calculatePriorityLevel(priorityScore),
     interventionUrgent: false,
     floodRisk: false,
-    healthRisk: "modere",
-    environmentalRisk: "modere",
-    pollutionRisk: "modere",
+    healthRisk: "faible",
+    environmentalRisk: "faible",
+    pollutionRisk: "faible",
     fireRisk: "faible",
     obstructionRisk: "faible",
     cameraCapability: input.cameraCapability ?? "basic",
@@ -125,11 +137,11 @@ function createFallback(input: Input): WasteAnalysisResult {
       captureMode: "single",
       viewsAnalyzed: 1,
     },
-    analysisConfidence: 0.4,
-    wasteAreaPercent: 60,
-    detectedObjects: [{ label: "dépôt mélangé", confidence: 0.4, count: 1 }],
-    environmentDetected: ["sol", "route"],
-    description: "Dépôt de déchets détecté. Analyse précise indisponible (mode dégradé).",
+    analysisConfidence: 0,
+    wasteAreaPercent: 0,
+    detectedObjects: [],
+    environmentDetected: [],
+    description: "Analyse IA indisponible : aucun resultat de vision fiable n'a ete produit.",
     recommendations: [
       "Confirmer la localisation sur la carte",
       "Signaler aux services communaux",
@@ -252,14 +264,17 @@ Analyse la photo et renvoie ce JSON EXACT :
 }
 
 RÈGLES IMPORTANTES :
-- composition doit contenir 1 à 5 matériaux, les pourcentages doivent totaliser 100
+- Ne renvoie jamais "Mist".
+- N'invente aucun dechet. Si aucun dechet identifiable n'est visible ou si l'image est floue/sombre/mal cadree, renvoie mainCategory "inconnu", composition [], detectedObjects [], wasteAreaPercent 0, volumeM3 0 et dimensionsConfidence 0.
+- composition doit contenir uniquement les materiaux visibles avec confiance suffisante; elle peut etre vide si rien n'est fiable.
+- composition doit contenir 1 à 5 matériaux maximum lorsque des déchets sont réellement visibles, les pourcentages doivent totaliser 100
 - wasteAreaPercent = pourcentage de l'image occupé par les déchets (0-100)
 - environmentDetected = liste des éléments de l'environnement visibles
-- lengthM/widthM/heightAvgM = dimensions estimées en mètres
-- volumeM3 = lengthM * widthM * heightAvgM
+- lengthM/widthM/heightAvgM = dimensions estimées en mètres uniquement si elles sont inferables depuis la photo ou les donnees de profondeur fournies
+- volumeM3 = lengthM * widthM * heightAvgM, en m³, ou 0 si l'estimation n'est pas fiable
 - dimensionsConfidence = niveau de confiance sur les dimensions (0-1)
 - floodRisk = true si le dépôt obstrue un caniveau ou cours d'eau
-- Sois précis et réaliste dans les estimations de volume`;
+- Sois précis et réaliste dans les estimations de volume; ne presente jamais une estimation perspective comme une mesure exacte`;
 
         console.log("Prétraitement de l'image et des données de profondeur...");
         const depthMetrics = calculateVolumeFromDepth(depthData);
@@ -279,12 +294,12 @@ RÈGLES IMPORTANTES :
         const imageContent: Array<
           { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }
         > = [
-            {
-              type: "text",
-              text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète.",
-            },
-            { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
-          ];
+          {
+            type: "text",
+            text: "Analyse ce dépôt de déchets et renvoie le JSON d'analyse complète.",
+          },
+          { type: "image_url", image_url: { url: payloadForAI.imageDataUrl } },
+        ];
 
         for (const image of payloadForAI.additionalImages?.slice(0, 3) ?? []) {
           imageContent.push({ type: "image_url", image_url: { url: image } });
@@ -299,11 +314,15 @@ RÈGLES IMPORTANTES :
         ];
 
         console.log("Appel IA avec AbortController...");
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const endpoint =
+          process.env.WASTE_DETECTION_ENDPOINT ||
+          "https://ai.gateway.lovable.dev/v1/chat/completions";
+        const model = process.env.WASTE_DETECTION_MODEL || "google/gemini-3-flash-preview";
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model,
             response_format: { type: "json_object" },
             messages,
           }),
@@ -317,7 +336,11 @@ RÈGLES IMPORTANTES :
         console.log("Réponse IA reçue.");
         const json: any = await res.json();
         const content: string = json?.choices?.[0]?.message?.content ?? "";
-        const p = JSON.parse(content);
+        const cleanContent = content
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/i, "")
+          .trim();
+        const p = JSON.parse(cleanContent || "{}");
 
         console.log("Calcul des dimensions et de la composition...");
         const composition: CompositionEntry[] = (p.composition ?? []).map((c: any) => ({
@@ -336,28 +359,46 @@ RÈGLES IMPORTANTES :
           }
         }
 
-        if (composition.length === 0) {
-          composition.push({ material: toMaterial(p.mainCategory, "mixte"), percentage: 100 });
+        const rawDetectedObjects = detectedObjects(p.detectedObjects);
+        const reliableDetectedObjects = rawDetectedObjects.filter(
+          (object) => object.confidence >= 0.35,
+        );
+        if (composition.length === 0 && reliableDetectedObjects.length > 0) {
+          const material = toMaterial(p.mainCategory, "inconnu");
+          if (material !== "inconnu") composition.push({ material, percentage: 100 });
         }
 
         const hasDepthMetrics = !!depthMetrics;
+        const hasModelVolume =
+          Number.isFinite(Number(p.surfaceM2)) &&
+          Number.isFinite(Number(p.heightAvgM)) &&
+          Number.isFinite(Number(p.volumeM3));
         const surfaceM2 = hasDepthMetrics
           ? depthMetrics.surfaceM2
-          : Math.round(Number(p.surfaceM2 ?? 1.5) * 10) / 10;
+          : hasModelVolume
+            ? Math.max(0, Math.round(Number(p.surfaceM2) * 10) / 10)
+            : 0;
         const heightAvgM = hasDepthMetrics
           ? depthMetrics.heightAvgM
-          : Math.max(0.05, Number(p.heightAvgM ?? 0.5));
+          : hasModelVolume
+            ? Math.max(0, Number(p.heightAvgM))
+            : 0;
         const volumeM3 = hasDepthMetrics
           ? depthMetrics.volumeM3
-          : Math.round(Number(p.volumeM3 ?? 1.2) * 100) / 100;
+          : hasModelVolume
+            ? Math.max(0, Math.round(Number(p.volumeM3) * 100) / 100)
+            : 0;
 
-        const ratio = p.lengthM && p.widthM ? p.lengthM / p.widthM : 1.5;
-        const widthM = Math.sqrt(surfaceM2 / ratio);
+        const ratio =
+          Number(p.lengthM) > 0 && Number(p.widthM) > 0 ? Number(p.lengthM) / Number(p.widthM) : 1;
+        const widthM = surfaceM2 > 0 ? Math.sqrt(surfaceM2 / ratio) : 0;
         const lengthM = widthM * ratio;
 
         const dimensionsConfidence = hasDepthMetrics
           ? 0.85
-          : Math.max(0, Math.min(1, Number(p.dimensionsConfidence ?? 0.6)));
+          : hasModelVolume
+            ? Math.max(0, Math.min(0.55, Number(p.dimensionsConfidence ?? 0.35)))
+            : 0;
 
         const dimensions: Dimensions3D = {
           lengthM: Math.round(lengthM * 10) / 10,
@@ -369,7 +410,10 @@ RÈGLES IMPORTANTES :
           uncertaintyPercent: Math.round((1 - dimensionsConfidence) * 100),
         };
 
-        const weight = calculateWeightFromVolume(volumeM3, composition);
+        const weight =
+          volumeM3 > 0 && composition.length > 0
+            ? calculateWeightFromVolume(volumeM3, composition)
+            : createFallback(data).weight;
 
         const location: LocationInfo = {
           lat: payloadForAI.lat ?? -4.3317,
@@ -392,8 +436,12 @@ RÈGLES IMPORTANTES :
         const healthScore = p.healthRisk === "eleve" ? 15 : p.healthRisk === "modere" ? 8 : 0;
         const priorityScore = Math.min(100, sevScore + floodScore + volumeScore + healthScore);
 
-        const mainCategory = toMaterial(p.mainCategory, "mixte");
-        const secondaryCategory = p.secondaryCategory ? toMaterial(p.secondaryCategory) : undefined;
+        const mainCategory =
+          composition.length > 0 ? toMaterial(p.mainCategory, composition[0].material) : "inconnu";
+        const secondaryCategory =
+          composition.length > 1 && p.secondaryCategory
+            ? toMaterial(p.secondaryCategory)
+            : composition[1]?.material;
 
         console.log("Fin de l'analyse.");
         return {
@@ -404,11 +452,9 @@ RÈGLES IMPORTANTES :
           composition,
           mainCategory,
           secondaryCategory,
-          wasteAreaPercent: Math.min(100, Math.max(0, Number(p.wasteAreaPercent ?? 50))),
-          detectedObjects: detectedObjects(p.detectedObjects),
-          environmentDetected: Array.isArray(p.environmentDetected)
-            ? p.environmentDetected
-            : ["sol"],
+          wasteAreaPercent: Math.min(100, Math.max(0, Number(p.wasteAreaPercent ?? 0))),
+          detectedObjects: reliableDetectedObjects,
+          environmentDetected: Array.isArray(p.environmentDetected) ? p.environmentDetected : [],
           dimensions,
           weight,
           location,
@@ -429,8 +475,17 @@ RÈGLES IMPORTANTES :
             captureMode: (additionalImages?.length ?? 0) > 0 ? "multi" : "single",
             viewsAnalyzed: 1 + (additionalImages?.length ?? 0),
           },
-          analysisConfidence: dimensionsConfidence,
-          description: String(p.description ?? "Dépôt de déchets détecté."),
+          analysisConfidence: Math.max(
+            dimensionsConfidence,
+            reliableDetectedObjects.length
+              ? reliableDetectedObjects.reduce((sum, item) => sum + item.confidence, 0) /
+                  reliableDetectedObjects.length
+              : 0,
+          ),
+          description:
+            composition.length > 0 || reliableDetectedObjects.length > 0
+              ? String(p.description ?? "Analyse des dechets visibles realisee.")
+              : "Aucun dechet identifiable avec une confiance suffisante. Reprenez une photo plus nette et mieux cadree.",
           recommendations: Array.isArray(p.recommendations)
             ? p.recommendations.slice(0, 5).map(String)
             : ["Signaler aux services communaux", "Planifier une intervention"],

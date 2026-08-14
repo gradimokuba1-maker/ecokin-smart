@@ -5,10 +5,7 @@
 // Retourne: catégories de déchets, volume estimé, poids estimé, score de confiance
 
 import type { WasteMaterial, CompositionEntry, Dimensions3D, WeightEstimate } from "./types";
-import {
-  calculateCompositionFromDetections,
-  type DetectionResult,
-} from "./detection";
+import { calculateCompositionFromDetections, type DetectionResult } from "./detection";
 import type { DetectedObject } from "./detection";
 import { segmentWasteAreas, type SegmentationResult, type SegmentMask } from "./segmentation";
 import { estimateWasteVolume, type DepthEstimate } from "./volume-estimator";
@@ -315,9 +312,9 @@ export async function quickQuantify(
   const wasteRatio =
     detectionResult.objects.length > 0
       ? Math.min(
-        1,
-        detectionResult.objects.reduce((sum, o) => sum + o.area, 0),
-      )
+          1,
+          detectionResult.objects.reduce((sum, o) => sum + o.area, 0),
+        )
       : 0.5;
 
   const wasteWidth = widthAtDistance * Math.sqrt(wasteRatio);

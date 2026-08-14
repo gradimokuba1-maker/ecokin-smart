@@ -35,7 +35,7 @@ export type DetectionResult = {
   imageWidth: number;
   imageHeight: number;
   processingTimeMs: number;
-  modelUsed: "yolo11" | "yolo11+zero-shot" | "unavailable";
+  modelUsed: "yolo11" | "yolo11+zero-shot" | "server-vision" | "unavailable";
   confidence: number;
 };
 

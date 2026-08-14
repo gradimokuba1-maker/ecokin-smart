@@ -177,7 +177,9 @@ function SignalerPage() {
     if (duplicateCheck && !forceCreateNew) {
       setDuplicateCandidate(duplicateCheck.candidate);
       setSubmissionMode("new");
-      toast.message("Un dépôt similaire est déjà actif à proximité. Confirmez s’il s’agit du même dépôt.");
+      toast.message(
+        "Un dépôt similaire est déjà actif à proximité. Confirmez s’il s’agit du même dépôt.",
+      );
       setStep("confirmation");
       return;
     }
@@ -223,7 +225,7 @@ function SignalerPage() {
         province: "Kinshasa",
         city: "Kinshasa",
         commune: detectCityCommune(DEFAULT_CITY, capture.location.lat, capture.location.lng).id,
-        category: "mixte" as const,
+        category: "inconnu" as const,
         urgency: "moyen" as const,
         description: description || "Signalement citoyen rapide.",
         lat: capture.location.lat,
@@ -301,8 +303,8 @@ function SignalerPage() {
             Souhaitez-vous créer un compte pour suivre vos signalements ?
           </h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-            Votre signalement est enregistré. Choisissez comment continuer avant l'affichage de
-            la confirmation finale.
+            Votre signalement est enregistré. Choisissez comment continuer avant l'affichage de la
+            confirmation finale.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -429,7 +431,8 @@ function SignalerPage() {
             <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-950 dark:text-amber-200">
               <p className="font-semibold">Un dépôt similaire est déjà actif à proximité.</p>
               <p className="mt-1 text-amber-800/90 dark:text-amber-300/90">
-                Distance estimée : {duplicateCandidate.distanceMeters} m. Confirmez s’il s’agit du même dépôt.
+                Distance estimée : {duplicateCandidate.distanceMeters} m. Confirmez s’il s’agit du
+                même dépôt.
               </p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Button
@@ -448,7 +451,9 @@ function SignalerPage() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    console.log("[CLIENT] Création d’un nouveau signalement malgré le doublon probable");
+                    console.log(
+                      "[CLIENT] Création d’un nouveau signalement malgré le doublon probable",
+                    );
                     void submitReport(true);
                   }}
                   className="w-full sm:w-auto"

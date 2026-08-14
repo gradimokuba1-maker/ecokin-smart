@@ -145,10 +145,10 @@ export async function runServerWasteAIEngine(
         ),
         confidence: object.confidence,
         boundingBox: {
-          x: object.bbox[0],
-          y: object.bbox[1],
-          width: object.bbox[2] - object.bbox[0],
-          height: object.bbox[3] - object.bbox[1],
+          x: object.bbox.x,
+          y: object.bbox.y,
+          width: object.bbox.width,
+          height: object.bbox.height,
         },
         segmentationMask: `mask-${reportId}-${index}`,
         dimensions: quantification.volume.dimensions,
@@ -158,27 +158,31 @@ export async function runServerWasteAIEngine(
     );
   }
 
-  const fallbackObjects: AIDetectedObject[] = analysisResult
-    ? [
-        {
-          category: analysisResult.mainCategory,
-          material: normalizeMaterial(analysisResult.mainCategory),
-          confidence: analysisResult.analysisConfidence,
-          boundingBox: { x: 0, y: 0, width: 1, height: 1 },
-          segmentationMask: `mask-${reportId}-fallback`,
-          dimensions: analysisResult.dimensions,
-          surface: analysisResult.dimensions.surfaceM2,
-          volume: analysisResult.dimensions.volumeM3,
-        },
-      ]
-    : [];
+  const fallbackObjects: AIDetectedObject[] =
+    analysisResult &&
+    analysisResult.mainCategory !== "inconnu" &&
+    analysisResult.analysisConfidence > 0 &&
+    analysisResult.dimensions.volumeM3 > 0
+      ? [
+          {
+            category: analysisResult.mainCategory,
+            material: normalizeMaterial(analysisResult.mainCategory),
+            confidence: analysisResult.analysisConfidence,
+            boundingBox: { x: 0, y: 0, width: 1, height: 1 },
+            segmentationMask: `mask-${reportId}-fallback`,
+            dimensions: analysisResult.dimensions,
+            surface: analysisResult.dimensions.surfaceM2,
+            volume: analysisResult.dimensions.volumeM3,
+          },
+        ]
+      : [];
 
   const envelope: AIEngineEnvelope = {
     reportId,
     sensors,
     objects: objectList.length > 0 ? objectList : fallbackObjects,
     summary: {
-      mainCategory: analysisResult?.mainCategory ?? "mixte",
+      mainCategory: analysisResult?.mainCategory ?? "inconnu",
       confidence: analysisResult?.analysisConfidence ?? quantification?.confidence.overall ?? 0.4,
       wasteAreaPercent:
         analysisResult?.wasteAreaPercent ?? quantification?.metadata.wasteAreaPercent ?? 0,
@@ -186,7 +190,10 @@ export async function runServerWasteAIEngine(
         detection: quantification?.metadata.modelsUsed.detection ?? "yolo11",
         segmentation: quantification?.metadata.modelsUsed.segmentation ?? "sam2",
         depth: quantification?.metadata.modelsUsed.volume ?? "depth-api",
-        classification: analysisResult?.mainCategory ? "classification" : "fallback",
+        classification:
+          analysisResult?.mainCategory && analysisResult.mainCategory !== "inconnu"
+            ? "classification"
+            : "unavailable",
       },
     },
     createdAt: new Date().toISOString(),

@@ -1,8 +1,8 @@
 export interface DepthAcquisition {
-  source: "lidar" | "tof" | "arcore" | "arkit" | "ai";
+  source: "lidar" | "arcore" | "ai";
   label: string;
   supported: boolean;
-  depthData?: Float32Array | ImageData | Blob;
+  depthData?: string | Float32Array | ImageData | Blob;
   confidence?: number;
   resolution?: {
     width: number;
