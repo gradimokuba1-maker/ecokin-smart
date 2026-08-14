@@ -45,6 +45,8 @@ export type {
 
 export { analyzeWastePhotoAdvanced } from "./analysis.functions";
 export { askDecisionAssistant } from "./analysis.functions";
+export { createWasteDetectionService, getWasteDetectionService } from "./waste-detection-service";
+export type { WasteDetectionAnalysis } from "./types-extensions";
 export {
   detectDeviceCapability,
   requestCameraPermission,

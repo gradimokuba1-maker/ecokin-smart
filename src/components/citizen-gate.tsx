@@ -10,9 +10,16 @@ type Props = {
   description?: string;
   children?: React.ReactNode;
   forceForm?: boolean;
+  postAuthRedirect?: string;
 };
 
-export function CitizenGate({ title, description, children, forceForm = false }: Props) {
+export function CitizenGate({
+  title,
+  description,
+  children,
+  forceForm = false,
+  postAuthRedirect,
+}: Props) {
   const navigate = useNavigate();
   const { user, register, signIn } = useEcoUser();
   const [mode, setMode] = useState<"signup" | "signin">("signup");
@@ -26,9 +33,13 @@ export function CitizenGate({ title, description, children, forceForm = false }:
 
   useEffect(() => {
     if (user.registered) {
+      if (postAuthRedirect && typeof window !== "undefined") {
+        window.location.assign(postAuthRedirect);
+        return;
+      }
       navigate({ to: "/citoyen", replace: true });
     }
-  }, [user.registered, navigate]);
+  }, [user.registered, navigate, postAuthRedirect]);
 
   if (user.registered && !forceForm) return <>{children}</>;
 
@@ -45,11 +56,16 @@ export function CitizenGate({ title, description, children, forceForm = false }:
       const success = register(form);
       if (!success) {
         setErr("Impossible de créer le compte. Vérifiez les informations et réessayez.");
+        return;
       }
     } else {
       if (!signIn(form.phone, form.pin)) {
         setErr("Téléphone ou code PIN incorrect.");
+        return;
       }
+    }
+    if (postAuthRedirect && typeof window !== "undefined") {
+      window.location.assign(postAuthRedirect);
     }
   };
 

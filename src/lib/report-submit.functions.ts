@@ -8,6 +8,7 @@ import { updateReport } from "./ecokin-db";
 import { computePerceptualHash } from "./image-hash";
 import { runServerWasteAIEngine, getServerAIAnalysis } from "./waste-ai/ai-engine";
 import { registerValidatedImage } from "./waste-ai/ai-learning";
+import { getWasteDetectionService } from "./waste-ai/waste-detection-service";
 
 // Empreinte perceptuelle aHash 8x8 → 16 hex chars.
 const HashSchema = z.string().regex(/^[0-9a-f]{16}$/i, "Empreinte invalide");
@@ -188,6 +189,9 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
 
       try {
         console.log("[4] Lancement de l'analyse IA");
+        const service = getWasteDetectionService();
+        const visionAnalysis = await service.analyzeImage(capture.imageDataUrl, { minConfidence: 0.2 });
+
         const analysisResult = await analyzeWastePhotoAdvanced({
           data: {
             imageDataUrl: capture.imageDataUrl,
@@ -204,14 +208,25 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
             depthData: capture.depthData,
           },
         });
+
+        const enrichedAnalysis = {
+          ...analysisResult,
+          mainCategory: visionAnalysis.dominantCategory || analysisResult.mainCategory,
+          secondaryCategory: visionAnalysis.secondaryCategories[0] || analysisResult.secondaryCategory,
+          composition: analysisResult.composition.length
+            ? analysisResult.composition
+            : [{ material: visionAnalysis.dominantCategory || "inconnu", percentage: 100 }],
+          description: visionAnalysis.comment || analysisResult.description,
+          analysisConfidence: Math.max(analysisResult.analysisConfidence, visionAnalysis.confidence),
+        };
         console.log("[5] Analyse IA terminée");
 
-        const engineResult = await runServerWasteAIEngine(reportId, capture, analysisResult);
+        const engineResult = await runServerWasteAIEngine(reportId, capture, enrichedAnalysis);
         // Reconcile analysisResult (LLM or fallback) with server-side quantification.
         // If the server quantification is more confident or analysis returned a generic "mixte",
         // prefer the server-derived main category and composition computed from detected objects.
         const engineConfidence = engineResult.summary?.confidence ?? 0;
-        const analysisConfidence = analysisResult.analysisConfidence ?? 0;
+        const analysisConfidence = enrichedAnalysis.analysisConfidence ?? 0;
 
         // Build composition from engine detected objects when available
         function compositionFromEngineObjects() {
@@ -234,12 +249,12 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
         const engineComposition = compositionFromEngineObjects();
         const engineMain = engineComposition[0]?.material ?? engineResult.summary?.mainCategory ?? "mixte";
 
-        let finalMainCategory = analysisResult.mainCategory;
-        let finalComposition = analysisResult.composition;
+        let finalMainCategory = enrichedAnalysis.mainCategory;
+        let finalComposition = enrichedAnalysis.composition;
         // Choose engine result when it's meaningfully more confident or analysis gave a generic mixte
         if (
           engineResult.objects.length > 0 &&
-          (analysisResult.mainCategory === "mixte" || engineConfidence > analysisConfidence + 0.05)
+          (enrichedAnalysis.mainCategory === "mixte" || engineConfidence > analysisConfidence + 0.05)
         ) {
           finalMainCategory = engineMain as any;
           finalComposition = engineComposition as any;
@@ -263,23 +278,23 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
 
         const patch: Partial<import("./live-reports").LiveReport> = {
           category: finalMainCategory,
-          description: analysisResult.description || description,
-          volumeM3: analysisResult.dimensions?.volumeM3,
-          priorityScore: analysisResult.priorityScore,
-          priorityLevel: analysisResult.priorityLevel,
+          description: enrichedAnalysis.description || description,
+          volumeM3: enrichedAnalysis.dimensions?.volumeM3,
+          priorityScore: enrichedAnalysis.priorityScore,
+          priorityLevel: enrichedAnalysis.priorityLevel,
           analysisConfidence: combinedConfidence,
-          dimensions: analysisResult.dimensions,
-          cameraCapability: analysisResult.cameraCapability ?? "basic",
-          model3DAvailable: analysisResult.model3DAvailable ?? false,
-          healthRisk: analysisResult.healthRisk,
-          floodRisk: analysisResult.floodRisk,
-          interventionUrgent: analysisResult.interventionUrgent,
+          dimensions: enrichedAnalysis.dimensions,
+          cameraCapability: enrichedAnalysis.cameraCapability ?? "basic",
+          model3DAvailable: enrichedAnalysis.model3DAvailable ?? false,
+          healthRisk: enrichedAnalysis.healthRisk,
+          floodRisk: enrichedAnalysis.floodRisk,
+          interventionUrgent: enrichedAnalysis.interventionUrgent,
           composition: finalComposition?.map((c) => ({
             material: c.material,
             percentage: c.percentage,
           })),
-          aiAnalysis: analysisResult,
-          ...(analysisResult.interventionUrgent || analysisResult.priorityLevel === "critique"
+          aiAnalysis: enrichedAnalysis,
+          ...(enrichedAnalysis.interventionUrgent || enrichedAnalysis.priorityLevel === "critique"
             ? { status: "assignee" as const }
             : {}),
         };
@@ -287,7 +302,7 @@ export const submitCitizenReport = createServerFn({ method: "POST" })
         // Compute weight estimate when we have volume and composition
         try {
           const vol = patch.volumeM3;
-          const comp = patch.composition ?? (analysisResult.composition as any);
+          const comp = patch.composition ?? (enrichedAnalysis.composition as any);
           if (vol && comp && comp.length) {
             const { calculateWeightFromVolume } = await import("./waste-ai/types");
             const w = calculateWeightFromVolume(vol, comp as any);

@@ -19,6 +19,18 @@ export function queuePendingReportId(reportId: string) {
   }
 }
 
+export function forgetPendingReportId(reportId: string) {
+  if (typeof window === "undefined") return;
+  const existing = readPendingReportIds();
+  const next = existing.filter((id) => id !== reportId);
+  if (next.length === existing.length) return;
+  if (next.length) {
+    write(PENDING_REPORTS_KEY, next);
+  } else {
+    clearPendingReportIds();
+  }
+}
+
 function clearPendingReportIds() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(PENDING_REPORTS_KEY);
@@ -30,11 +42,15 @@ function linkPendingReportsToUser(user: User) {
 
   let linkedCount = 0;
   pending.forEach((reportId) => {
-    const updated = updateReport(reportId, {
-      author: user.name,
-      authorId: user.id,
-      authorRole: user.role,
-    });
+    const updated = updateReport(
+      reportId,
+      {
+        author: user.name,
+        authorId: user.id,
+        authorRole: user.role,
+      },
+      "Signalement lie au compte citoyen",
+    );
     if (updated) linkedCount += 1;
   });
 

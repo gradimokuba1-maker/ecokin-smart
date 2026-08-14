@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { lazy, Suspense, useCallback, useState } from "react";
-import { useEcoUser, queuePendingReportId } from "@/lib/user-store";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
+import { forgetPendingReportId, queuePendingReportId, useEcoUser } from "@/lib/user-store";
 import { computePerceptualHash } from "@/lib/image-hash";
 import { DEFAULT_CITY, detectCityCommune } from "@/lib/cities";
 import { updateLiveReport, pushLiveReport, confirmDuplicateReport } from "@/lib/live-reports";
@@ -11,17 +11,21 @@ import {
   loadSharedReportsFromSupabase,
 } from "@/lib/supabase-reports";
 import { evaluateDuplicateReport, type DuplicateCandidate } from "@/lib/duplicate-detection";
-import { Check, Loader2, ShieldCheck } from "lucide-react";
+import { Check, Loader2, ShieldCheck, UserPlus, UserX } from "lucide-react";
 import { toast } from "sonner";
 import type { CaptureResult } from "@/components/waste-ai/SmartWasteCamera";
 import { Button } from "@/components/ui/button";
 import { SiteNav } from "@/components/site-nav";
 
 export const Route = createFileRoute("/signaler")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    confirmedReportId:
+      typeof search.confirmedReportId === "string" ? search.confirmedReportId : undefined,
+  }),
   component: SignalerPage,
 });
 
-type PageStep = "camera" | "confirmation" | "submitting" | "submitted";
+type PageStep = "camera" | "confirmation" | "submitting" | "account-choice" | "submitted";
 
 const SmartWasteCamera = lazy(() =>
   import("@/components/waste-ai/SmartWasteCamera").then((module) => ({
@@ -42,8 +46,12 @@ function SignalementLoader({ label }: { label: string }) {
 
 function SignalerPage() {
   const navigate = useNavigate({ from: "/signaler" });
+  const { confirmedReportId } = Route.useSearch();
   const { user, login } = useEcoUser();
-  const [step, setStep] = useState<PageStep>("camera");
+  const restoredReportId = confirmedReportId ?? null;
+  const submissionInFlight = useRef(false);
+  const [step, setStep] = useState<PageStep>(restoredReportId ? "submitted" : "camera");
+  const [submittedReportId, setSubmittedReportId] = useState<string | null>(restoredReportId);
 
   const [capture, setCapture] = useState<CaptureResult | null>(null);
   const [hash, setHash] = useState<string | null>(null);
@@ -108,6 +116,7 @@ function SignalerPage() {
     setDescription("");
     setDuplicateCandidate(null);
     setSubmissionMode("new");
+    setSubmittedReportId(null);
     setStep("camera");
   };
 
@@ -127,6 +136,10 @@ function SignalerPage() {
 
   const submitReport = async (forceCreateNew = false) => {
     console.log("[CLIENT] Début de submitReport()");
+    if (submissionInFlight.current) {
+      return;
+    }
+
     if (!capture || !hash) {
       console.error("[CLIENT] Abandon : capture ou hash manquant.");
       toast.error("Une erreur est survenue, données de capture manquantes.");
@@ -136,6 +149,16 @@ function SignalerPage() {
     if (!capture.location) {
       console.error("[CLIENT] Abandon : localisation manquante.");
       toast.error("Localisation GPS introuvable. Activez la localisation et réessayez.");
+      setStep("confirmation");
+      return;
+    }
+
+    if (
+      isSupabaseCentralReportingEnabled() &&
+      typeof navigator !== "undefined" &&
+      !navigator.onLine
+    ) {
+      toast.error("Connexion Internet indisponible. Réessayez lorsque le réseau est disponible.");
       setStep("confirmation");
       return;
     }
@@ -161,6 +184,7 @@ function SignalerPage() {
 
     setDuplicateCandidate(null);
     console.log("[CLIENT] Passage à l'étape 'submitting'");
+    submissionInFlight.current = true;
     setStep("submitting");
 
     // Create a thumbnail for the optimistic update to avoid blocking the main thread
@@ -213,6 +237,7 @@ function SignalerPage() {
       } as const;
 
       const item = pushLiveReport(preliminaryReport as any);
+      setSubmittedReportId(item.id);
 
       // Start server processing in background; do not block UI (handles analysis, hashing, etc.)
       submitCitizenReport({ data: { ...payload, reportId: item.id } })
@@ -228,17 +253,18 @@ function SignalerPage() {
       // Queue pending if anonymous
       if (!user.registered) queuePendingReportId(item.id);
 
-      toast.success("Votre signalement a été envoyé avec succès !");
       login({
         ...user,
         points: user.points + (user.registered ? 25 : 10),
         reports: user.reports + 1,
       });
-      setStep("submitted");
+      setStep(user.registered ? "submitted" : "account-choice");
     } catch (error) {
       console.error("[CLIENT] Erreur lors de la création locale du rapport :", error);
       toast.error("L'envoi a échoué. Veuillez réessayer.");
       setStep("confirmation");
+    } finally {
+      submissionInFlight.current = false;
     }
   };
 
@@ -262,6 +288,53 @@ function SignalerPage() {
     );
   }
 
+  if (step === "account-choice") {
+    return (
+      <div className="min-h-screen bg-background">
+        <SiteNav minimal />
+        <main className="mx-auto flex min-h-[calc(100vh-72px)] max-w-xl flex-col justify-center px-4 py-10 text-center sm:px-6 lg:px-8">
+          <div className="mx-auto grid size-16 place-items-center rounded-full bg-eco/10 text-eco">
+            <ShieldCheck className="size-8" />
+          </div>
+
+          <h1 className="mt-6 font-display text-2xl font-bold tracking-tight sm:text-3xl">
+            Souhaitez-vous créer un compte pour suivre vos signalements ?
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
+            Votre signalement est enregistré. Choisissez comment continuer avant l'affichage de
+            la confirmation finale.
+          </p>
+
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <Button
+              onClick={() => {
+                if (!submittedReportId) return;
+                navigate({ to: "/rejoindre", search: { reportId: submittedReportId } });
+              }}
+              size="lg"
+              className="min-h-24 w-full flex-col gap-2 whitespace-normal rounded-2xl px-4 py-5 text-base"
+            >
+              <UserPlus className="size-5" />
+              Créer un compte
+            </Button>
+            <Button
+              onClick={() => {
+                if (submittedReportId) forgetPendingReportId(submittedReportId);
+                setStep("submitted");
+              }}
+              size="lg"
+              variant="outline"
+              className="min-h-24 w-full flex-col gap-2 whitespace-normal rounded-2xl px-4 py-5 text-base"
+            >
+              <UserX className="size-5" />
+              Continuer anonymement
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (step === "submitted") {
     return (
       <div className="min-h-screen bg-background">
@@ -278,7 +351,7 @@ function SignalerPage() {
           <h1 className="mt-6 font-display text-3xl font-bold text-emerald-700 dark:text-emerald-400 sm:text-4xl">
             {submissionMode === "duplicate-confirmed"
               ? "Dépôt confirmé avec succès !"
-              : "Signalement envoyé avec succès !"}
+              : "Votre signalement a été envoyé avec succès !"}
           </h1>
           <p className="mt-3 max-w-md text-base leading-7 text-muted-foreground sm:text-lg">
             {submissionMode === "duplicate-confirmed"
@@ -303,15 +376,8 @@ function SignalerPage() {
           </div>
 
           <div className="mt-8 flex w-full flex-col items-center gap-3">
-            <Button
-              onClick={() => navigate({ to: "/rejoindre" })}
-              size="lg"
-              className="w-full max-w-xs"
-            >
-              Créer un compte citoyen
-            </Button>
-            <Button onClick={() => navigate({ to: "/" })} variant="ghost" className="w-full max-w-xs">
-              Continuer anonymement
+            <Button onClick={() => navigate({ to: "/" })} size="lg" className="w-full max-w-xs">
+              Retour à l’accueil
             </Button>
           </div>
         </main>
