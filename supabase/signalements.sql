@@ -1,5 +1,23 @@
 create extension if not exists pgcrypto;
 
+-- The mobile citizen flow uploads photos here before inserting signalements.photo_url.
+insert into storage.buckets (id, name, public)
+values ('signalement-photos', 'signalement-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Citizen photo uploads" on storage.objects;
+create policy "Citizen photo uploads" on storage.objects
+for insert to anon, authenticated
+with check (
+  bucket_id = 'signalement-photos'
+  and name like 'citizen/%'
+);
+
+drop policy if exists "Citizen photo reads" on storage.objects;
+create policy "Citizen photo reads" on storage.objects
+for select to anon, authenticated
+using (bucket_id = 'signalement-photos');
+
 create table if not exists public.signalements (
   id text primary key,
   created_at timestamptz not null default now(),

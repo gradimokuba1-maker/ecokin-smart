@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Leaf, LogIn, ShieldCheck, UserPlus } from "lucide-react";
 import { useEcoUser } from "@/lib/user-store";
+import {
+  getCitizenProfile,
+  getCitizenSession,
+  signInCitizen,
+  signUpCitizen,
+} from "@/lib/citizen-auth";
 import { KINSHASA_COMMUNES } from "@/lib/cities";
 import { formatNumber } from "@/lib/utils";
 
@@ -21,15 +27,40 @@ export function CitizenGate({
   postAuthRedirect,
 }: Props) {
   const navigate = useNavigate();
-  const { user, register, signIn } = useEcoUser();
+  const { user, login } = useEcoUser();
   const [mode, setMode] = useState<"signup" | "signin">("signup");
   const [form, setForm] = useState({
     name: "",
     commune: KINSHASA_COMMUNES[0]?.name ?? "Kinshasa",
     phone: "",
+    email: "",
     pin: "",
   });
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const syncSupabaseUser = useCallback(async () => {
+    const session = await getCitizenSession();
+    if (!session) return false;
+    const profile = await getCitizenProfile(session.user.id);
+    if (!profile) return false;
+    login({
+      id: session.user.id,
+      name: profile.name,
+      role: "citoyen",
+      commune: profile.commune ?? undefined,
+      phone: profile.phone ?? undefined,
+      points: 0,
+      reports: 0,
+      badges: [],
+      registered: true,
+    });
+    return true;
+  }, [login]);
+
+  useEffect(() => {
+    void syncSupabaseUser().catch(() => undefined);
+  }, [syncSupabaseUser]);
 
   useEffect(() => {
     if (user.registered) {
@@ -45,25 +76,57 @@ export function CitizenGate({
 
   const hasExisting = user.points > 0 || user.reports > 0 || user.phone;
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    setBusy(true);
     if (mode === "signup") {
-      if (!form.name.trim() || !form.phone.trim() || form.pin.length < 4) {
-        setErr("Nom, téléphone et code PIN (4 chiffres min) sont obligatoires.");
+      if (!form.name.trim() || !form.phone.trim() || form.pin.length < 8 || !form.email.trim()) {
+        setErr("Nom, email, téléphone et mot de passe (8 caractères min.) sont obligatoires.");
+        setBusy(false);
         return;
       }
-      const success = register(form);
-      if (!success) {
-        setErr("Impossible de créer le compte. Vérifiez les informations et réessayez.");
+      try {
+        const result = await signUpCitizen({
+          email: form.email,
+          password: form.pin,
+          name: form.name,
+          phone: form.phone,
+          commune: form.commune,
+        });
+        if (!result.session) {
+          setErr("Vérifiez votre email avant de vous connecter.");
+          setMode("signin");
+          setBusy(false);
+          return;
+        }
+        await syncSupabaseUser();
+      } catch (error) {
+        setErr(error instanceof Error ? error.message : "Impossible de créer le compte Supabase.");
+        setBusy(false);
         return;
       }
     } else {
-      if (!signIn(form.phone, form.pin)) {
-        setErr("Téléphone ou code PIN incorrect.");
+      if (!form.email.trim() || form.pin.length < 8) {
+        setErr("Email et mot de passe (8 caractères min.) sont obligatoires.");
+        setBusy(false);
+        return;
+      }
+      try {
+        const result = await signInCitizen(form.email, form.pin);
+        if (!result.profile) {
+          setErr("Compte Auth trouvé, mais profil citoyen absent.");
+          setBusy(false);
+          return;
+        }
+        await syncSupabaseUser();
+      } catch (error) {
+        setErr(error instanceof Error ? error.message : "Email ou mot de passe incorrect.");
+        setBusy(false);
         return;
       }
     }
+    setBusy(false);
     if (postAuthRedirect && typeof window !== "undefined") {
       window.location.assign(postAuthRedirect);
     }
@@ -155,6 +218,18 @@ export function CitizenGate({
             )}
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Email
+              </label>
+              <input
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="vous@example.com"
+                type="email"
+                className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Téléphone
               </label>
               <input
@@ -167,14 +242,13 @@ export function CitizenGate({
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Code PIN (4 chiffres min)
+                Mot de passe (8 caractères min.)
               </label>
               <input
                 value={form.pin}
                 onChange={(e) => setForm({ ...form, pin: e.target.value })}
                 type="password"
-                inputMode="numeric"
-                placeholder="••••"
+                placeholder="********"
                 className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
               />
             </div>
@@ -184,7 +258,7 @@ export function CitizenGate({
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-eco px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-eco/30"
             >
               <ShieldCheck className="size-4" />
-              {mode === "signup" ? "Créer mon compte" : "Se connecter"}
+              {busy ? "Patientez..." : mode === "signup" ? "Créer mon compte" : "Se connecter"}
             </button>
             <Link
               to="/"

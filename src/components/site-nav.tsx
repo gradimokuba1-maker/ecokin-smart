@@ -1,5 +1,6 @@
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEcoUser } from "@/lib/user-store";
+import { signOutCitizen } from "@/lib/citizen-auth";
 import { useAccess } from "@/lib/access-store";
 import { formatNumber } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -82,7 +83,7 @@ const MOBILE_DRAWER_GROUPS = [
 export function SiteNav({ minimal }: SiteNavProps = {}) {
   const router = useRouter();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { user } = useEcoUser();
+  const { user, logout: logoutCitizen } = useEcoUser();
   const { session, logout } = useAccess();
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
@@ -110,6 +111,12 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
   };
 
   const mobileDashboardTo = authorityLink?.to ?? "/menagers";
+
+  const handleCitizenSignOut = async () => {
+    await signOutCitizen();
+    logoutCitizen();
+    setOpen(false);
+  };
 
   if (pathname === "/") {
     return null;
@@ -264,13 +271,17 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
                 </div>
               ))}
 
-              {session.role !== "citoyen" && (
+              {(session.role !== "citoyen" || user.registered) && (
                 <div className="space-y-2 border-t pt-4">
                   <button
                     type="button"
                     onClick={() => {
-                      logout();
-                      setOpen(false);
+                      if (session.role === "citoyen") {
+                        void handleCitizenSignOut();
+                      } else {
+                        logout();
+                        setOpen(false);
+                      }
                     }}
                     className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card/70 px-3 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-accent"
                   >
@@ -351,7 +362,15 @@ export function SiteNav({ minimal }: SiteNavProps = {}) {
               {session.role === "citoyen" ? user.name : session.name}
             </div>
           </div>
-          {session.role === "citoyen" ? null : (
+          {session.role === "citoyen" && user.registered ? (
+            <button
+              onClick={() => void handleCitizenSignOut()}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted"
+              title="Se déconnecter"
+            >
+              <LogOut className="size-3.5" /> Sortir
+            </button>
+          ) : session.role === "citoyen" ? null : (
             <button
               onClick={logout}
               className={`inline-flex items-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold ${isAuthority ? "border-white/20 text-white/80 hover:bg-white/10" : "border-border text-muted-foreground hover:bg-muted"}`}
